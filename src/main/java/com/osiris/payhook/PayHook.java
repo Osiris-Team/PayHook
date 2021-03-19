@@ -108,7 +108,7 @@ public class PayHook {
         // Check if the webhook types match
         List<String> validEventTypes = event.getValidTypesList();
 
-        // event_type can be either an json array or object. Do stuff accordingly.
+        // event_type can be either an json array or a normal field. Do stuff accordingly.
         JsonElement elementEventType = event.getBody().get("event_type");
         if (elementEventType==null) elementEventType = event.getBody().get("event_types"); // Check for event_types
         if (elementEventType==null) throw new ParseBodyException("Failed to find key 'event_type' or 'event_types' in the provided json body."); // if the element is still null
@@ -124,9 +124,8 @@ public class PayHook {
             }
         }
         else{
-            // This means we only have one event_type in the json
-            JsonObject objectEventType = elementEventType.getAsJsonObject();
-            String webHookType = objectEventType.getAsString();
+            // This means we only have one event_type in the json and not an array.
+            String webHookType = event.getBody().get("event_type").getAsString();
             if (!validEventTypes.contains(webHookType))
                 throw new WebHookValidationException("No valid type("+webHookType+") found in the valid types list: "+validEventTypes.toString());
         }
