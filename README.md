@@ -1,6 +1,6 @@
 # PayHook
 A Java-API for validating PayPals Webhooks.
-# NOTE: STILL IN DEVELOPMENT! FEATURES ARE FUNCTIONAL YET!
+# NOTE: STILL IN DEVELOPMENT! FEATURES ARE NOT FUNCTIONAL YET!
 ## Installation
 [Click here for maven/gradle/sbt/leinigen instructions.](https://jitpack.io/#Osiris-Team/PayHook/LATEST)
 Java 8+ required.
