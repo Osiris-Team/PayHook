@@ -47,7 +47,7 @@ public class PayHook {
      */
     public JsonObject parseAndGetBody(String bodyString) throws ParseBodyException {
         try{
-            return new Gson().fromJson(bodyString, JsonObject.class);
+            return JsonParser.parseString(bodyString).getAsJsonObject();
         } catch (Exception e) {
             throw new ParseBodyException(e.getMessage());
         }
