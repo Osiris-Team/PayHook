@@ -15,7 +15,72 @@ webhook events.
 This example uses spring(tomcat) to listen for POST post requests. 
 Nevertheless this can be easily ported to your web application.
 ```java
-Under construction...
+@RestController
+@RequestMapping(value = "paypal-hook", method = RequestMethod.POST)
+public class PayHookExample {
+
+    // This listens at https://.../paypal-hook/... for paypal notification messages and returns a text as response.
+    @GetMapping(produces = "text/plain")
+    public @ResponseBody String doMain(
+            HttpServletRequest request) {
+
+        AL.info("Received webhook event at .../paypal-hook/...");
+        try{
+
+            // Get the header and body
+            Map<String, String> headerAsMap  = getHeadersAsMap(request);
+            String              bodyAsString = getBodyAsString(request);
+
+            PayHook payHook = new PayHook();
+            WebhookEventHeader header = payHook.parseAndGetHeader(headerAsMap);
+            JsonObject         body   = payHook.parseAndGetBody(bodyAsString);
+
+            // Create this event
+            WebhookEvent event = new WebhookEvent(
+                    "insert your valid webhook id here", // Get it from here: https://developer.paypal.com/developer/applications/
+                    Arrays.asList("CHECKOUT.ORDER.APPROVED", "PAYMENTS.PAYMENT.CREATED"), // Insert your valid event type here. Full list of all event types/name here: https://developer.paypal.com/docs/api-basics/notifications/webhooks/event-names
+                    header,
+                    body);
+
+            // Do event validation
+            try{
+                payHook.validateWebHookEvent(event);
+                // Do stuff on validation success here
+            } catch (Exception e) {
+                System.out.println("Validation failed: "+e.getMessage());
+                // Do stuff on validation fail here
+            }
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "OK";
+    }
+
+    // Simple helper method to help you extract the headers from HttpServletRequest object.
+    private Map<String, String> getHeadersAsMap(HttpServletRequest request) {
+        Map<String, String> map = new HashMap<String, String>();
+        @SuppressWarnings("rawtypes")
+        Enumeration headerNames = request.getHeaderNames();
+        while (headerNames.hasMoreElements()) {
+            String key = (String) headerNames.nextElement();
+            String value = request.getHeader(key);
+            map.put(key, value);
+        }
+        return map;
+    }
+
+    // Simple helper method to fetch request data as a string from HttpServletRequest object.
+    private String getBodyAsString(HttpServletRequest request) throws IOException {
+        StringBuilder stringBuilder = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))){
+            String line = "";
+            while ((line=reader.readLine())!=null)
+                stringBuilder.append(line);
+        }
+        return stringBuilder.toString();
+    }
+}
 ```
 ## Validation workflow
 1. Receive a POST http request
