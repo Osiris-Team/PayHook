@@ -1,5 +1,6 @@
 package com.osiris.payhook;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.osiris.payhook.exceptions.ParseBodyException;
 
@@ -24,7 +25,7 @@ public class WebhookEvent {
         this.validTypesList = validTypesList;
         this.header = header;
         this.body = body;
-        this.bodyString = body.getAsString();
+        this.bodyString = new Gson().toJson(body);
     }
 
     /**
