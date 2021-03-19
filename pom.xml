@@ -6,7 +6,7 @@
 
     <groupId>com.osiris.payhook</groupId>
     <artifactId>PayHook</artifactId>
-    <version>1.3</version>
+    <version>1.4</version>
     <packaging>jar</packaging>
 
     <name>PayHook</name>
@@ -99,7 +99,8 @@
         <resources>
             <resource>
                 <directory>src/main/resources</directory>
-                <filtering>true</filtering>
+                <!--FILTERING MUST BE FALSE, BECAUSE WE DON'T WANT TO MODIFY THE CERTIFICATES IN RESOURCES-->
+                <filtering>false</filtering>
             </resource>
         </resources>
     </build>
