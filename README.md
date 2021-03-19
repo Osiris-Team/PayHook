@@ -1,6 +1,6 @@
 # PayHook
 A Java-API for validating PayPals Webhooks.
-# NOTE: Functionality was not fully tested yet!
+# NOTE: Functionality has not been fully tested yet!
 ## Installation
 [Click here for maven/gradle/sbt/leinigen instructions.](https://jitpack.io/#Osiris-Team/PayHook/LATEST)
 Java 8+ required.
@@ -12,8 +12,8 @@ is missing the webhook event validation feature, which was available in the old,
 That's why PayHook exists. Its aim, is to provide an easy to use Java-API for validating
 webhook events.
 ## Usage example
-This example uses spring(tomcat) to listen for POST post requests. 
-Nevertheless this can be easily ported to your web application.
+This example uses spring(tomcat) to listen for POST requests. 
+Nevertheless, this can be easily ported to your web application.
 ```java
 @RestController
 @RequestMapping(value = "paypal-hook", method = RequestMethod.POST)
