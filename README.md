@@ -24,7 +24,7 @@ public class PayHookExample {
     public @ResponseBody String doMain(
             HttpServletRequest request) {
 
-        AL.info("Received webhook event at .../paypal-hook/...");
+        System.out.println("Received webhook event at .../paypal-hook/...");
         try{
 
             // Get the header and body
