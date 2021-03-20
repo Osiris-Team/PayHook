@@ -26,16 +26,12 @@ public class PayHookExample {
 
         System.out.println("Received webhook event at .../paypal-hook/...");
         try{
-
-            // Get the header and body
-            Map<String, String> headerAsMap  = getHeadersAsMap(request);
-            String              bodyAsString = getBodyAsString(request);
-
             PayHook payHook = new PayHook();
             payHook.setSandboxMode(true); // Default is false. Remove this in production.
             
-            WebhookEventHeader header = payHook.parseAndGetHeader(headerAsMap);
-            JsonObject         body   = payHook.parseAndGetBody(bodyAsString);
+            // Get the header and body
+            WebhookEventHeader header = payHook.parseAndGetHeader(getHeadersAsMap(request));
+            JsonObject         body   = payHook.parseAndGetBody(getBodyAsString(request));
 
             // Create this event
             WebhookEvent event = new WebhookEvent(
