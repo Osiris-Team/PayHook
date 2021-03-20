@@ -80,14 +80,14 @@ public class PayHook {
     }
 
     /**
-     * See {@link #validateWebHookEvent(WebhookEvent)} (WebHookEvent)} for details.
+     * See {@link #validateWebhookEvent(WebhookEvent)} (WebHookEvent)} for details.
      * @param validId your webhooks valid id. Get it from here: https://developer.paypal.com/developer/applications/
      * @param validTypes your webhooks valid types/names. Here is a full list: https://developer.paypal.com/docs/api-basics/notifications/webhooks/event-names/
      * @param header the http messages header as string.
      * @param body the http messages body as string.
      */
-    public void validateWebHookEvent(String validId, List<String> validTypes, WebhookEventHeader header, String body) throws ParseBodyException, WebHookValidationException, CertificateException, NoSuchAlgorithmException, IOException, KeyStoreException, SignatureException, InvalidKeyException {
-        validateWebHookEvent(new WebhookEvent(validId, validTypes, header, body));
+    public void validateWebhookEvent(String validId, List<String> validTypes, WebhookEventHeader header, String body) throws ParseBodyException, WebHookValidationException, CertificateException, NoSuchAlgorithmException, IOException, KeyStoreException, SignatureException, InvalidKeyException {
+        validateWebhookEvent(new WebhookEvent(validId, validTypes, header, body));
     }
 
     /**
@@ -102,7 +102,7 @@ public class PayHook {
      * @throws WebHookValidationException if validation failed. IMPORTANT: MESSAGE MAY CONTAIN SENSITIVE INFORMATION!
      * @throws ParseBodyException
      */
-    public void validateWebHookEvent(WebhookEvent event) throws WebHookValidationException, ParseBodyException, IOException, CertificateException, KeyStoreException, NoSuchAlgorithmException, SignatureException, InvalidKeyException {
+    public void validateWebhookEvent(WebhookEvent event) throws WebHookValidationException, ParseBodyException, IOException, CertificateException, KeyStoreException, NoSuchAlgorithmException, SignatureException, InvalidKeyException {
         WebhookEventHeader header = event.getHeader();
 
         // Check if the webhook types match
@@ -149,8 +149,9 @@ public class PayHook {
         String expectedSignature      = String.format("%s|%s|%s|%s", transmissionId, transmissionTime, validWebhookId, SSLUtil.crc32(bodyString));
 
         // Compare the encoded signature with the expected signature
-        String decodedSignature = SSLUtil.validateAndGetSignatureAsString(clientCerts, authAlgo, actualSignatureEncoded, expectedSignature);
-        if (decodedSignature!=null){
+        String decodedSignature = SSLUtil.decodeTransmissionSignature(actualSignatureEncoded);
+        boolean isSigValid = SSLUtil.validateTransmissionSignature(clientCerts, authAlgo, actualSignatureEncoded, expectedSignature);
+        if (isSigValid){
             String[] arrayDecodedSignature = decodedSignature.split("\\|"); // Split by | char
             header.setWebhookId(arrayDecodedSignature[2]);
             header.setCrc32(arrayDecodedSignature[3]);
@@ -160,7 +161,7 @@ public class PayHook {
                 throw new WebHookValidationException("Provided webhook id("+header.getWebhookId()+") does not match the valid id("+event.getValidWebHookId()+")!");
         }
         else
-            throw new WebHookValidationException("Transmission signature is not valid!");
+            throw new WebHookValidationException("Transmission signature is not valid! Expected: '"+expectedSignature+"' Provided: '"+decodedSignature+"'");
     }
 
     /**

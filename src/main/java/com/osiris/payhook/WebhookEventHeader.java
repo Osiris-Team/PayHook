@@ -37,7 +37,7 @@ public class WebhookEventHeader {
 
     /**
      * IMPORTANT: SINCE THE WEBHOOK ID IS INSIDE THE ENCRYPTED TRANSMISSION SIGNATURE, THIS RETURNS NULL
-     * UNLESS YOU SUCCESSFULLY EXECUTED {@link PayHook#validateWebHookEvent(WebhookEvent)} ONCE BEFORE!
+     * UNLESS YOU SUCCESSFULLY EXECUTED {@link PayHook#validateWebhookEvent(WebhookEvent)} ONCE BEFORE!
      * The ID of the webhook resource for the destination URL to which PayPal delivers the event notification.
      */
     public String getWebhookId() {
@@ -50,7 +50,7 @@ public class WebhookEventHeader {
 
     /**
      * IMPORTANT: SINCE THE CRC32 IS INSIDE THE ENCRYPTED TRANSMISSION SIGNATURE, THIS RETURNS NULL
-     * UNLESS YOU SUCCESSFULLY EXECUTED {@link PayHook#validateWebHookEvent(WebhookEvent)} ONCE BEFORE!
+     * UNLESS YOU SUCCESSFULLY EXECUTED {@link PayHook#validateWebhookEvent(WebhookEvent)} ONCE BEFORE!
      * The Cyclic Redundancy Check (CRC32) checksum for the body of the HTTP payload.
      */
     public String getCrc32() {
