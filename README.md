@@ -44,7 +44,7 @@ public class PayHookExample {
 
             // Do event validation
             try{
-                payHook.validateWebHookEvent(event);
+                payHook.validateWebhookEvent(event);
                 // Do stuff on validation success here
             } catch (Exception e) {
                 System.out.println("Validation failed: "+e.getMessage());
