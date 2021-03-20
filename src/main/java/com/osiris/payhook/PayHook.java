@@ -31,11 +31,11 @@ public class PayHook {
      */
     public WebhookEventHeader parseAndGetHeader(Map<String, String> headerAsMap) throws ParseHeaderException {
         // Check if all keys we need exist
-        String transmissionId        = validateAndGet(headerAsMap, Constants.PAYPAL_HEADER_TRANSMISSION_ID);
-        String timestamp             = validateAndGet(headerAsMap, Constants.PAYPAL_HEADER_TRANSMISSION_TIME);
-        String transmissionSignature = validateAndGet(headerAsMap, Constants.PAYPAL_HEADER_TRANSMISSION_SIG);
-        String certUrl               = validateAndGet(headerAsMap, Constants.PAYPAL_HEADER_CERT_URL);
-        String authAlgorithm         = validateAndGet(headerAsMap, Constants.PAYPAL_HEADER_AUTH_ALGO);
+        String transmissionId        = validateKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_TRANSMISSION_ID);
+        String timestamp             = validateKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_TRANSMISSION_TIME);
+        String transmissionSignature = validateKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_TRANSMISSION_SIG);
+        String certUrl               = validateKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_CERT_URL);
+        String authAlgorithm         = validateKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_AUTH_ALGO);
 
         // Note that the webhook id and crc32 get set after the validation was run
         return new WebhookEventHeader(transmissionId, timestamp, transmissionSignature, authAlgorithm, certUrl);
@@ -60,7 +60,7 @@ public class PayHook {
      * @return the value mapped to the provided key.
      * @throws WebHookValidationException
      */
-    public String validateAndGet(Map<String, String> map, String key) throws ParseHeaderException {
+    public String validateKeyAndGetValue(Map<String, String> map, String key) throws ParseHeaderException {
         Objects.requireNonNull(map);
         Objects.requireNonNull(key);
 
@@ -140,55 +140,62 @@ public class PayHook {
         // Check the chain
         SSLUtil.validateCertificateChain(clientCerts, trustCerts, "RSA");
 
-        // We are done with validation here, if we are in sandbox mode.
-        // Because the next part will always fail if this event is a mock, sandbox event.
-        // For more information see: https://developer.paypal.com/docs/api-basics/notifications/webhooks/notification-messages/
-        if (isSandboxMode) return;
-
         // Construct expected signature
-        String validWebhookId         = event.getValidWebHookId();
-        String actualSignatureEncoded = header.getTransmissionSignature();
-        String authAlgo               = header.getAuthAlgorithm();
-        String transmissionId         = header.getTransmissionId();
-        String transmissionTime       = header.getTimestamp();
-        String bodyString             = event.getBodyString();
-        String expectedSignature      = String.format("%s|%s|%s|%s", transmissionId, transmissionTime, validWebhookId, SSLUtil.crc32(bodyString));
+        String validWebhookId           = event.getValidWebhookId();
+        String actualEncodedSignature   = header.getTransmissionSignature();
+        String authAlgo                 = header.getAuthAlgorithm();
+        String transmissionId           = header.getTransmissionId();
+        String transmissionTime         = header.getTimestamp();
+        String bodyString               = event.getBodyString();
+        String expectedDecodedSignature = String.format("%s|%s|%s|%s", transmissionId, transmissionTime, validWebhookId, SSLUtil.crc32(bodyString));
 
-        // Compare the encoded signature with the expected signature
-        String decodedSignature = SSLUtil.decodeTransmissionSignature(actualSignatureEncoded);
-        boolean isSigValid = SSLUtil.validateTransmissionSignature(clientCerts, authAlgo, actualSignatureEncoded, expectedSignature);
+        // Decode the actual signature and update the event object with its data
+        String decodedSignature = SSLUtil.decodeTransmissionSignature(actualEncodedSignature);
+        String[] arrayDecodedSignature = decodedSignature.split("\\|"); // Split by | char, because the decoded string should look like this: <transmissionId>|<timeStamp>|<webhookId>|<crc32>
+        header.setWebhookId(arrayDecodedSignature[2]);
+        header.setCrc32(arrayDecodedSignature[3]);
+
+        // Validate the encoded signature.
+        // If we are in sandbox mode, we are done with validation here,
+        // because the next part will always fail if this event is a mock, sandbox event.
+        // For more information see: https://developer.paypal.com/docs/api-basics/notifications/webhooks/notification-messages/
+        if (isSandboxMode) {
+            event.setValid(true);
+            return;
+        }
+
+        boolean isSigValid = SSLUtil.validateTransmissionSignature(clientCerts, authAlgo, actualEncodedSignature, expectedDecodedSignature);
         if (isSigValid){
-            String[] arrayDecodedSignature = decodedSignature.split("\\|"); // Split by | char
-            header.setWebhookId(arrayDecodedSignature[2]);
-            header.setCrc32(arrayDecodedSignature[3]);
-
             // Lastly check if the webhook ids match
-            if (!header.getWebhookId().equals(event.getValidWebHookId()))
-                throw new WebHookValidationException("Provided webhook id("+header.getWebhookId()+") does not match the valid id("+event.getValidWebHookId()+")!");
+            if (!header.getWebhookId().equals(event.getValidWebhookId()))
+                throw new WebHookValidationException("The events provided webhook id("+header.getWebhookId()+") does not match the valid id("+event.getValidWebhookId()+")!");
+
+            event.setValid(true);
         }
         else
-            throw new WebHookValidationException("Transmission signature is not valid! Expected: '"+expectedSignature+"' Provided: '"+decodedSignature+"'");
+            throw new WebHookValidationException("Transmission signature is not valid! Expected: '"+expectedDecodedSignature+"' Provided: '"+decodedSignature+"'");
     }
 
     /**
      * Formats all of the WebHooks information to a String and returns it.
      * @param webHookEvent
      */
-    public String getWebHookAsString(WebhookEvent webHookEvent) {
+    public String getWebhookAsString(WebhookEvent webHookEvent) {
         Objects.requireNonNull(webHookEvent);
 
         StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("Information for object "+webHookEvent +System.lineSeparator());
+        stringBuilder.append(System.lineSeparator());
+        stringBuilder.append("Information for object: "+webHookEvent +System.lineSeparator());
 
         // Add your info
         stringBuilder.append(System.lineSeparator());
-        stringBuilder.append("webhook-id: "+webHookEvent.getValidWebHookId() +System.lineSeparator());
-        stringBuilder.append("webhook-type: "+webHookEvent.getValidTypesList() +System.lineSeparator());
+        stringBuilder.append("VALID-webhook-id: "+webHookEvent.getValidWebhookId() +System.lineSeparator());
+        stringBuilder.append("VALID-webhook-types: "+webHookEvent.getValidTypesList().toString() +System.lineSeparator());
 
         // Add header info
         stringBuilder.append(System.lineSeparator());
         WebhookEventHeader header = webHookEvent.getHeader();
-        stringBuilder.append("header stuff: ");
+        stringBuilder.append("header stuff: "+System.lineSeparator());
         stringBuilder.append("webhook-id: "+header.getWebhookId() +System.lineSeparator());
         stringBuilder.append("transmission-id: "+header.getTransmissionId() +System.lineSeparator());
         stringBuilder.append("timestamp: "+header.getTimestamp() +System.lineSeparator());
