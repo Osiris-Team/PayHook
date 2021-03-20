@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 
 public class PayHook {
+    private boolean isSandboxMode = false;
 
     /**
      * Parses the header, represented as {@link Map},
@@ -139,6 +140,11 @@ public class PayHook {
         // Check the chain
         SSLUtil.validateCertificateChain(clientCerts, trustCerts, "RSA");
 
+        // We are done with validation here, if we are in sandbox mode.
+        // Because the next part will always fail if this event is a mock, sandbox event.
+        // For more information see: https://developer.paypal.com/docs/api-basics/notifications/webhooks/notification-messages/
+        if (isSandboxMode) return;
+
         // Construct expected signature
         String validWebhookId         = event.getValidWebHookId();
         String actualSignatureEncoded = header.getTransmissionSignature();
@@ -201,4 +207,11 @@ public class PayHook {
         return stringBuilder.toString();
     }
 
+    public boolean isSandboxMode() {
+        return isSandboxMode;
+    }
+
+    public void setSandboxMode(boolean sandboxMode) {
+        isSandboxMode = sandboxMode;
+    }
 }

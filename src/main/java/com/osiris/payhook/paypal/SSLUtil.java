@@ -171,6 +171,6 @@ public abstract class SSLUtil {
 	}
 
 	public static String decodeTransmissionSignature(String encodedSignature){
-		return new String(Base64.decodeBase64(encodedSignature.getBytes()));
+		return new String(Base64.decodeBase64(encodedSignature.getBytes()), StandardCharsets.UTF_8);
 	}
 }

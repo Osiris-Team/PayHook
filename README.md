@@ -32,6 +32,8 @@ public class PayHookExample {
             String              bodyAsString = getBodyAsString(request);
 
             PayHook payHook = new PayHook();
+            payHook.setSandboxMode(true); // Default is false. Remove this in production.
+            
             WebhookEventHeader header = payHook.parseAndGetHeader(headerAsMap);
             JsonObject         body   = payHook.parseAndGetBody(bodyAsString);
 
