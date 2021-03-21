@@ -37,7 +37,7 @@ public class PayHookExample {
             // Create this event
             WebhookEvent event = new WebhookEvent(
                     "insert your valid webhook id here", // Get it from here: https://developer.paypal.com/developer/applications/
-                    Arrays.asList("CHECKOUT.ORDER.APPROVED", "PAYMENTS.PAYMENT.CREATED"), // Insert your valid event type here. Full list of all event types/name here: https://developer.paypal.com/docs/api-basics/notifications/webhooks/event-names
+                    Arrays.asList("CHECKOUT.ORDER.APPROVED", "PAYMENTS.PAYMENT.CREATED"), // Insert your valid event types/names here. Full list of all event types/names here: https://developer.paypal.com/docs/api-basics/notifications/webhooks/event-names
                     header,
                     body);
 
