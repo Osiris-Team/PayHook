@@ -42,16 +42,12 @@ public class PayHookExample {
                     body);
 
             // Do event validation
-            try{
-                payHook.validateWebhookEvent(event);
-                // Do stuff on validation success here
-            } catch (Exception e) {
-                System.out.println("Validation failed: "+e.getMessage());
-                // Do stuff on validation fail here
-            }
+            payHook.validateWebhookEvent(event); 
+            System.out.println("Validation successful!");
 
         } catch (Exception e) {
             e.printStackTrace();
+            System.out.println("Validation failed: "+e.getMessage());
         }
         return "OK";
     }
