@@ -9,8 +9,8 @@ Make sure to watch this repository to get notified of future updates.
 Basically PayPals latest [Checkout v2 Java-SDK](https://github.com/paypal/Checkout-Java-SDK)
 is missing the webhook event validation feature, which was available in the old, deprecated
 [PayPal Java-SDK](https://github.com/paypal/PayPal-Java-SDK).
-That's why PayHook exists. Its aim, is to provide an easy to use Java-API for validating
-webhook events.
+That's why PayHook exists. Its aim, is to provide a fast and easy to use Java-API for validating
+webhook events, without the need of any extra dependencies.
 PayHook is based on the official, old [PayPal Java-SDK](https://github.com/paypal/PayPal-Java-SDK).
 ## Usage example
 This example uses spring(tomcat) to listen for POST requests. 
