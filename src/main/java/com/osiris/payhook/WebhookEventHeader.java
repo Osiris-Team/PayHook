@@ -1,5 +1,12 @@
 package com.osiris.payhook;
 
+import java.util.Map;
+
+/**
+ * Contains the {@link WebhookEvent}s headers
+ * essential information for its validation. <br>
+ * Can be created thorough {@link PayHook#parseAndGetHeader(Map)}.
+ */
 public class WebhookEventHeader {
     private String transmissionId;
     private String timestamp;
@@ -9,6 +16,11 @@ public class WebhookEventHeader {
     private String authAlgorithm;
     private String certUrl;
 
+    /**
+     * Contains the {@link WebhookEvent}s headers
+     * essential information for its validation.
+     * Can be created thorough {@link PayHook#parseAndGetHeader(Map)}.
+     */
     public WebhookEventHeader(String transmissionId, String timestamp, String transmissionSignature, String authAlgorithm, String certUrl) {
         this.transmissionId = transmissionId;
         this.timestamp = timestamp;
@@ -36,27 +48,33 @@ public class WebhookEventHeader {
     }
 
     /**
-     * IMPORTANT: SINCE THE WEBHOOK ID IS INSIDE THE ENCRYPTED TRANSMISSION SIGNATURE, THIS RETURNS NULL
+     * The ID of the webhook resource for the destination URL to which PayPal delivers the event notification. <br>
+     * IMPORTANT: SINCE THE WEBHOOK-ID IS INSIDE THE ENCODED TRANSMISSION-SIGNATURE, THIS RETURNS NULL
      * UNLESS YOU SUCCESSFULLY EXECUTED {@link PayHook#validateWebhookEvent(WebhookEvent)} ONCE BEFORE!
-     * The ID of the webhook resource for the destination URL to which PayPal delivers the event notification.
      */
     public String getWebhookId() {
         return webhookId;
     }
 
+    /**
+     * See {@link WebhookEventHeader#getWebhookId()} for details.
+     */
     public void setWebhookId(String webhookId) {
         this.webhookId = webhookId;
     }
 
     /**
-     * IMPORTANT: SINCE THE CRC32 IS INSIDE THE ENCRYPTED TRANSMISSION SIGNATURE, THIS RETURNS NULL
+     * The Cyclic Redundancy Check (CRC32) checksum for the body of the HTTP payload. <br>
+     * IMPORTANT: SINCE THE CRC32 IS INSIDE THE ENCODED TRANSMISSION-SIGNATURE, THIS RETURNS NULL
      * UNLESS YOU SUCCESSFULLY EXECUTED {@link PayHook#validateWebhookEvent(WebhookEvent)} ONCE BEFORE!
-     * The Cyclic Redundancy Check (CRC32) checksum for the body of the HTTP payload.
      */
     public String getCrc32() {
         return crc32;
     }
 
+    /**
+     * See {@link WebhookEventHeader#getCrc32()} for details.
+     */
     public void setCrc32(String crc32) {
         this.crc32 = crc32;
     }

@@ -6,6 +6,11 @@ import com.osiris.payhook.exceptions.ParseBodyException;
 
 import java.util.List;
 
+
+/**
+ * The in-memory representation of a Webhook event/notification. <br>
+ * Can be validated through {@link PayHook#validateWebhookEvent(WebhookEvent)}.
+ */
 public class WebhookEvent {
     private String validWebhookId;
     private List<String> validTypesList;
@@ -15,7 +20,8 @@ public class WebhookEvent {
     private boolean isValid = false;
 
     /**
-     * The in-memory representation of a webhook event.
+     * The in-memory representation of a Webhook event/notification. <br>
+     * Can be validated through {@link PayHook#validateWebhookEvent(WebhookEvent)}.
      * @param validWebhookId your webhooks valid id. Get it from here: https://developer.paypal.com/developer/applications/
      * @param validTypesList your webhooks valid types/names. Here is a full list: https://developer.paypal.com/docs/api-basics/notifications/webhooks/event-names/
      * @param header the http messages header as {@link WebhookEventHeader}.

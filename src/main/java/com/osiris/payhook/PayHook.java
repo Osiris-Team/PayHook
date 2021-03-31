@@ -21,46 +21,48 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * Contains methods for validating
+ * WebHook events/notifications and some
+ * utility methods.
+ */
 public class PayHook {
     private boolean isSandboxMode = false;
 
     /**
-     * Parses the header, represented as {@link Map},
+     * Parses the provided header {@link Map}
      * into a {@link WebhookEventHeader} object and returns it.
-     * @throws ParseHeaderException if this operation fails.
      */
     public WebhookEventHeader parseAndGetHeader(Map<String, String> headerAsMap) throws ParseHeaderException {
         // Check if all keys we need exist
-        String transmissionId        = validateKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_TRANSMISSION_ID);
-        String timestamp             = validateKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_TRANSMISSION_TIME);
-        String transmissionSignature = validateKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_TRANSMISSION_SIG);
-        String certUrl               = validateKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_CERT_URL);
-        String authAlgorithm         = validateKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_AUTH_ALGO);
+        String transmissionId        = checkKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_TRANSMISSION_ID);
+        String timestamp             = checkKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_TRANSMISSION_TIME);
+        String transmissionSignature = checkKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_TRANSMISSION_SIG);
+        String certUrl               = checkKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_CERT_URL);
+        String authAlgorithm         = checkKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_AUTH_ALGO);
 
         // Note that the webhook id and crc32 get set after the validation was run
         return new WebhookEventHeader(transmissionId, timestamp, transmissionSignature, authAlgorithm, certUrl);
     }
 
     /**
-     * Parses the body, represented as {@link String},
+     * Parses the provided body {@link String}
      * into a {@link JsonObject} and returns it.
-     * @throws ParseBodyException if this operation fails.
      */
-    public JsonObject parseAndGetBody(String bodyString) throws ParseBodyException {
+    public JsonObject parseAndGetBody(String bodyAsString) throws ParseBodyException {
         try{
-            return JsonParser.parseString(bodyString).getAsJsonObject();
+            return JsonParser.parseString(bodyAsString).getAsJsonObject();
         } catch (Exception e) {
             throw new ParseBodyException(e.getMessage());
         }
     }
 
     /**
-     * Checks if the provided key exists in the map and returns its value.
-     * The keys existence is checked by {@link String#equalsIgnoreCase(String)}, so that its case is ignored.
+     * Checks if the provided key exists in the provided map and returns its value. <br>
+     * The keys existence is checked by {@link String#equalsIgnoreCase(String)}, so that its case is ignored. <br>
      * @return the value mapped to the provided key.
-     * @throws WebHookValidationException
      */
-    public String validateKeyAndGetValue(Map<String, String> map, String key) throws ParseHeaderException {
+    public String checkKeyAndGetValue(Map<String, String> map, String key) throws ParseHeaderException {
         Objects.requireNonNull(map);
         Objects.requireNonNull(key);
 
@@ -81,7 +83,8 @@ public class PayHook {
     }
 
     /**
-     * See {@link #validateWebhookEvent(WebhookEvent)} (WebHookEvent)} for details.
+     * Creates a new {@link WebhookEvent} and validates it. <br>
+     * See {@link #validateWebhookEvent(WebhookEvent)} for details. <br>
      * @param validId your webhooks valid id. Get it from here: https://developer.paypal.com/developer/applications/
      * @param validTypes your webhooks valid types/names. Here is a full list: https://developer.paypal.com/docs/api-basics/notifications/webhooks/event-names/
      * @param header the http messages header as string.
@@ -92,16 +95,20 @@ public class PayHook {
     }
 
     /**
-     * Performs various checks to see if the received {@link WebhookEvent} is valid or not.
-     * Performed checks:
-     * Is this events name/type in the valid events list?
-     * Are this events certificates valid?
-     * Is this events data/transmission-signature valid?
-     * Do the webhook ids match?
-     * @param event
-     * @return true if the webhook event is valid
-     * @throws WebHookValidationException if validation failed. IMPORTANT: MESSAGE MAY CONTAIN SENSITIVE INFORMATION!
-     * @throws ParseBodyException
+     * Validate the provided {@link WebhookEvent}.<br>
+     * Throws an {@link Exception} if the validation fails. <br>
+     * Performed checks: <br>
+     * <ul>
+     *   <li>Is the name/type valid?</li>
+     *   <li>Are the certificates valid?</li>
+     *   <li>Is the data/transmission-signature valid? (not in sandbox-mode)</li>
+     *   <li>Do the webhook ids match? (not in sandbox-mode)</li>
+     * </ul>
+     * Note: Since the transmission-signature is <u>not</u> decoded in sandbox-mode
+     * {@link WebhookEventHeader#getWebhookId()} and {@link WebhookEventHeader#getCrc32()}
+     * will return encoded values, that are <u>not</u> readable.
+     * @param event The {@link WebhookEvent} to validate.
+     * @throws WebHookValidationException <b style='color:red' >IMPORTANT: MESSAGE MAY CONTAIN SENSITIVE INFORMATION!</b>
      */
     public void validateWebhookEvent(WebhookEvent event) throws WebHookValidationException, ParseBodyException, IOException, CertificateException, KeyStoreException, NoSuchAlgorithmException, SignatureException, InvalidKeyException {
         WebhookEventHeader header = event.getHeader();
@@ -177,10 +184,9 @@ public class PayHook {
     }
 
     /**
-     * Formats all of the WebHooks information to a String and returns it.
-     * @param webHookEvent
+     * Formats all of the {@link WebhookEvent} information to a {@link String} and returns it.
      */
-    public String getWebhookAsString(WebhookEvent webHookEvent) {
+    public String getWebhookEventAsString(WebhookEvent webHookEvent) {
         Objects.requireNonNull(webHookEvent);
 
         StringBuilder stringBuilder = new StringBuilder();
@@ -214,10 +220,20 @@ public class PayHook {
         return stringBuilder.toString();
     }
 
+    /**
+     * See {@link PayHook#setSandboxMode(boolean)} for details.
+     */
     public boolean isSandboxMode() {
         return isSandboxMode;
     }
 
+    /**
+     * Enable/Disable the sandbox-mode. <br>
+     * Disabled by default. <br>
+     * If enabled some validation checks, which only succeed for
+     * live applications, wont be done. <br>
+     * See {@link PayHook#validateWebhookEvent(WebhookEvent)} for details.
+     */
     public void setSandboxMode(boolean sandboxMode) {
         isSandboxMode = sandboxMode;
     }
