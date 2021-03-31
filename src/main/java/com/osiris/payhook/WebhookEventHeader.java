@@ -49,8 +49,10 @@ public class WebhookEventHeader {
 
     /**
      * The ID of the webhook resource for the destination URL to which PayPal delivers the event notification. <br>
-     * IMPORTANT: SINCE THE WEBHOOK-ID IS INSIDE THE ENCODED TRANSMISSION-SIGNATURE, THIS RETURNS NULL
-     * UNLESS YOU SUCCESSFULLY EXECUTED {@link PayHook#validateWebhookEvent(WebhookEvent)} ONCE BEFORE!
+     * NOTE 1: SINCE THE WEBHOOK-ID IS INSIDE THE ENCODED TRANSMISSION-SIGNATURE, THIS RETURNS NULL
+     * UNLESS YOU SUCCESSFULLY EXECUTED {@link PayHook#validateWebhookEvent(WebhookEvent)} ONCE BEFORE! <br>
+     * NOTE 2: IF YOU HAVE SANDBOX-MODE ENABLED THIS WILL ALWAYS RETURN NULL, EVEN IF YOU ALREADY
+     * EXECUTED {@link PayHook#validateWebhookEvent(WebhookEvent)} ONCE BEFORE.
      */
     public String getWebhookId() {
         return webhookId;
@@ -65,8 +67,10 @@ public class WebhookEventHeader {
 
     /**
      * The Cyclic Redundancy Check (CRC32) checksum for the body of the HTTP payload. <br>
-     * IMPORTANT: SINCE THE CRC32 IS INSIDE THE ENCODED TRANSMISSION-SIGNATURE, THIS RETURNS NULL
-     * UNLESS YOU SUCCESSFULLY EXECUTED {@link PayHook#validateWebhookEvent(WebhookEvent)} ONCE BEFORE!
+     * NOTE 1: SINCE THE CRC32 IS INSIDE THE ENCODED TRANSMISSION-SIGNATURE, THIS RETURNS NULL
+     * UNLESS YOU SUCCESSFULLY EXECUTED {@link PayHook#validateWebhookEvent(WebhookEvent)} ONCE BEFORE! <br>
+     * NOTE 2: IF YOU HAVE SANDBOX-MODE ENABLED THIS WILL ALWAYS RETURN NULL, EVEN IF YOU ALREADY
+     * EXECUTED {@link PayHook#validateWebhookEvent(WebhookEvent)} ONCE BEFORE. <br>
      */
     public String getCrc32() {
         return crc32;

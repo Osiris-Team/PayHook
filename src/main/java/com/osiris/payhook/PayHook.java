@@ -28,6 +28,7 @@ import java.util.Objects;
  */
 public class PayHook {
     private boolean isSandboxMode = false;
+    private boolean isWarnIfSandboxModeIsEnabled = true;
 
     /**
      * Parses the provided header {@link Map}
@@ -111,6 +112,10 @@ public class PayHook {
      * @throws WebHookValidationException <b style='color:red' >IMPORTANT: MESSAGE MAY CONTAIN SENSITIVE INFORMATION!</b>
      */
     public void validateWebhookEvent(WebhookEvent event) throws WebHookValidationException, ParseBodyException, IOException, CertificateException, KeyStoreException, NoSuchAlgorithmException, SignatureException, InvalidKeyException {
+
+        if (isSandboxMode && isWarnIfSandboxModeIsEnabled)
+            System.out.println("[PAYHOOK] NOTE THAT SANDBOX-MODE IS ENABLED!");
+
         WebhookEventHeader header = event.getHeader();
 
         // Check if the webhook types match
@@ -147,6 +152,16 @@ public class PayHook {
         // Check the chain
         SSLUtil.validateCertificateChain(clientCerts, trustCerts, "RSA");
 
+        // Validate the encoded signature.
+        // Note:
+        // If we are in sandbox mode, we are done with validation here,
+        // because the next part will always fail if this event is a mock, sandbox event.
+        // For more information see: https://developer.paypal.com/docs/api-basics/notifications/webhooks/notification-messages/
+        if (isSandboxMode) {
+            event.setValid(true);
+            return;
+        }
+
         // Construct expected signature
         String validWebhookId           = event.getValidWebhookId();
         String actualEncodedSignature   = header.getTransmissionSignature();
@@ -161,15 +176,6 @@ public class PayHook {
         String[] arrayDecodedSignature = decodedSignature.split("\\|"); // Split by | char, because the decoded string should look like this: <transmissionId>|<timeStamp>|<webhookId>|<crc32>
         header.setWebhookId(arrayDecodedSignature[2]);
         header.setCrc32(arrayDecodedSignature[3]);
-
-        // Validate the encoded signature.
-        // If we are in sandbox mode, we are done with validation here,
-        // because the next part will always fail if this event is a mock, sandbox event.
-        // For more information see: https://developer.paypal.com/docs/api-basics/notifications/webhooks/notification-messages/
-        if (isSandboxMode) {
-            event.setValid(true);
-            return;
-        }
 
         boolean isSigValid = SSLUtil.validateTransmissionSignature(clientCerts, authAlgo, actualEncodedSignature, expectedDecodedSignature);
         if (isSigValid){
@@ -236,5 +242,21 @@ public class PayHook {
      */
     public void setSandboxMode(boolean sandboxMode) {
         isSandboxMode = sandboxMode;
+    }
+
+    /**
+     * See {@link PayHook#setWarnIfSandboxModeIsEnabled(boolean)} for details.
+     */
+    public boolean isWarnIfSandboxModeIsEnabled() {
+        return isWarnIfSandboxModeIsEnabled;
+    }
+
+    /**
+     * If enabled a warning is printed to {@link System#out}
+     * each time before performing a validation, stating that the sandbox-mode is enabled. <br>
+     * Enabled by default. <br>
+     */
+    public void setWarnIfSandboxModeIsEnabled(boolean warnIfSandboxModeIsEnabled) {
+        isWarnIfSandboxModeIsEnabled = warnIfSandboxModeIsEnabled;
     }
 }

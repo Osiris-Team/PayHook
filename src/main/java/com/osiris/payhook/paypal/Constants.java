@@ -25,10 +25,4 @@ public final class Constants {
     // Default Trust Certificate that comes packaged with SDK.
     public static final String PAYPAL_TRUST_DEFAULT_CERT = "DigiCertSHA2ExtendedValidationServerCA.crt";
 
-    // Webhook Id to be set for validation purposes
-    public static final String PAYPAL_WEBHOOK_ID = "webhook.id";
-
-    // Webhook Id to be set for validation purposes
-    public static final String PAYPAL_WEBHOOK_CERTIFICATE_AUTHTYPE = "webhook.authType";
-
 }
