@@ -13,7 +13,7 @@ is missing the webhook event validation feature, which was available in the old,
 [PayPal Java-SDK](https://github.com/paypal/PayPal-Java-SDK).
 That's why PayHook exists. Its aim, is to provide a fast and easy to use Java-API for validating
 webhook events, without the need of any extra dependencies.
-PayHook is based on the official, old [PayPal Java-SDK](https://github.com/paypal/PayPal-Java-SDK).
+PayHooks validation methods are based on the official, old [PayPal Java-SDKs](https://github.com/paypal/PayPal-Java-SDK) methods and were enhanced for greater functionality/performance.
 ## Usage example
 This example uses spring(tomcat) to listen for POST requests. 
 Nevertheless, this can be easily ported to your web application.
