@@ -22,7 +22,8 @@ Nevertheless, this can be easily ported to your web application.
 @RequestMapping(value = "paypal-hook", method = RequestMethod.POST)
 public class PayHookExample {
 
-    // This listens at https://.../paypal-hook/... for paypal notification messages and returns a text as response.
+    // This listens at https://.../paypal-hook
+    // for paypal notification messages and returns a "OK" text as response.
     @GetMapping(produces = "text/plain")
     public @ResponseBody String doMain(
             HttpServletRequest request) {
