@@ -1,6 +1,6 @@
 # PayHook [![](https://jitpack.io/v/Osiris-Team/PayHook.svg)](https://jitpack.io/#Osiris-Team/PayHook)
 A Java-API for validating PayPals Webhook events/notifications.
-# NOTE: STILL IN DEVELOPMENT! MAY NOT BE FULLY FUNCTIONAL YET!
+## NOTE: STILL IN DEVELOPMENT! MAY NOT BE FULLY FUNCTIONAL YET!
 ### Sandbox mode was tested and is functional. 
 ### 'Real' mode was not yet tested.
 ## Links
