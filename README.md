@@ -27,7 +27,7 @@ public class PayHookExample {
     // This listens at https://.../paypal-hook
     // for paypal notification messages and returns a "OK" text as response.
     @GetMapping(produces = "text/plain")
-    public @ResponseBody String doMain(HttpServletRequest request) {
+    public @ResponseBody String receiveAndRespond(HttpServletRequest request) {
 
         System.out.println("Received webhook event at .../paypal-hook/...");
         try{
