@@ -78,10 +78,6 @@ public class PayHookExample {
     }
 }
 ```
-## Validation workflow
-1. Receive a POST http request
-2. Parse it into a WebHookEvent object
-3. Validate the event
 ## FAQ
 <div>
 <details>
