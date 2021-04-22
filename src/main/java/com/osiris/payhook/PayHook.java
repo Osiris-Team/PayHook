@@ -105,9 +105,9 @@ public class PayHook {
      *   <li>Is the data/transmission-signature valid? (not in sandbox-mode)</li>
      *   <li>Do the webhook ids match? (not in sandbox-mode)</li>
      * </ul>
-     * Note: Since the transmission-signature is <u>not</u> decoded in sandbox-mode
-     * {@link WebhookEventHeader#getWebhookId()} and {@link WebhookEventHeader#getCrc32()}
-     * will return encoded values, that are <u>not</u> readable.
+     * Note: {@link WebhookEventHeader#getWebhookId()} and {@link WebhookEventHeader#getCrc32()} return null,
+     * if you have sandbox-mode <u>enabled</u> since the transmission-signature is <u>not</u> decoded in sandbox-mode.
+     *
      * @param event The {@link WebhookEvent} to validate.
      * @throws WebHookValidationException <b style='color:red' >IMPORTANT: MESSAGE MAY CONTAIN SENSITIVE INFORMATION!</b>
      */
@@ -178,13 +178,8 @@ public class PayHook {
         header.setCrc32(arrayDecodedSignature[3]);
 
         boolean isSigValid = SSLUtil.validateTransmissionSignature(clientCerts, authAlgo, actualEncodedSignature, expectedDecodedSignature);
-        if (isSigValid){
-            // Lastly check if the webhook ids match
-            if (!header.getWebhookId().equals(event.getValidWebhookId()))
-                throw new WebHookValidationException("The events provided webhook id("+header.getWebhookId()+") does not match the valid id("+event.getValidWebhookId()+")!");
-
+        if (isSigValid)
             event.setValid(true);
-        }
         else
             throw new WebHookValidationException("Transmission signature is not valid! Expected: '"+expectedDecodedSignature+"' Provided: '"+decodedSignature+"'");
     }
@@ -253,7 +248,7 @@ public class PayHook {
 
     /**
      * If enabled a warning is printed to {@link System#out}
-     * each time before performing a validation, stating that the sandbox-mode is enabled. <br>
+     * every time before performing a validation, stating that the sandbox-mode is enabled. <br>
      * Enabled by default. <br>
      */
     public void setWarnIfSandboxModeIsEnabled(boolean warnIfSandboxModeIsEnabled) {
