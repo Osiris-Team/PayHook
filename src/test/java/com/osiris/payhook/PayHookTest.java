@@ -73,6 +73,6 @@ class PayHookTest {
                 "    }\n" +
                 "  ]\n" +
                 "}";
-        new PayHook().parseAndGetBody(sampleBodyString);
+        new PayHook(PayHookValidationType.OFFLINE).parseAndGetBody(sampleBodyString);
     }
 }

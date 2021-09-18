@@ -8,13 +8,13 @@ import java.util.Map;
  * Can be created thorough {@link PayHook#parseAndGetHeader(Map)}.
  */
 public class WebhookEventHeader {
-    private String transmissionId;
-    private String timestamp;
+    private final String transmissionId;
+    private final String timestamp;
     private String webhookId;
     private String crc32;
-    private String transmissionSignature;
-    private String authAlgorithm;
-    private String certUrl;
+    private final String transmissionSignature;
+    private final String authAlgorithm;
+    private final String certUrl;
 
     /**
      * Contains the {@link WebhookEvent}s headers

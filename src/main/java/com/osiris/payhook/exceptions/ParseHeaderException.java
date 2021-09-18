@@ -1,6 +1,6 @@
 package com.osiris.payhook.exceptions;
 
-public class ParseHeaderException extends Exception{
+public class ParseHeaderException extends Exception {
     public ParseHeaderException() {
     }
 

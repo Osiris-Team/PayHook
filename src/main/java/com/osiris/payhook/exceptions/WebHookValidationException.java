@@ -3,7 +3,7 @@ package com.osiris.payhook.exceptions;
 /**
  * Thrown when the webhook couldn't be validated.
  */
-public class WebHookValidationException extends Exception{
+public class WebHookValidationException extends Exception {
     public WebHookValidationException() {
     }
 

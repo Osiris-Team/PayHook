@@ -27,31 +27,26 @@ public class PayHookExample {
     @GetMapping(produces = "text/plain")
     public @ResponseBody String receiveAndRespond(HttpServletRequest request) {
 
-        System.out.println("Received webhook event at .../paypal-hook/...");
+        System.out.println("Received webhook event. Validating...");
         try{
-            PayHook payHook = new PayHook();
+            PayHook payHook = new PayHook("INSERT_CLIENT_ID", "INSERT_CLIENT_SECRET");
             payHook.setSandboxMode(true); // Default is false. Remove this in production.
             
-            // Get the header and body
-            WebhookEventHeader header = payHook.parseAndGetHeader(getHeadersAsMap(request));
-            JsonObject         body   = payHook.parseAndGetBody(getBodyAsString(request));
-
-            // Create this event
-            WebhookEvent event = new WebhookEvent(
-                    "insert your valid webhook id here", // Get it from here: https://developer.paypal.com/developer/applications/
+            boolean isValid = payHook.isWebhookEventValid("INSERT_VALID_WEBHOOK_ID", // Get it from here: https://developer.paypal.com/developer/applications/
                     Arrays.asList("CHECKOUT.ORDER.APPROVED", "PAYMENTS.PAYMENT.CREATED"), // Insert your valid event types/names here. Full list of all event types/names here: https://developer.paypal.com/docs/api-basics/notifications/webhooks/event-names
-                    header,
-                    body);
+                    getHeadersAsMap(request),
+                    getBodyAsString(request));
 
-            // Do event validation
-            payHook.validateWebhookEvent(event); 
-            System.out.println("Validation successful!");
+            if (isValid) 
+                System.out.println("Webhook-Event is valid!");
+            else
+                System.err.println("Webhook-Event is not valid!");
 
         } catch (Exception e) {
             e.printStackTrace();
             System.out.println("Validation failed: "+e.getMessage());
         }
-        return "OK";
+        return "OK"; // Always return status code 200 with an "OK" text no matter what the result to annoy attackers.
     }
 
     // Simple helper method to help you extract the headers from HttpServletRequest object.

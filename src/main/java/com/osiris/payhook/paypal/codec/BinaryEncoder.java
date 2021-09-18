@@ -5,9 +5,9 @@
  * The ASF licenses this file to You under the Apache License, Version 2.0
  * (the "License"); you may not use this file except in compliance with
  * the License.  You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -21,23 +21,21 @@ import com.osiris.payhook.exceptions.EncoderException;
 
 /**
  * Defines common encoding methods for byte array encoders.
- * 
+ *
  * @author Apache Software Foundation
  * @version $Id: BinaryEncoder.java 1157192 2011-08-12 17:27:38Z ggregory $
  */
 public interface BinaryEncoder extends Encoder {
-    
+
     /**
      * Encodes a byte array and return the encoded data
      * as a byte array.
-     * 
-     * @param source Data to be encoded
      *
+     * @param source Data to be encoded
      * @return A byte array containing the encoded data
-     * 
      * @throws EncoderException thrown if the Encoder
-     *      encounters a failure condition during the
-     *      encoding process.
+     *                          encounters a failure condition during the
+     *                          encoding process.
      */
     byte[] encode(byte[] source) throws EncoderException;
 }  
