@@ -10,11 +10,11 @@ import java.util.Map;
 public class WebhookEventHeader {
     private final String transmissionId;
     private final String timestamp;
-    private String webhookId;
-    private String crc32;
     private final String transmissionSignature;
     private final String authAlgorithm;
     private final String certUrl;
+    private String webhookId;
+    private String crc32;
 
     /**
      * Contains the {@link WebhookEvent}s headers

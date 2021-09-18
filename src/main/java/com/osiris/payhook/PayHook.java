@@ -31,17 +31,17 @@ import java.util.Objects;
  */
 public class PayHook {
     private final PayHookValidationType validationType;
+    private final String clientId;
+    private final String clientSecret;
     private boolean isSandboxMode = false;
     private boolean isWarnIfSandboxModeIsEnabled = true;
-    private String clientId;
-    private String clientSecret;
     private String encodedCredentials;
 
     /**
      * Creates a new {@link PayHook} object with {@link PayHookValidationType#ONLINE}. <br>
      * See {@link #PayHook(PayHookValidationType, String, String)} for details.
      */
-    public PayHook(String clientId, String clientSecret){
+    public PayHook(String clientId, String clientSecret) {
         this(PayHookValidationType.ONLINE, clientId, clientSecret);
     }
 
@@ -215,7 +215,21 @@ public class PayHook {
                     "  \"webhook_event\": " + event.getBodyString() + "\n" +
                     "}";
 
-            new PayPalJsonUtils().postJsonAndGetResponse("/v1/notifications/verify-webhook-signature", json, encodedCredentials);
+            // Expected response:
+            // {"verification_status": "SUCCESS"}
+            if (isSandboxMode) {
+                event.setValid(
+                        new PayPalJsonUtils().postJsonAndGetResponse(
+                                "https://api-m.sandbox.paypal.com/v1/notifications/verify-webhook-signature",
+                                json,
+                                encodedCredentials).getAsJsonObject().get("verification_status").getAsString().equalsIgnoreCase("SUCCESS"));
+            } else {
+                event.setValid(
+                        new PayPalJsonUtils().postJsonAndGetResponse(
+                                "https://api-m.paypal.com/v1/notifications/verify-webhook-signature",
+                                json,
+                                encodedCredentials).getAsJsonObject().get("verification_status").getAsString().equalsIgnoreCase("SUCCESS"));
+            }
 
         } else {
 
