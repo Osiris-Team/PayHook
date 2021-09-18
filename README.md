@@ -76,6 +76,10 @@ public class PayHookExample {
 ```
 ## FAQ
 <div>
+ <details>
+  <summary>Difference between online and offline validation?</summary>
+The online validation occurs over PayPals REST-API and the offline validation occurs on the currently running machine, using the same methods as the deprecated PayPal Checkout SDK.
+</details>
 <details>
   <summary>What is a POST http request?</summary>
 Every request has a header and a body.
