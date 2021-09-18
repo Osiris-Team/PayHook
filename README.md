@@ -7,6 +7,8 @@ A Java-API for validating PayPals Webhook events/notifications.
 [Click here for maven/gradle/sbt/leinigen instructions.](https://jitpack.io/#Osiris-Team/PayHook/LATEST)
 Java 8+ required.
 Make sure to watch this repository to get notified of future updates.
+## Features
+- [X] Online/Offline validation methods
 ## Motivation
 Basically PayPals latest [Checkout v2 Java-SDK](https://github.com/paypal/Checkout-Java-SDK)
 is missing the webhook event validation feature, which was available in the old, deprecated
@@ -76,6 +78,10 @@ public class PayHookExample {
 ```
 ## FAQ
 <div>
+ <details>
+  <summary>Difference between online and offline validation?</summary>
+The online validation occurs over PayPals REST-API and the offline validation occurs on the currently running machine, using the same methods as the deprecated PayPal Checkout SDK.
+</details>
 <details>
   <summary>What is a POST http request?</summary>
 Every request has a header and a body.
