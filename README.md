@@ -7,6 +7,107 @@ A Java-API for validating PayPals Webhook events/notifications.
 [Click here for maven/gradle/sbt/leinigen instructions.](https://jitpack.io/#Osiris-Team/PayHook/LATEST)
 Java 8+ required.
 Make sure to watch this repository to get notified of future updates.
+## Major changes coming soon
+Currently, this API is only used for validating PayPals webhook events.
+But what if it could do more than that?
+
+Working with payments in Java is real pain. If you want to expand to other
+third-party payment processors its hell.
+
+That's why I thought to expand PayHook to handle all that.
+The basic idea is that we would process all payments only thorough webhook events.
+Which is to be honest, the safest and simplest way.
+
+I am still working on the design. Here is what I've got:
+
+```java
+public class Constants{
+    // Init PayHook once. For example in a Constants class of yours.
+    // It'll connect to your database and search for the payhook database.
+    // If not found it'll create it and insert the "orders" table
+    // with the same fields as the "Order" class further below.
+    public static PayHook P;
+    static{
+        P = new PayHook(
+                "database_url", 
+                "database_username", 
+                "database_password");
+        P.setLivePayPalCredentials("client_id", "client_secret");
+        P.setSandboxPayPalCredentials("client_id", "client_secret");
+        P.setLiveStripeCredentials("secret_key");
+        P.setSandboxStripeCredentials("secret_key");
+        // etc.
+    }
+}
+```
+```java
+class Examples{
+
+    /**
+     * User clicks on the "Buy" button for example.
+     * Then run following code:
+     */
+    public void onBuyBtnClick(){
+        Order order = null;
+        boolean selectedPayPal = true;
+        if (selectedPayPal) order = P.createPayPalOrder();
+        else if (selectedStripe) order = P.createStripeOrder();
+        else{
+            // etc.
+        }
+        order.onOrderPaid(webhookEvent -> {
+            // Executed once the order was paid.
+        });
+    }
+
+    /**
+     * How do you check for payments on a subscription for example?
+     * Since we rely on webhook events we do not need to spam the
+     * payment processors APIs to check the payments.
+     * We check our own DB and compare each orders, Order#lastPaymentTimestamp with
+     * the Orders billing intervall.
+     */
+    public void exampleRecurring(){
+        // Start a thread which checks recurring orders. 
+        P.initRecurringOrdersChecker(12); // Checks the orders every 12 hours
+        P.onMissingPayment(details -> {
+            // Executed when 
+        });
+    }
+}
+
+```
+```java
+class Order{
+    private int id;
+    
+    // Product related information:
+    private String price;
+    private String name;
+    private String description;
+    private boolean isRecurring; // For example a subscription
+    private boolean isBillingInterval1Month;
+    private boolean isBillingInterval3Months;
+    private boolean isBillingInterval6Months;
+    private boolean isBillingInterval12Months;
+    private boolean isBillingIntervallCustom;
+    private int customBillingIntervallInDays;
+    private Timestamp lastPaymentTimestamp;
+    
+    // Information related to the status of the order:
+    private boolean isPaid;
+    private boolean isRefunded;
+    private boolean isCancelled;
+}
+```
+- It all starts with a Product. The product contains information about price
+
+Todo:
+ - [ ] Haa
+But how about expanding this API to other third-party-payment processors and
+eve
+
+
 ## Motivation
 Basically PayPals latest [Checkout v2 Java-SDK](https://github.com/paypal/Checkout-Java-SDK)
 is missing the webhook event validation feature, which was available in the old, deprecated
