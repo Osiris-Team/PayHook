@@ -1,34 +1,35 @@
-package com.osiris.payhook;
+package com.osiris.payhook.paypal;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.osiris.payhook.PayHook;
 
 import java.util.List;
 
 
 /**
  * The in-memory representation of a Webhook event/notification. <br>
- * Can be validated through {@link PayHook#validateWebhookEvent(WebhookEvent)}.
+ * Can be validated through {@link PayHook#validateWebhookEvent(PaypalWebhookEvent)}.
  */
-public class WebhookEvent {
+public class PaypalWebhookEvent {
     private final String validWebhookId;
     private final List<String> validTypesList;
     private final String bodyString;
-    private final WebhookEventHeader header;
+    private final PaypalWebhookEventHeader header;
     private final JsonObject body;
     private boolean isValid = false;
 
 
     /**
      * The in-memory representation of a Webhook event/notification. <br>
-     * Can be validated through {@link PayHook#validateWebhookEvent(WebhookEvent)}.
+     * Can be validated through {@link PayHook#validateWebhookEvent(PaypalWebhookEvent)}.
      *
      * @param validWebhookId your webhooks valid id. Get it from here: https://developer.paypal.com/developer/applications/
      * @param validTypesList your webhooks valid types/names. Here is a full list: https://developer.paypal.com/docs/api-basics/notifications/webhooks/event-names/
-     * @param header         the http messages header as {@link WebhookEventHeader}.
+     * @param header         the http messages header as {@link PaypalWebhookEventHeader}.
      * @param body           the http messages body as {@link JsonObject}.
      */
-    public WebhookEvent(String validWebhookId, List<String> validTypesList, WebhookEventHeader header, JsonObject body) {
+    public PaypalWebhookEvent(String validWebhookId, List<String> validTypesList, PaypalWebhookEventHeader header, JsonObject body) {
         this.validWebhookId = validWebhookId;
         this.validTypesList = validTypesList;
         this.header = header;
@@ -48,7 +49,7 @@ public class WebhookEvent {
         return bodyString;
     }
 
-    public WebhookEventHeader getHeader() {
+    public PaypalWebhookEventHeader getHeader() {
         return header;
     }
 
@@ -57,7 +58,7 @@ public class WebhookEvent {
     }
 
     /**
-     * Perform {@link PayHook#validateWebhookEvent(WebhookEvent)} on this event, so this method
+     * Perform {@link PayHook#validateWebhookEvent(PaypalWebhookEvent)} on this event, so this method
      * returns the right value.
      *
      * @return true if this event is a valid paypal webhook event.

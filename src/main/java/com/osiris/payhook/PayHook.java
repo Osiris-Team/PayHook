@@ -5,8 +5,7 @@ import com.osiris.payhook.exceptions.HttpErrorException;
 import com.osiris.payhook.exceptions.ParseBodyException;
 import com.osiris.payhook.exceptions.ParseHeaderException;
 import com.osiris.payhook.exceptions.WebHookValidationException;
-import com.osiris.payhook.paypal.Constants;
-import com.osiris.payhook.paypal.SSLUtil;
+import com.osiris.payhook.paypal.*;
 import com.osiris.payhook.paypal.codec.binary.Base64;
 
 import java.io.BufferedInputStream;
@@ -30,7 +29,7 @@ import java.util.Objects;
  * utility methods.
  */
 public class PayHook {
-    private final PayHookValidationType validationType;
+    private final PaypalWebhookEventValidationType validationType;
     private final String clientId;
     private final String clientSecret;
     private boolean isSandboxMode = false;
@@ -38,25 +37,25 @@ public class PayHook {
     private String encodedCredentials;
 
     /**
-     * Creates a new {@link PayHook} object with {@link PayHookValidationType#ONLINE}. <br>
-     * See {@link #PayHook(PayHookValidationType, String, String)} for details.
+     * Creates a new {@link PayHook} object with {@link PaypalWebhookEventValidationType#ONLINE}. <br>
+     * See {@link #PayHook(PaypalWebhookEventValidationType, String, String)} for details.
      */
     public PayHook(String clientId, String clientSecret) {
-        this(PayHookValidationType.ONLINE, clientId, clientSecret);
+        this(PaypalWebhookEventValidationType.ONLINE, clientId, clientSecret);
     }
 
     /**
-     * @param validationType the type of validation method to use for validating {@link WebhookEvent}s. <br>
-     *                       ONLINE will use the online PayPal REST-API to validate the {@link WebhookEvent} (recommended).<br>
-     *                       OFFLINE will use the offline validation method. More details here: {@link #validateWebhookEvent(WebhookEvent)}.
-     * @param clientId       the PayPal client id. Only needed when {@link PayHookValidationType#ONLINE} is selected, otherwise can be null.
-     * @param clientSecret   the PayPal client secret. Only needed when {@link PayHookValidationType#ONLINE} is selected, otherwise can be null.
+     * @param validationType the type of validation method to use for validating {@link PaypalWebhookEvent}s. <br>
+     *                       ONLINE will use the online PayPal REST-API to validate the {@link PaypalWebhookEvent} (recommended).<br>
+     *                       OFFLINE will use the offline validation method. More details here: {@link #validateWebhookEvent(PaypalWebhookEvent)}.
+     * @param clientId       the PayPal client id. Only needed when {@link PaypalWebhookEventValidationType#ONLINE} is selected, otherwise can be null.
+     * @param clientSecret   the PayPal client secret. Only needed when {@link PaypalWebhookEventValidationType#ONLINE} is selected, otherwise can be null.
      */
-    public PayHook(PayHookValidationType validationType, String clientId, String clientSecret) {
+    public PayHook(PaypalWebhookEventValidationType validationType, String clientId, String clientSecret) {
         this.validationType = validationType;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
-        if (validationType.equals(PayHookValidationType.ONLINE)) {
+        if (validationType.equals(PaypalWebhookEventValidationType.ONLINE)) {
             System.err.println("PayPal credentials must be provided to use PayHook in ONLINE mode!");
             Objects.requireNonNull(clientId);
             Objects.requireNonNull(clientSecret);
@@ -65,7 +64,7 @@ public class PayHook {
     }
 
     /**
-     * Creates and returns a new {@link WebhookEvent} object that can get validated.
+     * Creates and returns a new {@link PaypalWebhookEvent} object that can get validated.
      *
      * @param validId      the valid Webhook id.
      * @param validTypes   the valid Webhook-Event types
@@ -74,8 +73,8 @@ public class PayHook {
      * @throws ParseHeaderException
      * @throws ParseBodyException
      */
-    public WebhookEvent createWebhookEvent(String validId, List<String> validTypes, Map<String, String> headersAsMap, String bodyAsString) throws ParseHeaderException, ParseBodyException {
-        return new WebhookEvent(
+    public PaypalWebhookEvent createWebhookEvent(String validId, List<String> validTypes, Map<String, String> headersAsMap, String bodyAsString) throws ParseHeaderException, ParseBodyException {
+        return new PaypalWebhookEvent(
                 validId,
                 validTypes,
                 parseAndGetHeader(headersAsMap),
@@ -83,18 +82,18 @@ public class PayHook {
     }
 
     /**
-     * Creates a new {@link WebhookEvent} object from the provided details and validates it.
+     * Creates a new {@link PaypalWebhookEvent} object from the provided details and validates it.
      *
      * @param validId      the valid Webhook id.
      * @param validTypes   the valid Webhook-Event types
      * @param headersAsMap the requests headers as map.
      * @param bodyAsString the requests body as string.
-     * @return the validated {@link WebhookEvent}.
+     * @return the validated {@link PaypalWebhookEvent}.
      * @throws ParseHeaderException
      * @throws ParseBodyException
      */
-    public WebhookEvent createAndValidateWebhookEvent(String validId, List<String> validTypes, Map<String, String> headersAsMap, String bodyAsString) throws ParseHeaderException, ParseBodyException, WebHookValidationException, CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException, SignatureException, InvalidKeyException, HttpErrorException {
-        WebhookEvent event = new WebhookEvent(
+    public PaypalWebhookEvent createAndValidateWebhookEvent(String validId, List<String> validTypes, Map<String, String> headersAsMap, String bodyAsString) throws ParseHeaderException, ParseBodyException, WebHookValidationException, CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException, SignatureException, InvalidKeyException, HttpErrorException {
+        PaypalWebhookEvent event = new PaypalWebhookEvent(
                 validId,
                 validTypes,
                 parseAndGetHeader(headersAsMap),
@@ -104,18 +103,18 @@ public class PayHook {
     }
 
     /**
-     * Creates a new {@link WebhookEvent} object from the provided details, validates it and returns the result.
+     * Creates a new {@link PaypalWebhookEvent} object from the provided details, validates it and returns the result.
      *
      * @param validId      the valid Webhook id.
      * @param validTypes   the valid Webhook-Event types
      * @param headersAsMap the requests headers as map.
      * @param bodyAsString the requests body as string.
-     * @return true if the {@link WebhookEvent} is valid.
+     * @return true if the {@link PaypalWebhookEvent} is valid.
      * @throws ParseHeaderException
      * @throws ParseBodyException
      */
     public boolean isWebhookEventValid(String validId, List<String> validTypes, Map<String, String> headersAsMap, String bodyAsString) throws ParseHeaderException, ParseBodyException, WebHookValidationException, CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException, SignatureException, InvalidKeyException, HttpErrorException {
-        WebhookEvent event = new WebhookEvent(
+        PaypalWebhookEvent event = new PaypalWebhookEvent(
                 validId,
                 validTypes,
                 parseAndGetHeader(headersAsMap),
@@ -126,9 +125,9 @@ public class PayHook {
 
     /**
      * Parses the provided header {@link Map}
-     * into a {@link WebhookEventHeader} object and returns it.
+     * into a {@link PaypalWebhookEventHeader} object and returns it.
      */
-    public WebhookEventHeader parseAndGetHeader(Map<String, String> headerAsMap) throws ParseHeaderException {
+    public PaypalWebhookEventHeader parseAndGetHeader(Map<String, String> headerAsMap) throws ParseHeaderException {
         // Check if all keys we need exist
         String transmissionId = checkKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_TRANSMISSION_ID);
         String timestamp = checkKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_TRANSMISSION_TIME);
@@ -137,7 +136,7 @@ public class PayHook {
         String authAlgorithm = checkKeyAndGetValue(headerAsMap, Constants.PAYPAL_HEADER_AUTH_ALGO);
 
         // Note that the webhook id and crc32 get set after the validation was run
-        return new WebhookEventHeader(transmissionId, timestamp, transmissionSignature, authAlgorithm, certUrl);
+        return new PaypalWebhookEventHeader(transmissionId, timestamp, transmissionSignature, authAlgorithm, certUrl);
     }
 
     /**
@@ -179,31 +178,31 @@ public class PayHook {
     }
 
     /**
-     * Validate the provided {@link WebhookEvent}.<br>
+     * Validate the provided {@link PaypalWebhookEvent}.<br>
      * Throws an {@link Exception} if the validation fails. <br>
-     * Performed checks for {@link PayHookValidationType#ONLINE}: <br>
+     * Performed checks for {@link PaypalWebhookEventValidationType#ONLINE}: <br>
      * Not known since validation is handled by the PayPal Rest-API. <br>
-     * Performed checks for {@link PayHookValidationType#OFFLINE}: <br>
+     * Performed checks for {@link PaypalWebhookEventValidationType#OFFLINE}: <br>
      * <ul>
      *   <li>Is the name/type valid?</li>
      *   <li>Are the certificates valid?</li>
      *   <li>Is the data/transmission-signature valid? (not in sandbox-mode)</li>
      *   <li>Do the webhook ids match? (not in sandbox-mode)</li>
      * </ul>
-     * Note: {@link WebhookEventHeader#getWebhookId()} and {@link WebhookEventHeader#getCrc32()} return null,
+     * Note: {@link PaypalWebhookEventHeader#getWebhookId()} and {@link PaypalWebhookEventHeader#getCrc32()} return null,
      * if you have sandbox-mode <u>enabled</u> since the transmission-signature is <u>not</u> decoded in sandbox-mode.
      *
-     * @param event The {@link WebhookEvent} to validate.
+     * @param event The {@link PaypalWebhookEvent} to validate.
      * @throws WebHookValidationException <b style='color:red' >IMPORTANT: MESSAGE MAY CONTAIN SENSITIVE INFORMATION!</b>
      */
-    public void validateWebhookEvent(WebhookEvent event) throws WebHookValidationException, ParseBodyException, IOException, CertificateException, KeyStoreException, NoSuchAlgorithmException, SignatureException, InvalidKeyException, HttpErrorException {
+    public void validateWebhookEvent(PaypalWebhookEvent event) throws WebHookValidationException, ParseBodyException, IOException, CertificateException, KeyStoreException, NoSuchAlgorithmException, SignatureException, InvalidKeyException, HttpErrorException {
 
         if (isSandboxMode && isWarnIfSandboxModeIsEnabled)
             System.err.println("[PAYHOOK] NOTE THAT SANDBOX-MODE IS ENABLED!");
 
-        WebhookEventHeader header = event.getHeader();
+        PaypalWebhookEventHeader header = event.getHeader();
 
-        if (validationType.equals(PayHookValidationType.ONLINE)) {
+        if (validationType.equals(PaypalWebhookEventValidationType.ONLINE)) {
 
             String json = "{\n" +
                     "  \"transmission_id\": \"" + header.getTransmissionId() + "\",\n" +
@@ -219,13 +218,13 @@ public class PayHook {
             // {"verification_status": "SUCCESS"}
             if (isSandboxMode) {
                 event.setValid(
-                        new PayPalJsonUtils().postJsonAndGetResponse(
+                        new PaypalJsonUtils().postJsonAndGetResponse(
                                 "https://api-m.sandbox.paypal.com/v1/notifications/verify-webhook-signature",
                                 json,
                                 encodedCredentials).getAsJsonObject().get("verification_status").getAsString().equalsIgnoreCase("SUCCESS"));
             } else {
                 event.setValid(
-                        new PayPalJsonUtils().postJsonAndGetResponse(
+                        new PaypalJsonUtils().postJsonAndGetResponse(
                                 "https://api-m.paypal.com/v1/notifications/verify-webhook-signature",
                                 json,
                                 encodedCredentials).getAsJsonObject().get("verification_status").getAsString().equalsIgnoreCase("SUCCESS"));
@@ -303,23 +302,23 @@ public class PayHook {
     }
 
     /**
-     * Formats all of the {@link WebhookEvent} information to a {@link String} and returns it.
+     * Formats all of the {@link PaypalWebhookEvent} information to a {@link String} and returns it.
      */
-    public String getWebhookEventAsString(WebhookEvent webHookEvent) {
-        Objects.requireNonNull(webHookEvent);
+    public String getWebhookEventAsString(PaypalWebhookEvent webHookEventPaypal) {
+        Objects.requireNonNull(webHookEventPaypal);
 
         StringBuilder stringBuilder = new StringBuilder();
         stringBuilder.append(System.lineSeparator());
-        stringBuilder.append("Information for object: " + webHookEvent + System.lineSeparator());
+        stringBuilder.append("Information for object: " + webHookEventPaypal + System.lineSeparator());
 
         // Add your info
         stringBuilder.append(System.lineSeparator());
-        stringBuilder.append("VALID-webhook-id: " + webHookEvent.getValidWebhookId() + System.lineSeparator());
-        stringBuilder.append("VALID-webhook-types: " + webHookEvent.getValidTypesList().toString() + System.lineSeparator());
+        stringBuilder.append("VALID-webhook-id: " + webHookEventPaypal.getValidWebhookId() + System.lineSeparator());
+        stringBuilder.append("VALID-webhook-types: " + webHookEventPaypal.getValidTypesList().toString() + System.lineSeparator());
 
         // Add header info
         stringBuilder.append(System.lineSeparator());
-        WebhookEventHeader header = webHookEvent.getHeader();
+        PaypalWebhookEventHeader header = webHookEventPaypal.getHeader();
         stringBuilder.append("header stuff: " + System.lineSeparator());
         stringBuilder.append("webhook-id: " + header.getWebhookId() + System.lineSeparator());
         stringBuilder.append("transmission-id: " + header.getTransmissionId() + System.lineSeparator());
@@ -332,8 +331,8 @@ public class PayHook {
         // Add the json body in a pretty format
         stringBuilder.append(System.lineSeparator());
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        String jsonOutput = gson.toJson(webHookEvent.getBodyString());
-        stringBuilder.append("body-string: " + webHookEvent.getBodyString() + System.lineSeparator());
+        String jsonOutput = gson.toJson(webHookEventPaypal.getBodyString());
+        stringBuilder.append("body-string: " + webHookEventPaypal.getBodyString() + System.lineSeparator());
         stringBuilder.append("body: " + jsonOutput + System.lineSeparator());
 
         return stringBuilder.toString();
@@ -351,7 +350,7 @@ public class PayHook {
      * Disabled by default. <br>
      * If enabled some validation checks, which only succeed for
      * live applications, wont be done. <br>
-     * See {@link PayHook#validateWebhookEvent(WebhookEvent)} for details.
+     * See {@link PayHook#validateWebhookEvent(PaypalWebhookEvent)} for details.
      */
     public void setSandboxMode(boolean sandboxMode) {
         isSandboxMode = sandboxMode;
@@ -373,7 +372,7 @@ public class PayHook {
         isWarnIfSandboxModeIsEnabled = warnIfSandboxModeIsEnabled;
     }
 
-    public PayHookValidationType getValidationType() {
+    public PaypalWebhookEventValidationType getValidationType() {
         return validationType;
     }
 }

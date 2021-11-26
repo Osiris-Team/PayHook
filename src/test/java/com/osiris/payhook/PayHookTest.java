@@ -1,6 +1,7 @@
 package com.osiris.payhook;
 
 import com.osiris.payhook.exceptions.ParseBodyException;
+import com.osiris.payhook.paypal.PaypalWebhookEventValidationType;
 import org.junit.jupiter.api.Test;
 
 class PayHookTest {
@@ -73,6 +74,6 @@ class PayHookTest {
                 "    }\n" +
                 "  ]\n" +
                 "}";
-        new PayHook(PayHookValidationType.OFFLINE, null, null).parseAndGetBody(sampleBodyString);
+        new PayHook(PaypalWebhookEventValidationType.OFFLINE, null, null).parseAndGetBody(sampleBodyString);
     }
 }

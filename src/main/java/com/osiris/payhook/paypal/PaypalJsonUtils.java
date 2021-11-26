@@ -6,7 +6,7 @@
  * AutoPlug License.  Please consult the file "LICENSE" for details.
  */
 
-package com.osiris.payhook;
+package com.osiris.payhook.paypal;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;
@@ -18,7 +18,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Random;
 
-public class PayPalJsonUtils {
+public class PaypalJsonUtils {
 
     public JsonElement postJsonAndGetResponse(String input_url, JsonElement element, String base64EncodedCredentials) throws IOException, HttpErrorException {
         return postJsonAndGetResponse(input_url, new Gson().toJson(element), base64EncodedCredentials);

@@ -15,6 +15,8 @@ public class PayHookV3 {
     private String paypalClientSecret;
     private String stripeSecretKey;
     private String paypalAPIUrl;
+    private boolean isStripeSandbox;
+    private boolean isPaypalSandbox;
 
     /**
      * PayHook makes payments easy. Workflow: <br>
@@ -97,17 +99,19 @@ public class PayHookV3 {
         return databaseConnection;
     }
 
-    public void setPaypalCredentials(String clientId, String clientSecret, boolean isSandbox) {
+    public void setPaypalCredentials(boolean isSandbox, String clientId, String clientSecret) {
         this.paypalClientId = clientId;
         this.paypalClientSecret = clientSecret;
+        this.isPaypalSandbox = isSandbox;
         if (isSandbox)
             paypalAPIUrl = "https://api-m.sandbox.paypal.com/v1";
         else
             paypalAPIUrl = "https://api-m.paypal.com/v1";
     }
 
-    public void setStripeCredentials(String secretKey) {
+    public void setStripeCredentials(boolean isSandbox, String secretKey) {
         this.stripeSecretKey = secretKey;
+        this.isStripeSandbox = isSandbox;
         Stripe.apiKey = secretKey;
     }
 
@@ -188,30 +192,34 @@ public class PayHookV3 {
     public Product putProduct(int id, long priceInSmallestCurrency,
                               String currency, String name, String description,
                               int billingType, int customBillingIntervallInDays,
-                              String paypalProductId, String stripeProductId) throws StripeException {
+                              String paypalProductId, String stripeProductId) throws StripeException, SQLException {
         Product product = getProductById(id);
         if (product==null){ // Create the product in database and on payment processors
-            insertProduct(id, priceInSmallestCurrency, currency, name, description, billingType, customBillingIntervallInDays,
+            product = new Product(id, priceInSmallestCurrency, currency, name, description, billingType, customBillingIntervallInDays,
                     paypalProductId, stripeProductId);
-            if (paypalClientId!=null && paypalClientSecret!=null){
+            insertProduct(product);
+        }
 
-            }
-            if (stripeSecretKey!=null){
-                com.stripe.model.Product product = null;
-                try{
-                    product = com.stripe.model.Product.retrieve()
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-                Map<String, Object> params = new HashMap<>();
-                params.put("name", name);
-                params.put("description", description);
-                params.put("livemode", name);
-                params.put("description", name);
-                params.put("description", name);
+        if (paypalClientId!=null && paypalClientSecret!=null){
 
-                com.stripe.model.Product product = com.stripe.model.Product.create(params);
+        }
+        // Create/Update Stripe product
+        if (stripeSecretKey!=null){
+            com.stripe.model.Product stripeProduct = null;
+            try{
+                stripeProduct = com.stripe.model.Product.retrieve(product.getStripeProductId());
+            } catch (Exception e) {
             }
+            Map<String, Object> params = new HashMap<>();
+            params.put("name", name);
+            params.put("description", description);
+            params.put("livemode", isStripeSandbox);
+            if (stripeProduct==null){
+                stripeProduct = com.stripe.model.Product.create(params);
+            } else{
+                stripeProduct.update(params);
+            }
+
         }
         // TODO add to database
         // TODO add to payment processors
