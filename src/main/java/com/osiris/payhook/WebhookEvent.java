@@ -73,42 +73,42 @@ public class WebhookEvent {
     /**
      * Shortcut for returning the id from the json body.
      */
-    public String getId(){
+    public String getId() {
         return body.get("id").getAsString();
     }
 
     /**
      * Shortcut for returning the summary from the json body.
      */
-    public String getSummary(){
+    public String getSummary() {
         return body.get("summary").getAsString();
     }
 
     /**
      * Shortcut for returning the event_type from the json body.
      */
-    public String getEventType(){
+    public String getEventType() {
         return body.get("event_type").getAsString();
     }
 
     /**
      * Shortcut for returning the resource_type from the json body.
      */
-    public String getResourceType(){
+    public String getResourceType() {
         return body.get("resource_type").getAsString();
     }
 
     /**
      * Shortcut for returning the event_version from the json body.
      */
-    public String getEventVersion(){
+    public String getEventVersion() {
         return body.get("event_version").getAsString();
     }
 
     /**
      * Shortcut for returning the event_version from the json body.
      */
-    public String getResourceVersion(){
+    public String getResourceVersion() {
         return body.get("resource_version").getAsString();
     }
 

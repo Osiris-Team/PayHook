@@ -20,6 +20,11 @@ Which is to be honest, the safest and simplest way.
 
 I am still working on the design. Here is what I've got:
 
+Setup:
+1. Set database information
+2. Set API credentials of payment processors
+3. Create/Update products
+
 ```java
 public class Constants{
     // Init PayHook once. For example in a Constants class of yours.
@@ -32,11 +37,44 @@ public class Constants{
                 "database_url", 
                 "database_username", 
                 "database_password");
-        P.setLivePayPalCredentials("client_id", "client_secret");
-        P.setSandboxPayPalCredentials("client_id", "client_secret");
-        P.setLiveStripeCredentials("secret_key");
-        P.setSandboxStripeCredentials("secret_key");
-        // etc.
+        
+        P.setPayPalCredentials("client_id", "client_secret", true);
+        P.setStripeCredentials("secret_key", true);
+        
+        P.putProduct(1, ...);
+        P.putProduct(2, ...);
+        P.putProduct(3, ...);
+    }
+}
+```
+Note that you must create links that listen for webhook events yourself like
+`https://example.com/paypal-webhook` or `https://example.com/stripe-webhook`.
+I'm planing on making PayHook-Spring version that handles all that too.
+Here is an example on how to do that with Spring:
+```java
+@RestController
+@RequestMapping(value = "paypal-hook", method = RequestMethod.POST)
+public class PayHookExample {
+    // This listens at https://.../paypal-hook
+    // for PayPal webhook events and returns a "OK" text as response.
+    @GetMapping(produces = "text/plain")
+    public @ResponseBody String receiveAndRespond(HttpServletRequest request) {
+        try{
+            boolean isValid = P.isWebhookEventValid("INSERT_VALID_WEBHOOK_ID", // Get it from here: https://developer.paypal.com/developer/applications/
+                    Arrays.asList("CHECKOUT.ORDER.APPROVED", "PAYMENTS.PAYMENT.CREATED"), // Insert your valid event types/names here. Full list of all event types/names here: https://developer.paypal.com/docs/api-basics/notifications/webhooks/event-names
+                    getHeadersAsMap(request),
+                    getBodyAsString(request));
+
+            if (isValid) 
+                P.executeValidPayPalWebhookEvent(); // Fires P.onValidPayPalWebhookEvent();
+            else
+                P.executeInvalidPayPalWebhookEvent(); // Fires P.onInvalidPayPalWebhookEvent();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.out.println("Validation failed: "+e.getMessage());
+        }
+        return "OK"; // Always return status code 200 with an "OK" text no matter what the result to annoy attackers.
     }
 }
 ```
@@ -85,12 +123,25 @@ class Order{
     private String price;
     private String name;
     private String description;
-    private boolean isRecurring; // For example a subscription
-    private boolean isBillingInterval1Month;
-    private boolean isBillingInterval3Months;
-    private boolean isBillingInterval6Months;
-    private boolean isBillingInterval12Months;
-    private boolean isBillingIntervallCustom;
+    private int billingType; // Returns a value from 0 to 5
+    public boolean isRecurring(){ // For example a subscription
+        return billingType != 0;
+    }
+    public boolean isBillingInterval1Month(){ 
+        return billingType == 1;
+    }
+    public boolean isBillingInterval3Months(){
+        return billingType == 2;
+    }
+    public boolean isBillingInterval6Months(){
+        return billingType == 3;
+    }
+    public boolean isBillingInterval12Months(){
+        return billingType == 4;
+    }
+    public boolean isCustomBillingInterval(){
+        return billingType == 5;
+    }
     private int customBillingIntervallInDays;
     private Timestamp lastPaymentTimestamp;
     
@@ -100,13 +151,6 @@ class Order{
     private boolean isCancelled;
 }
 ```
-- It all starts with a Product. The product contains information about price
-
-Todo:
- - [ ] Haa
-But how about expanding this API to other third-party-payment processors and
-eve
-
 
 ## Motivation
 Basically PayPals latest [Checkout v2 Java-SDK](https://github.com/paypal/Checkout-Java-SDK)
