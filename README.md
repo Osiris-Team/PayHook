@@ -20,7 +20,7 @@ Which is to be honest, the safest and simplest way.
 
 Features:
 - Secure, verified payments without duplicates, due to the design being based solely on validated webhook events.
-- Simplified, cross-payment-processor, product and order creation.
+- Simplified product and order creation (also accross multiple payment-processors).
 - Handles saving of products and orders in your database
 
 I am still working on the design. Here is what I've got:
