@@ -18,6 +18,11 @@ That's why I thought to expand PayHook to handle all that.
 The basic idea is that we would process all payments only thorough webhook events.
 Which is to be honest, the safest and simplest way.
 
+Features:
+- Secure, verified payments without duplicates, due to the design being based solely on validated webhook events.
+- Simplified, cross-payment-processor, product and order creation.
+- Handles saving of products and orders in your database
+
 I am still working on the design. Here is what I've got:
 
 Setup:
