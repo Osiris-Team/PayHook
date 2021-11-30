@@ -1,5 +1,9 @@
 package com.osiris.payhook;
 
+import com.paypal.api.payments.Plan;
+import com.paypal.base.rest.APIContext;
+import com.paypal.base.rest.PayPalRESTException;
+import com.paypal.core.PayPalEnvironment;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
@@ -17,6 +21,9 @@ public class PayHookV3 {
     private String paypalAPIUrl;
     private boolean isStripeSandbox;
     private boolean isPaypalSandbox;
+
+    private APIContext paypalV1ApiContext;
+    private PayPalEnvironment paypalV2Enviornment;
 
     /**
      * PayHook makes payments easy. Workflow: <br>
@@ -103,10 +110,15 @@ public class PayHookV3 {
         this.paypalClientId = clientId;
         this.paypalClientSecret = clientSecret;
         this.isPaypalSandbox = isSandbox;
-        if (isSandbox)
-            paypalAPIUrl = "https://api-m.sandbox.paypal.com/v1";
-        else
-            paypalAPIUrl = "https://api-m.paypal.com/v1";
+
+        if (isSandbox){
+            paypalV1ApiContext = new APIContext(clientId, clientSecret, "sandbox");
+            paypalV2Enviornment = new PayPalEnvironment.Sandbox(clientId, clientSecret);
+        }
+        else{
+            paypalV1ApiContext = new APIContext(clientId, clientSecret, "live");
+            paypalV2Enviornment = new PayPalEnvironment.Live(clientId, clientSecret);
+        }
     }
 
     public void setStripeCredentials(boolean isSandbox, String secretKey) {
@@ -192,15 +204,28 @@ public class PayHookV3 {
     public Product putProduct(int id, long priceInSmallestCurrency,
                               String currency, String name, String description,
                               int billingType, int customBillingIntervallInDays,
-                              String paypalProductId, String stripeProductId) throws StripeException, SQLException {
+                              String paypalProductId, String stripeProductId) throws StripeException, SQLException, PayPalRESTException {
         Product product = getProductById(id);
-        if (product==null){ // Create the product in database and on payment processors
+        if (product==null){
             product = new Product(id, priceInSmallestCurrency, currency, name, description, billingType, customBillingIntervallInDays,
                     paypalProductId, stripeProductId);
             insertProduct(product);
         }
 
         if (paypalClientId!=null && paypalClientSecret!=null){
+            // Note that Paypal doesn't store products, but only plans.
+            // Thus products don't need to get updated, except plans
+            if (product.isRecurring()){
+                if (paypalProductId==null){ // Create new plan
+                    com.paypal.api.payments.Plan plan = new Plan().create(paypalV1ApiContext);
+                    product.setPaypalProductId(plan.getId());
+                } else{ // Update existing plan
+                    com.paypal.api.payments.Plan plan = Plan.get(paypalV1ApiContext, product.getPaypalProductId());
+                    plan.update(); // TODO
+                }
+            }
+
+
 
         }
         // Create/Update Stripe product
