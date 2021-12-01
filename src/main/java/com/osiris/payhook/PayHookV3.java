@@ -65,37 +65,35 @@ public class PayHookV3 {
     }
 
     public void checkForMissedPayments() throws SQLException {
-        synchronized (actionsOnMissedPayment){
-            List<Order> orders = payHookDatabase.getOrders();
-            long now     = System.currentTimeMillis();
-            long month   = 2629800000L;
-            long month3  = 7889400000L;
-            long month6  = 15778800000L;
-            long month12 = 31557600000L;
-            for (Order o :
-                    orders) {
-                if (o.isRecurring()){
-                    if (o.isBillingInterval1Month()){
-                        if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month)
-                            executeMissedPayment(new Event(o));
+        List<Order> orders = payHookDatabase.getOrders();
+        long now     = System.currentTimeMillis();
+        long month   = 2629800000L;
+        long month3  = 7889400000L;
+        long month6  = 15778800000L;
+        long month12 = 31557600000L;
+        for (Order o :
+                orders) {
+            if (o.isRecurring()){
+                if (o.isBillingInterval1Month()){
+                    if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month)
+                        executeMissedPayment(new Event(o));
 
-                    }else if(o.isBillingInterval3Months()){
-                        if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month3)
-                            executeMissedPayment(new Event(o));
-                    }
-                    else if(o.isBillingInterval6Months()){
-                        if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month6)
-                            executeMissedPayment(new Event(o));
-                    }
-                    else if(o.isBillingInterval12Months()){
-                        if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month12)
-                            executeMissedPayment(new Event(o));
-                    }
-                    else { // Custom payment intervall
-                        long custom = o.getCustomBillingIntervallInDays() * 86400000L; // xdays multiplied with 1 day as millisecond
-                        if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > custom)
-                            executeMissedPayment(new Event(o));
-                    }
+                }else if(o.isBillingInterval3Months()){
+                    if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month3)
+                        executeMissedPayment(new Event(o));
+                }
+                else if(o.isBillingInterval6Months()){
+                    if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month6)
+                        executeMissedPayment(new Event(o));
+                }
+                else if(o.isBillingInterval12Months()){
+                    if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month12)
+                        executeMissedPayment(new Event(o));
+                }
+                else { // Custom payment intervall
+                    long custom = o.getCustomBillingIntervallInDays() * 86400000L; // xdays multiplied with 1 day as millisecond
+                    if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > custom)
+                        executeMissedPayment(new Event(o));
                 }
             }
         }
@@ -208,8 +206,8 @@ public class PayHookV3 {
         }
 
         if (paypalClientId!=null && paypalClientSecret!=null){
-            // Note that Paypal doesn't store products, but only plans.
-            // Thus products don't need to get updated, except plans
+            // Note that PayPal doesn't store products, but only plans, in its databases.
+            // Thus, products don't need to get updated, except plans
             if (product.isRecurring()){
                 if (paypalProductId==null){ // Create new plan
                     com.paypal.api.payments.Plan plan = new Plan().create(paypalV1ApiContext);

@@ -27,7 +27,6 @@ public class ExampleConstants {
 
         P.onMissedPayment(event -> { // Relevant if you have products with recurring payments (like subscriptions)
             try{
-                Product p = event.getProduct();
                 Order o = event.getOrder();
                 // TODO what should happen when the user misses a payment?
                 // TODO implement logic.
