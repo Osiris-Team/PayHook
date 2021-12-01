@@ -4,7 +4,7 @@ import java.sql.Timestamp;
 
 public class Order {
     private int id;
-    private String paymentUrl;
+    private String payUrl;
 
     // Product related information:
     private long priceInSmallestCurrency;
@@ -18,12 +18,12 @@ public class Order {
     private Timestamp refundTimestamp;
     private Timestamp cancelTimestamp;
 
-    public Order(int id, String paymentUrl, long priceInSmallestCurrency,
+    public Order(int id, String payUrl, long priceInSmallestCurrency,
                  String currency, String name, String description, int billingType,
                  int customBillingIntervallInDays, Timestamp lastPaymentTimestamp,
                  Timestamp refundTimestamp, Timestamp cancelTimestamp) {
         this.id = id;
-        this.paymentUrl = paymentUrl;
+        this.payUrl = payUrl;
         this.priceInSmallestCurrency = priceInSmallestCurrency;
         this.currency = currency;
         this.name = name;
@@ -43,12 +43,12 @@ public class Order {
         this.id = id;
     }
 
-    public String getPaymentUrl() {
-        return paymentUrl;
+    public String getPayUrl() {
+        return payUrl;
     }
 
-    public void setPaymentUrl(String paymentUrl) {
-        this.paymentUrl = paymentUrl;
+    public void setPayUrl(String payUrl) {
+        this.payUrl = payUrl;
     }
 
     public boolean isRecurring() { // For example a subscription

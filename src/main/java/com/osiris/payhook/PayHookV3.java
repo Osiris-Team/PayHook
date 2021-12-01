@@ -9,12 +9,16 @@ import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 
-import java.sql.*;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 public class PayHookV3 {
-    private final Connection databaseConnection;
+    private final PayHookDatabase payHookDatabase;
     private String paypalClientId;
     private String paypalClientSecret;
     private String stripeSecretKey;
@@ -24,6 +28,8 @@ public class PayHookV3 {
 
     private APIContext paypalV1ApiContext;
     private PayPalEnvironment paypalV2Enviornment;
+
+    private List<Consumer<Event>> actionsOnMissedPayment = new ArrayList<>();
 
     /**
      * PayHook makes payments easy. Workflow: <br>
@@ -42,68 +48,57 @@ public class PayHookV3 {
      * @param databaseUsername
      * @param databasePassword
      * @throws SQLException
+     * @throws RuntimeException when there is an error in the thread, which checks for missed payments in a regular interval.
      */
     public PayHookV3(String databaseUrl, String databaseUsername, String databasePassword) throws SQLException {
-        databaseConnection = DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword);
-        try (Statement stm = databaseConnection.createStatement()) {
-            stm.executeUpdate("CREATE DATABASE IF NOT EXISTS payhook");
-            stm.executeUpdate("CREATE TABLE IF NOT EXISTS orders" +
-                    "(id int NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-                    ")"); // TODO
-        }
+        payHookDatabase = new PayHookDatabase(DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword));
+        new Thread(() -> {
+            try{
+                while(true){
+                    Thread.sleep(600000); // 1h
+                    checkForMissedPayments();
+                }
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }).start();
     }
 
-    /**
-     * Inserts the provided order into the database and also updates its id.
-     */
-    public synchronized void insertOrder(Order order) throws SQLException {
-        try (PreparedStatement stm = databaseConnection.prepareStatement("INSERT INTO orders (" +
-                "price, currency, name, description," +
-                "billingType, customBillingIntervallInDays," +
-                "lastPaymentTimestamp," +
-                "refundTimestamp, cancelTimestamp)" +
-                " VALUES (?,?,?,?,?,?,?,?,?)")) {
-            stm.setLong(1, order.getPriceInSmallestCurrency());
-            stm.setString(2, order.getCurrency());
-            stm.setString(3, order.getName());
-            stm.setString(4, order.getDescription());
-            stm.setInt(5, order.getBillingType());
-            stm.setInt(6, order.getCustomBillingIntervallInDays());
-            stm.setTimestamp(7, order.getLastPaymentTimestamp());
-            stm.setTimestamp(8, order.getRefundTimestamp());
-            stm.setTimestamp(9, order.getCancelTimestamp());
-            stm.executeUpdate();
-        }
-        try (PreparedStatement stm = databaseConnection.prepareStatement("SELECT LAST_INSERT_ID()")) {
-            ResultSet rs = stm.executeQuery();
-            rs.next();
-            order.setId(rs.getInt(1));
-        }
-    }
+    public void checkForMissedPayments() throws SQLException {
+        synchronized (actionsOnMissedPayment){
+            List<Order> orders = payHookDatabase.getOrders();
+            long now     = System.currentTimeMillis();
+            long month   = 2629800000L;
+            long month3  = 7889400000L;
+            long month6  = 15778800000L;
+            long month12 = 31557600000L;
+            for (Order o :
+                    orders) {
+                if (o.isRecurring()){
+                    if (o.isBillingInterval1Month()){
+                        if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month)
+                            executeMissedPayment(new Event(o));
 
-    public void updateOrder(Order order) throws SQLException {
-        try (PreparedStatement stm = databaseConnection.prepareStatement("UPDATE orders" +
-                " SET price=?, currency=?, name=?, description=?," +
-                "billingType=?, customBillingIntervallInDays=?," +
-                "lastPaymentTimestamp=?," +
-                "refundTimestamp=?, cancelTimestamp=?" +
-                " WHERE id=?")) {
-            stm.setLong(1, order.getPriceInSmallestCurrency());
-            stm.setString(2, order.getCurrency());
-            stm.setString(3, order.getName());
-            stm.setString(4, order.getDescription());
-            stm.setInt(5, order.getBillingType());
-            stm.setInt(6, order.getCustomBillingIntervallInDays());
-            stm.setTimestamp(7, order.getLastPaymentTimestamp());
-            stm.setTimestamp(8, order.getRefundTimestamp());
-            stm.setTimestamp(9, order.getCancelTimestamp());
-            stm.setInt(10, order.getId());
-            stm.executeUpdate();
+                    }else if(o.isBillingInterval3Months()){
+                        if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month3)
+                            executeMissedPayment(new Event(o));
+                    }
+                    else if(o.isBillingInterval6Months()){
+                        if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month6)
+                            executeMissedPayment(new Event(o));
+                    }
+                    else if(o.isBillingInterval12Months()){
+                        if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month12)
+                            executeMissedPayment(new Event(o));
+                    }
+                    else { // Custom payment intervall
+                        long custom = o.getCustomBillingIntervallInDays() * 86400000L; // xdays multiplied with 1 day as millisecond
+                        if((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > custom)
+                            executeMissedPayment(new Event(o));
+                    }
+                }
+            }
         }
-    }
-
-    public Connection getDatabaseConnection() {
-        return databaseConnection;
     }
 
     public void setPaypalCredentials(boolean isSandbox, String clientId, String clientSecret) {
@@ -191,7 +186,7 @@ public class PayHookV3 {
                 0, session.getUrl(), priceInSmallestCurrency, currency, name,
                 description, billingType, customBillingIntervallInDays,
                 null, null, null);
-        insertOrder(order);
+        payHookDatabase.insertOrder(order);
         return order;
     }
 
@@ -201,15 +196,15 @@ public class PayHookV3 {
      * If the provided id exists in the database, its values get updated. <br>
      * The above also happens for the {@link Product}s saved on the servers of the payment processors. <br>
      */
-    public Product putProduct(int id, long priceInSmallestCurrency,
-                              String currency, String name, String description,
-                              int billingType, int customBillingIntervallInDays,
-                              String paypalProductId, String stripeProductId) throws StripeException, SQLException, PayPalRESTException {
+    public Product createProduct(int id, long priceInSmallestCurrency,
+                                 String currency, String name, String description,
+                                 int billingType, int customBillingIntervallInDays,
+                                 String paypalProductId, String stripeProductId) throws StripeException, SQLException, PayPalRESTException {
         Product product = getProductById(id);
         if (product==null){
             product = new Product(id, priceInSmallestCurrency, currency, name, description, billingType, customBillingIntervallInDays,
                     paypalProductId, stripeProductId);
-            insertProduct(product);
+            payHookDatabase.insertProduct(product);
         }
 
         if (paypalClientId!=null && paypalClientSecret!=null){
@@ -252,19 +247,19 @@ public class PayHookV3 {
         return new Product();
     }
 
-    private void insertProduct(Product product) throws SQLException {
-        try (PreparedStatement stm = databaseConnection.prepareStatement("INSERT INTO orders (" +
-                "id, price, currency, name, description," +
-                "billingType, customBillingIntervallInDays)" +
-                " VALUES (?,?,?,?,?,?,?)")) {
-            stm.setInt(1, product.getId());
-            stm.setLong(2, product.getPriceInSmallestCurrency());
-            stm.setString(3, product.getCurrency());
-            stm.setString(4, product.getName());
-            stm.setString(5, product.getDescription());
-            stm.setInt(6, product.getBillingType());
-            stm.setInt(7, product.getCustomBillingIntervallInDays());
-            stm.executeUpdate();
+
+
+    public void onMissedPayment(Consumer<Event> action){
+        synchronized (actionsOnMissedPayment){
+            actionsOnMissedPayment.add(action);
+        }
+    }
+
+    private void executeMissedPayment(Event event){
+        synchronized (actionsOnMissedPayment){
+            for (Consumer<Event> action : actionsOnMissedPayment){
+                action.accept(event);
+            }
         }
     }
 
