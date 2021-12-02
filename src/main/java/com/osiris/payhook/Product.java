@@ -1,7 +1,7 @@
 package com.osiris.payhook;
 
 public class Product {
-    private int id;
+    private final int id;
     private long priceInSmallestCurrency;
     private String currency;
     private String name;

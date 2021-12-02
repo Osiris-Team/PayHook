@@ -1,6 +1,9 @@
 package com.osiris.payhook;
 
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
 
 public class Order {
     private int id;
@@ -18,6 +21,8 @@ public class Order {
     private Timestamp refundTimestamp;
     private Timestamp cancelTimestamp;
 
+    private final List<Consumer<Event>> actionsOnReceivedPayment = new ArrayList<>();
+
     public Order(int id, String payUrl, long priceInSmallestCurrency,
                  String currency, String name, String description, int billingType,
                  int customBillingIntervallInDays, Timestamp lastPaymentTimestamp,
@@ -33,6 +38,23 @@ public class Order {
         this.lastPaymentTimestamp = lastPaymentTimestamp;
         this.refundTimestamp = refundTimestamp;
         this.cancelTimestamp = cancelTimestamp;
+    }
+
+    public void onPaymentReceived(Consumer<Event> action) {
+        synchronized (actionsOnReceivedPayment){
+            actionsOnReceivedPayment.add(action);
+        }
+    }
+
+    public void executePaymentReceived(){
+        synchronized (actionsOnReceivedPayment){
+            for (Consumer<Event> action :
+                    actionsOnReceivedPayment) {
+                action.accept(new Event(this));
+            }
+            actionsOnReceivedPayment.clear();
+            // TODO LINK THIS WITH ACTUAL WEBHOOK EVENTS
+        }
     }
 
     public int getId() {

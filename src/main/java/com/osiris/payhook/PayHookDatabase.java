@@ -96,7 +96,7 @@ public class PayHookDatabase {
                 "refundTimestamp, cancelTimestamp)" +
                 " FROM orders")) {
             ResultSet rs = stm.executeQuery();
-            while(rs.next()){
+            while (rs.next()) {
                 Order order = new Order(
                         rs.getInt(1),
                         rs.getString(2),
