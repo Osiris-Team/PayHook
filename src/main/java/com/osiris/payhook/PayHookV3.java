@@ -227,7 +227,8 @@ public class PayHookV3 {
                 // Note that PayPal doesn't store products, but only plans, in its databases.
                 // Thus, products don't need to get updated, except plans
                 if (dbProduct.isRecurring()) {
-                    com.paypal.api.payments.Plan plan = new Plan().create(paypalV1ApiContext);
+                    com.paypal.api.payments.Plan plan = new Plan(name, description, "INFINITE")
+                            .create(paypalV1ApiContext);
                     dbProduct.setPaypalProductId(plan.getId());
                 }
             }
