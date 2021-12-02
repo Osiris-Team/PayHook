@@ -1,3 +1,5 @@
+### Idea
+
 Working with payments in Java is real pain. If you want to expand to other
 third-party payment processors its hell.
 
@@ -5,24 +7,25 @@ That's why I thought to expand PayHook to handle all that.
 The basic idea is that we would process all payments only thorough webhook events.
 Which is to be honest, the safest and simplest way.
 
-Prerequisites:
-- SQL database like MySQL, MariaDB, etc... (this is where PayHook will store the orders, products and payments)
-- 5 minutes of free time to set this up.
+### Features
 
-Features:
 - Secure, verified payments without duplicates, due to the design being based solely on validated webhook events.
 - Catches all payments. If your application is offline for example 
 payment processors notice that the webhook event wasn't received 
-and try again several times.
+and try again later, several times.
 - Notifies you on missed payments by the user. For example when the user misses a payment for his subscription.
-- Simplified product and order creation (also across multiple payment-processors).
+- Simplified product and order creation (also across multiple payment-processors), through product and order abstraction.
 - Handles saving of products and orders in your SQL database
 - TODO Saves each payment to the database. This saves you time when creating summaries or tax reports, 
 since all payments are at one place and not scattered over each payment processor.
 - TODO Live and Sandbox tables in the database, to ensure these are separated strictly.
 - Lowest level queries to the database to ensure maximum speed.
 
-I am still working on the design. Here is what I've got:
+### Installation
+
+Prerequisites:
+- SQL database like MySQL, MariaDB, etc... (this is where PayHook will store the orders, products and payments)
+- 5 minutes of free time to set this up.
 
 Setup:
 1. Set database information
@@ -30,28 +33,59 @@ Setup:
 3. Create/Update products
 
 ```java
-public class Constants{
-    // Init PayHook once. For example in a Constants class of yours.
-    // It'll connect to your database and search for the payhook database.
-    // If not found it'll create it and insert the "orders" table
-    // with the same fields as the "Order" class further below.
-    public static PayHook P;
-    static{
-        P = new PayHook(
-                "database_url", 
-                "database_username", 
-                "database_password");
-        
-        P.setPayPalCredentials("client_id", "client_secret", true);
-        P.setStripeCredentials("secret_key", true);
-        
-        P.putProduct(1, ...);
-        P.putProduct(2, ...);
-        P.putProduct(3, ...);
+public class ExampleConstants {
+  public static final PayHookV3 P;
+  public static final Product product;
+  public static final Product productRecurring;
+
+  static {
+    // Insert the below somewhere where it gets ran once.
+    // For example in a Constants class of yours.
+    try {
+      P = new PayHookV3("db_url",
+              "db_name",
+              "db_password");
+    } catch (SQLException e) {
+      throw new RuntimeException(e);
     }
+
+    P.initPayPal(true, "client_id", "client_secret");
+    P.initStripe(true, "secret_key");
+    
+    product = P.createProduct();
+    productRecurring = P.createProduct();
+
+    P.onMissedPayment(event -> { // Relevant if you have products with recurring payments (like subscriptions)
+      try{
+        Order o = event.getOrder();
+        // TODO what should happen when the user misses a payment?
+        // TODO implement logic.
+      } catch (Exception e) {
+        // TODO handle exception
+        e.printStackTrace();
+      }
+    });
+  }
+  
+  // The code below should be run when the user clicks on a buy button.
+  void onBuyBtnClick(){
+    Order order1 = P.createStripeOrder(product);
+    Order order2 = P.createStripeOrder(productRecurring);
+
+    order1.onPaymentReceived(event -> { // Note that this only gets ran once
+
+    });
+
+    order2.onPaymentReceived(event -> {
+
+    });
+  }
 }
 ```
-Note that you must create links that listen for webhook events yourself like
+Webhooks:
+
+Depending on your initialised payment processors, you have to
+create links that listen for their webhook events too. For example like:
 `https://example.com/paypal-webhook` or `https://example.com/stripe-webhook`.
 I'm planing on making PayHook-Spring version that handles all that too.
 Here is an example on how to do that with Spring:
@@ -80,78 +114,5 @@ public class PayHookExample {
         }
         return "OK"; // Always return status code 200 with an "OK" text no matter what the result to annoy attackers.
     }
-}
-```
-```java
-class Examples{
-
-    /**
-     * User clicks on the "Buy" button for example.
-     * Then run following code:
-     */
-    public void onBuyBtnClick(){
-        Order order = null;
-        boolean selectedPayPal = true;
-        if (selectedPayPal) order = P.createPayPalOrder();
-        else if (selectedStripe) order = P.createStripeOrder();
-        else{
-            // etc.
-        }
-        order.onOrderPaid(webhookEvent -> {
-            // Executed once the order was paid.
-        });
-    }
-
-    /**
-     * How do you check for payments on a subscription for example?
-     * Since we rely on webhook events we do not need to spam the
-     * payment processors APIs to check the payments.
-     * We check our own DB and compare each orders, Order#lastPaymentTimestamp with
-     * the Orders billing intervall.
-     */
-    public void exampleRecurring(){
-        // Start a thread which checks recurring orders. 
-        P.initRecurringOrdersChecker(12); // Checks the orders every 12 hours
-        P.onMissingPayment(details -> {
-            // Executed when 
-        });
-    }
-}
-
-```
-```java
-class Order{
-    private int id;
-    
-    // Product related information:
-    private String price;
-    private String name;
-    private String description;
-    private int billingType; // Returns a value from 0 to 5
-    public boolean isRecurring(){ // For example a subscription
-        return billingType != 0;
-    }
-    public boolean isBillingInterval1Month(){ 
-        return billingType == 1;
-    }
-    public boolean isBillingInterval3Months(){
-        return billingType == 2;
-    }
-    public boolean isBillingInterval6Months(){
-        return billingType == 3;
-    }
-    public boolean isBillingInterval12Months(){
-        return billingType == 4;
-    }
-    public boolean isCustomBillingInterval(){
-        return billingType == 5;
-    }
-    private int customBillingIntervallInDays;
-    private Timestamp lastPaymentTimestamp;
-    
-    // Information related to the status of the order:
-    private boolean isPaid;
-    private boolean isRefunded;
-    private boolean isCancelled;
 }
 ```
