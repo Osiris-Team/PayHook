@@ -64,13 +64,33 @@ public class PayHookV3 {
         }).start();
     }
 
+    /**
+     * Executed when the due payment hasn't been received yet. <br>
+     * Note that the user is given one extra day to pay. <br>
+     * Also note that this is executed every hour, until the order is cancelled. <br>
+     */
+    public void onMissedPayment(Consumer<Event> action){
+        synchronized (actionsOnMissedPayment){
+            actionsOnMissedPayment.add(action);
+        }
+    }
+
+    private void executeMissedPayment(Event event){
+        synchronized (actionsOnMissedPayment){
+            for (Consumer<Event> action : actionsOnMissedPayment){
+                action.accept(event);
+            }
+        }
+    }
+
     public void checkForMissedPayments() throws SQLException {
         List<Order> orders = payHookDatabase.getOrders();
         long now     = System.currentTimeMillis();
-        long month   = 2629800000L;
-        long month3  = 7889400000L;
-        long month6  = 15778800000L;
-        long month12 = 31557600000L;
+        long extraTime = 86400000L; // Give the user one extra day to pay
+        long month   = 2629800000L + extraTime;
+        long month3  = 7889400000L + extraTime;
+        long month6  = 15778800000L + extraTime;
+        long month12 = 31557600000L + extraTime;
         for (Order o :
                 orders) {
             if (o.isRecurring()){
@@ -99,7 +119,7 @@ public class PayHookV3 {
         }
     }
 
-    public void setPaypalCredentials(boolean isSandbox, String clientId, String clientSecret) {
+    public void initPayPal(boolean isSandbox, String clientId, String clientSecret) {
         this.paypalClientId = clientId;
         this.paypalClientSecret = clientSecret;
         this.isPaypalSandbox = isSandbox;
@@ -114,7 +134,7 @@ public class PayHookV3 {
         }
     }
 
-    public void setStripeCredentials(boolean isSandbox, String secretKey) {
+    public void initStripe(boolean isSandbox, String secretKey) {
         this.stripeSecretKey = secretKey;
         this.isStripeSandbox = isSandbox;
         Stripe.apiKey = secretKey;
@@ -196,69 +216,74 @@ public class PayHookV3 {
      */
     public Product createProduct(int id, long priceInSmallestCurrency,
                                  String currency, String name, String description,
-                                 int billingType, int customBillingIntervallInDays,
-                                 String paypalProductId, String stripeProductId) throws StripeException, SQLException, PayPalRESTException {
-        Product product = getProductById(id);
-        if (product==null){
-            product = new Product(id, priceInSmallestCurrency, currency, name, description, billingType, customBillingIntervallInDays,
-                    paypalProductId, stripeProductId);
-            payHookDatabase.insertProduct(product);
+                                 int billingType, int customBillingIntervallInDays) throws StripeException, SQLException, PayPalRESTException {
+        Product newProduct = new Product(id, priceInSmallestCurrency, currency, name, description, billingType, customBillingIntervallInDays,
+                null, null);
+        Product dbProduct = payHookDatabase.getProductById(id);
+        if (dbProduct==null){
+            dbProduct = new Product(id, priceInSmallestCurrency, currency, name, description, billingType, customBillingIntervallInDays,
+                    null, null);
+            if (paypalClientId!=null && paypalClientSecret!=null){
+                // Note that PayPal doesn't store products, but only plans, in its databases.
+                // Thus, products don't need to get updated, except plans
+                if (dbProduct.isRecurring()){
+                    com.paypal.api.payments.Plan plan = new Plan().create(paypalV1ApiContext);
+                    dbProduct.setPaypalProductId(plan.getId());
+                }
+            }
+            if (stripeSecretKey!=null){
+                Map<String, Object> params = new HashMap<>();
+                params.put("name", name);
+                params.put("description", description);
+                params.put("livemode", isStripeSandbox);
+                com.stripe.model.Product stripeProduct = com.stripe.model.Product.create(params);
+                dbProduct.setStripeProductId(stripeProduct.getId());
+            }
+            payHookDatabase.insertProduct(dbProduct);
         }
 
-        if (paypalClientId!=null && paypalClientSecret!=null){
-            // Note that PayPal doesn't store products, but only plans, in its databases.
-            // Thus, products don't need to get updated, except plans
-            if (product.isRecurring()){
-                if (paypalProductId==null){ // Create new plan
-                    com.paypal.api.payments.Plan plan = new Plan().create(paypalV1ApiContext);
-                    product.setPaypalProductId(plan.getId());
-                } else{ // Update existing plan
-                    com.paypal.api.payments.Plan plan = Plan.get(paypalV1ApiContext, product.getPaypalProductId());
+        newProduct.setPaypalProductId(dbProduct.getPaypalProductId());
+        newProduct.setStripeProductId(dbProduct.getStripeProductId());
+
+        if (hasProductChanges(newProduct, dbProduct)){
+            payHookDatabase.updateProduct(newProduct);
+
+            if (paypalClientId!=null && paypalClientSecret!=null && dbProduct.getPaypalProductId()!=null) {
+                // Note that PayPal doesn't store products, but only plans, in its databases.
+                // Thus, products don't need to get updated, except plans
+                if (dbProduct.isRecurring()){
+                    com.paypal.api.payments.Plan plan = Plan.get(paypalV1ApiContext, dbProduct.getPaypalProductId());
                     plan.update(); // TODO
                 }
             }
-
-
-
-        }
-        // Create/Update Stripe product
-        if (stripeSecretKey!=null){
-            com.stripe.model.Product stripeProduct = null;
-            try{
-                stripeProduct = com.stripe.model.Product.retrieve(product.getStripeProductId());
-            } catch (Exception e) {
-            }
-            Map<String, Object> params = new HashMap<>();
-            params.put("name", name);
-            params.put("description", description);
-            params.put("livemode", isStripeSandbox);
-            if (stripeProduct==null){
-                stripeProduct = com.stripe.model.Product.create(params);
-            } else{
+            if (stripeSecretKey!=null && dbProduct.getStripeProductId()!=null){
+                com.stripe.model.Product stripeProduct = com.stripe.model.Product.retrieve(dbProduct.getStripeProductId());
+                Map<String, Object> params = new HashMap<>();
+                params.put("name", name);
+                params.put("description", description);
+                params.put("livemode", isStripeSandbox);
                 stripeProduct.update(params);
             }
-
         }
-        // TODO add to database
-        // TODO add to payment processors
-
-        return new Product();
+        return newProduct;
     }
 
-
-
-    public void onMissedPayment(Consumer<Event> action){
-        synchronized (actionsOnMissedPayment){
-            actionsOnMissedPayment.add(action);
-        }
-    }
-
-    private void executeMissedPayment(Event event){
-        synchronized (actionsOnMissedPayment){
-            for (Consumer<Event> action : actionsOnMissedPayment){
-                action.accept(event);
-            }
-        }
+    private boolean hasProductChanges(Product newProduct, Product dbProduct) {
+        if (newProduct.getId()!=dbProduct.getId())
+            return true;
+        if (newProduct.getPriceInSmallestCurrency()!=dbProduct.getPriceInSmallestCurrency())
+            return true;
+        if (!newProduct.getCurrency().equals(dbProduct.getCurrency()))
+            return true;
+        if (!newProduct.getName().equals(dbProduct.getName()))
+            return true;
+        if (!newProduct.getDescription().equals(dbProduct.getDescription()))
+            return true;
+        if (newProduct.getBillingType()!=dbProduct.getBillingType())
+            return true;
+        if (newProduct.getCustomBillingIntervallInDays()!=dbProduct.getCustomBillingIntervallInDays())
+            return true;
+        return false;
     }
 
 }

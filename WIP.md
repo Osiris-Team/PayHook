@@ -5,12 +5,22 @@ That's why I thought to expand PayHook to handle all that.
 The basic idea is that we would process all payments only thorough webhook events.
 Which is to be honest, the safest and simplest way.
 
+Prerequisites:
+- SQL database like MySQL, MariaDB, etc... (this is where PayHook will store the orders, products and payments)
+- 5 minutes of free time to set this up.
+
 Features:
 - Secure, verified payments without duplicates, due to the design being based solely on validated webhook events.
-- Catches missed payments, for example due to your application being offline, since
-  payment processors notice when a webhook event wasn't received and try again several times
+- Catches all payments. If your application is offline for example 
+payment processors notice that the webhook event wasn't received 
+and try again several times.
+- Notifies you on missed payments by the user. For example when the user misses a payment for his subscription.
 - Simplified product and order creation (also across multiple payment-processors).
 - Handles saving of products and orders in your SQL database
+- TODO Saves each payment to the database. This saves you time when creating summaries or tax reports, 
+since all payments are at one place and not scattered over each payment processor.
+- TODO Live and Sandbox tables in the database, to ensure these are separated strictly.
+- Lowest level queries to the database to ensure maximum speed.
 
 I am still working on the design. Here is what I've got:
 

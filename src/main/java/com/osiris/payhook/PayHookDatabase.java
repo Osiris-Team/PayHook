@@ -120,4 +120,11 @@ public class PayHookDatabase {
         return databaseConnection;
     }
 
+    public Product getProductById(int id) {
+        return null; //TODO
+    }
+
+    public void updateProduct(Product product) {
+        //TODO
+    }
 }

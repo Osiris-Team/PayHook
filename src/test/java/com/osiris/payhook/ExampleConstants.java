@@ -18,8 +18,8 @@ public class ExampleConstants {
             throw new RuntimeException(e);
         }
 
-        P.setPaypalCredentials(true, "client_id", "client_secret");
-        P.setStripeCredentials(true, "secret_key");
+        P.initPayPal(true, "client_id", "client_secret");
+        P.initStripe(true, "secret_key");
 
         // These should be made public static fields in your Constants class
         product = P.createProduct();
