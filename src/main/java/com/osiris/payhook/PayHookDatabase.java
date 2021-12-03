@@ -13,8 +13,13 @@ public class PayHookDatabase {
             stm.executeUpdate("CREATE DATABASE IF NOT EXISTS payhook");
             stm.executeUpdate("CREATE TABLE IF NOT EXISTS products" +
                     "(id int NOT NULL PRIMARY KEY, " +
-                    ")"); // TODO
+                    ")"); // TODO price, currency, name, description, billingType, customBillingIntervallInDays, paypalProductId
+            // TODO stripeProductId, stripePriceId,
             stm.executeUpdate("CREATE TABLE IF NOT EXISTS orders" +
+                    "(id int NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
+                    ")"); // TODO price, currency, name, description, billingType, customBillingIntervallInDays,
+            // TODO lastPaymentTimestamp, refundTimestamp, cancelTimestamp, payUrl
+            stm.executeUpdate("CREATE TABLE IF NOT EXISTS payments" +
                     "(id int NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
                     ")"); // TODO
         }
@@ -44,7 +49,7 @@ public class PayHookDatabase {
                 "price, currency, name, description," +
                 "billingType, customBillingIntervallInDays," +
                 "lastPaymentTimestamp," +
-                "refundTimestamp, cancelTimestamp, pay_url)" +
+                "refundTimestamp, cancelTimestamp, payUrl)" +
                 " VALUES (?,?,?,?,?,?,?,?,?,?)")) {
             stm.setLong(1, order.getPriceInSmallestCurrency());
             stm.setString(2, order.getCurrency());
@@ -70,7 +75,7 @@ public class PayHookDatabase {
                 " SET price=?, currency=?, name=?, description=?," +
                 "billingType=?, customBillingIntervallInDays=?," +
                 "lastPaymentTimestamp=?," +
-                "refundTimestamp=?, cancelTimestamp=?, pay_url=?" +
+                "refundTimestamp=?, cancelTimestamp=?, payUrl=?" +
                 " WHERE id=?")) {
             stm.setLong(1, order.getPriceInSmallestCurrency());
             stm.setString(2, order.getCurrency());
@@ -90,7 +95,7 @@ public class PayHookDatabase {
     public List<Order> getOrders() throws SQLException {
         List<Order> list = new ArrayList<>();
         try (PreparedStatement stm = databaseConnection.prepareStatement("SELECT " +
-                "id, pay_url, price, currency, name, description," +
+                "id, payUrl, price, currency, name, description," +
                 "billingType, customBillingIntervallInDays," +
                 "lastPaymentTimestamp," +
                 "refundTimestamp, cancelTimestamp)" +
