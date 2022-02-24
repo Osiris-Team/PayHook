@@ -1,15 +1,24 @@
 package com.osiris.payhook;
 
+/**
+ * Can be bought by a consumer. <br>
+ * Supports multiple {@link PaymentProcessor}s, one-time and recurring payments. <br>
+ */
 public class Product {
-    private final int id;
-    private long priceInSmallestCurrency;
-    private String currency;
-    private String name;
-    private String description;
-    private int billingType; // Returns a value from 0 to 5
-    private int customBillingIntervallInDays;
-    private String paypalProductId;
-    private String stripeProductId;
+    public final int id;
+    public long priceInSmallestCurrency;
+    public String currency;
+    public String name;
+    public String description;
+    public int billingType; // Returns a value from 0 to 5
+    public int customBillingIntervallInDays;
+
+    // PayPal specific stuff:
+    public String paypalProductId;
+
+    // Stripe specific stuff:
+    public String stripeProductId;
+    public String stripePriceId;
 
     public Product(int id, long priceInSmallestCurrency,
                    String currency, String name, String description,
@@ -26,8 +35,18 @@ public class Product {
         this.stripeProductId = stripeProductId;
     }
 
-    public int getId() {
-        return id;
+    /**
+     * Returns true when this product has all the necessary PayPal related information available.
+     */
+    public boolean isPayPalSupported(){
+        return paypalProductId != null;
+    }
+
+    /**
+     * Returns true when this product has all the necessary Stripe related information available.
+     */
+    public boolean isStripeSupported(){
+        return stripeProductId != null && stripePriceId != null;
     }
 
     public boolean isRecurring() { // For example a subscription
@@ -56,69 +75,5 @@ public class Product {
 
     public String getFormattedPrice() {
         return priceInSmallestCurrency + " " + currency;
-    }
-
-    public long getPriceInSmallestCurrency() {
-        return priceInSmallestCurrency;
-    }
-
-    public void setPriceInSmallestCurrency(long priceInSmallestCurrency) {
-        this.priceInSmallestCurrency = priceInSmallestCurrency;
-    }
-
-    public String getCurrency() {
-        return currency;
-    }
-
-    public void setCurrency(String currency) {
-        this.currency = currency;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public int getBillingType() {
-        return billingType;
-    }
-
-    public void setBillingType(int billingType) {
-        this.billingType = billingType;
-    }
-
-    public int getCustomBillingIntervallInDays() {
-        return customBillingIntervallInDays;
-    }
-
-    public void setCustomBillingIntervallInDays(int customBillingIntervallInDays) {
-        this.customBillingIntervallInDays = customBillingIntervallInDays;
-    }
-
-    public String getPaypalProductId() {
-        return paypalProductId;
-    }
-
-    public void setPaypalProductId(String paypalProductId) {
-        this.paypalProductId = paypalProductId;
-    }
-
-    public String getStripeProductId() {
-        return stripeProductId;
-    }
-
-    public void setStripeProductId(String stripeProductId) {
-        this.stripeProductId = stripeProductId;
     }
 }

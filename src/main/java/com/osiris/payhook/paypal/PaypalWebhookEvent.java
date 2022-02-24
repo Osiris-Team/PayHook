@@ -2,14 +2,14 @@ package com.osiris.payhook.paypal;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.osiris.payhook.PayHook;
+import com.osiris.payhook.PayPalWebHookEventValidator;
 
 import java.util.List;
 
 
 /**
  * The in-memory representation of a Webhook event/notification. <br>
- * Can be validated through {@link PayHook#validateWebhookEvent(PaypalWebhookEvent)}.
+ * Can be validated through {@link PayPalWebHookEventValidator#validateWebhookEvent(PaypalWebhookEvent)}.
  */
 public class PaypalWebhookEvent {
     private final String validWebhookId;
@@ -22,7 +22,7 @@ public class PaypalWebhookEvent {
 
     /**
      * The in-memory representation of a Webhook event/notification. <br>
-     * Can be validated through {@link PayHook#validateWebhookEvent(PaypalWebhookEvent)}.
+     * Can be validated through {@link PayPalWebHookEventValidator#validateWebhookEvent(PaypalWebhookEvent)}.
      *
      * @param validWebhookId your webhooks valid id. Get it from here: https://developer.paypal.com/developer/applications/
      * @param validTypesList your webhooks valid types/names. Here is a full list: https://developer.paypal.com/docs/api-basics/notifications/webhooks/event-names/
@@ -58,7 +58,7 @@ public class PaypalWebhookEvent {
     }
 
     /**
-     * Perform {@link PayHook#validateWebhookEvent(PaypalWebhookEvent)} on this event, so this method
+     * Perform {@link PayPalWebHookEventValidator#validateWebhookEvent(PaypalWebhookEvent)} on this event, so this method
      * returns the right value.
      *
      * @return true if this event is a valid paypal webhook event.

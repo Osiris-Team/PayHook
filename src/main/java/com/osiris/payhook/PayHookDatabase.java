@@ -5,12 +5,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class PayHookDatabase {
+    public final String name;
     private final Connection databaseConnection;
 
-    public PayHookDatabase(Connection databaseConnection) throws SQLException {
+    public PayHookDatabase(String name, Connection databaseConnection) throws SQLException {
+        this.name = name;
         this.databaseConnection = databaseConnection;
         try (Statement stm = databaseConnection.createStatement()) {
-            stm.executeUpdate("CREATE DATABASE IF NOT EXISTS payhook");
+            stm.executeUpdate("CREATE DATABASE IF NOT EXISTS "+name);
             stm.executeUpdate("CREATE TABLE IF NOT EXISTS products" +
                     "(id int NOT NULL PRIMARY KEY, " +
                     ")"); // TODO price, currency, name, description, billingType, customBillingIntervallInDays, paypalProductId
@@ -41,10 +43,15 @@ public class PayHookDatabase {
         }
     }
 
-    /**
-     * Inserts the provided order into the database and also updates its id.
-     */
-    public synchronized void insertOrder(Order order) throws SQLException {
+    public void updateProduct(Product product) {
+        //TODO
+    }
+
+    public Product getProductById(int id) {
+        return null; //TODO
+    }
+
+    public synchronized Order putOrder(Order order) throws SQLException {
         try (PreparedStatement stm = databaseConnection.prepareStatement("INSERT INTO orders (" +
                 "price, currency, name, description," +
                 "billingType, customBillingIntervallInDays," +
@@ -92,6 +99,11 @@ public class PayHookDatabase {
         }
     }
 
+    public Order getOrderById(int id){
+        //TODO
+        return new Order();
+    }
+
     public List<Order> getOrders() throws SQLException {
         List<Order> list = new ArrayList<>();
         try (PreparedStatement stm = databaseConnection.prepareStatement("SELECT " +
@@ -123,13 +135,5 @@ public class PayHookDatabase {
 
     public Connection getDatabaseConnection() {
         return databaseConnection;
-    }
-
-    public Product getProductById(int id) {
-        return null; //TODO
-    }
-
-    public void updateProduct(Product product) {
-        //TODO
     }
 }

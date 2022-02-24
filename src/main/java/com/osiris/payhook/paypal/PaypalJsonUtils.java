@@ -16,19 +16,19 @@ import com.osiris.payhook.exceptions.HttpErrorException;
 import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Random;
+import java.util.Arrays;
 
 public class PaypalJsonUtils {
 
-    public JsonElement postJsonAndGetResponse(String input_url, JsonElement element, String base64EncodedCredentials) throws IOException, HttpErrorException {
-        return postJsonAndGetResponse(input_url, new Gson().toJson(element), base64EncodedCredentials);
+    public JsonElement postJsonAndGetResponse(String input_url, JsonElement element, String base64EncodedCredentials, Integer... successCodes) throws IOException, HttpErrorException {
+        return postJsonAndGetResponse(input_url, new Gson().toJson(element), base64EncodedCredentials, successCodes);
     }
 
-    public JsonElement postJsonAndGetResponse(String input_url, String body, String base64EncodedCredentials) throws IOException, HttpErrorException {
+    public JsonElement postJsonAndGetResponse(String input_url, String body, String base64EncodedCredentials, Integer... successCodes) throws IOException, HttpErrorException {
         HttpURLConnection con = null;
         try {
             con = (HttpURLConnection) new URL(input_url).openConnection();
-            con.addRequestProperty("User-Agent", "AutoPlug - https://autoplug.online - Request-ID: " + new Random().nextInt());
+            con.addRequestProperty("User-Agent", "PayHook - https://github.com/Osiris-Team/PayHook ");
             con.addRequestProperty("Content-Type", "application/json");
             con.addRequestProperty("Authorization", "Basic " + base64EncodedCredentials);
             con.setConnectTimeout(1000);
@@ -44,7 +44,7 @@ public class PaypalJsonUtils {
                 }
             } // After POST finishes get RESPONSE:
             int code = con.getResponseCode();
-            if (code == 200) {
+            if (code == 200 || (successCodes != null && Arrays.asList(successCodes).contains(code))) {
                 try (InputStreamReader inr = new InputStreamReader(con.getInputStream())) {
                     return JsonParser.parseReader(inr);
                 }

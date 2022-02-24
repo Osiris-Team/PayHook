@@ -4,7 +4,7 @@ import com.osiris.payhook.exceptions.ParseBodyException;
 import com.osiris.payhook.paypal.PaypalWebhookEventValidationType;
 import org.junit.jupiter.api.Test;
 
-class PayHookTest {
+class PayPalWebHookEventValidatorTest {
 
     @Test
     void parseAndGetBody() throws ParseBodyException {
@@ -74,6 +74,6 @@ class PayHookTest {
                 "    }\n" +
                 "  ]\n" +
                 "}";
-        new PayHook(PaypalWebhookEventValidationType.OFFLINE, null, null).parseAndGetBody(sampleBodyString);
+        new PayPalWebHookEventValidator(PaypalWebhookEventValidationType.OFFLINE, null, null).parseAndGetBody(sampleBodyString);
     }
 }

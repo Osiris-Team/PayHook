@@ -11,7 +11,9 @@ public class ExampleConstants {
         // Insert the below somewhere where it gets ran once.
         // For example in a Constants class of yours.
         try {
-            P = new PayHookV3("db_url",
+            P = new PayHookV3(
+                    "payhook",
+                    "db_url",
                     "db_name",
                     "db_password");
         } catch (SQLException e) {
@@ -35,18 +37,26 @@ public class ExampleConstants {
                 e.printStackTrace();
             }
         });
+
+        P.onException(e -> {
+           // TODO handle exception
+        });
+
+        P.runPayPalPaymentReceived();
+        P.runStripePaymentReceived();
     }
 
     void onBuyBtnClick(){
         // The code below should be run when the user clicks on a buy button.
-        Order order1 = P.createStripeOrder(product);
-        Order order2 = P.createStripeOrder(productRecurring);
-
-        order1.onPaymentReceived(event -> { // Note that this only gets ran once
+        Order order = P.createOrder("https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel", product);
+        order.onPaymentReceived(event -> { // Note that this only gets ran once
 
         });
+    }
 
-        order2.onPaymentReceived(event -> {
+    void onAnotherBuyBtnClick(){
+        Order order = P.createStripeOrder(productRecurring);
+        order.onPaymentReceived(event -> {
 
         });
     }

@@ -1,5 +1,15 @@
 package com.osiris.payhook;
 
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.osiris.payhook.exceptions.HttpErrorException;
+import com.osiris.payhook.exceptions.ParseBodyException;
+import com.osiris.payhook.exceptions.WebHookValidationException;
+import com.osiris.payhook.paypal.PaypalJsonUtils;
+import com.osiris.payhook.paypal.PaypalWebhookEvent;
+import com.osiris.payhook.paypal.codec.binary.Base64;
 import com.paypal.api.payments.Plan;
 import com.paypal.base.rest.APIContext;
 import com.paypal.base.rest.PayPalRESTException;
@@ -10,34 +20,41 @@ import com.stripe.model.Price;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 
+import java.io.*;
+import java.security.InvalidKeyException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SignatureException;
+import java.security.cert.CertificateException;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.function.Consumer;
 
 public class PayHookV3 {
-    private final PayHookDatabase payHookDatabase;
-    private String paypalClientId;
-    private String paypalClientSecret;
-    private String stripeSecretKey;
-    private String paypalAPIUrl;
-    private boolean isStripeSandbox;
-    private boolean isPaypalSandbox;
-
-    private APIContext paypalV1ApiContext;
-    private PayPalEnvironment paypalV2Enviornment;
-
+    public final PayHookDatabase database;
+    private Thread commandLineThread;
     private final List<Consumer<Event>> actionsOnMissedPayment = new ArrayList<>();
 
+    // Stripe specific:
+    public boolean isStripeSandbox;
+    private String stripeSecretKey;
+
+    // PayPal specific:
+    public boolean isPaypalSandbox;
+    private String paypalAPIUrl;
+    private String paypalClientId;
+    private String paypalClientSecret;
+    private String paypalBase64EncodedCredentials;
+    private APIContext paypalV1ApiContext;
+    private PayPalEnvironment paypalV2ApiContext;
+
     /**
-     * PayHook makes payments easy. Workflow: <br>
-     * 1. Set the credentials of your selected payment processors. <br>
-     * 2. Create/Update a or multiple {@link Product}s. <br>
-     * 3. Create an {@link Order} with a or multiple {@link Product}s, for the selected payment processor. <br>
-     * 4. Redirect user to complete the payment. <br>
+     * PayHook makes payments easy. Example workflow: <br>
+     * 1. Set the credentials of your payment processors. <br>
+     * 2. Create/Update {@link Product}s. <br>
+     * 3. User selects a {@link PaymentProcessor} and creates an {@link Order} that contains selected {@link Product}s. <br>
+     * 4. Redirect user to the payment processor, to complete the payment. <br>
      * 5. Get notified once the payment was received. <br>
      * <br>
      * Example with Stripe: <br>
@@ -51,8 +68,8 @@ public class PayHookV3 {
      * @throws SQLException
      * @throws RuntimeException when there is an error in the thread, which checks for missed payments in a regular interval.
      */
-    public PayHookV3(String databaseUrl, String databaseUsername, String databasePassword) throws SQLException {
-        payHookDatabase = new PayHookDatabase(DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword));
+    public PayHookV3(String databaseName, String databaseUrl, String databaseUsername, String databasePassword) throws SQLException {
+        database = new PayHookDatabase(databaseName, DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword));
         new Thread(() -> {
             try {
                 while (true) {
@@ -85,7 +102,7 @@ public class PayHookV3 {
     }
 
     public void checkForMissedPayments() throws SQLException {
-        List<Order> orders = payHookDatabase.getOrders();
+        List<Order> orders = database.getOrders();
         long now = System.currentTimeMillis();
         long extraTime = 86400000L; // Give the user one extra day to pay
         long month = 2629800000L + extraTime;
@@ -117,6 +134,34 @@ public class PayHookV3 {
         }
     }
 
+    public void initCommandLineTool(){
+        if(commandLineThread!=null) commandLineThread.interrupt();
+        commandLineThread = new Thread(() -> {
+            try(BufferedReader in = new BufferedReader(new InputStreamReader(System.in))){
+                try(PrintWriter out = new PrintWriter(new OutputStreamWriter(System.out))){
+                    out.println("Initialised PayHooks' command line tool. To exit it enter 'exit', for a list of commands enter 'help'.");
+                    boolean exit = false;
+                    String command = null;
+                    while (!exit){
+                        command = in.readLine();
+                        if (command.equals("exit")){
+                            exit = true;
+                        } else if(command.equals("help") || command.equals("h")){
+                            out.println("Available commands:");
+                            // TODO add commands like:
+                            // payments <days> // Prints all received payments from the last <days> (if not provided 30 days is the default)
+                        } else{
+                            out.println("Unknown command. Enter 'help' or 'h' for a list of all commands.");
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+        commandLineThread.start();
+    }
+
     public void initPayPal(boolean isSandbox, String clientId, String clientSecret) {
         this.paypalClientId = clientId;
         this.paypalClientSecret = clientSecret;
@@ -124,11 +169,12 @@ public class PayHookV3 {
 
         if (isSandbox) {
             paypalV1ApiContext = new APIContext(clientId, clientSecret, "sandbox");
-            paypalV2Enviornment = new PayPalEnvironment.Sandbox(clientId, clientSecret);
+            paypalV2ApiContext = new PayPalEnvironment.Sandbox(clientId, clientSecret);
         } else {
             paypalV1ApiContext = new APIContext(clientId, clientSecret, "live");
-            paypalV2Enviornment = new PayPalEnvironment.Live(clientId, clientSecret);
+            paypalV2ApiContext = new PayPalEnvironment.Live(clientId, clientSecret);
         }
+        paypalBase64EncodedCredentials = Base64.encodeBase64String((clientId + ":" + clientSecret).getBytes());
     }
 
     public void initStripe(boolean isSandbox, String secretKey) {
@@ -137,66 +183,11 @@ public class PayHookV3 {
         Stripe.apiKey = secretKey;
     }
 
-    public String getPaypalClientId() {
-        return paypalClientId;
-    }
-
-    public String getPaypalClientSecret() {
-        return paypalClientSecret;
-    }
-
-    public String getStripeSecretKey() {
-        return stripeSecretKey;
-    }
-
-    public String getPaypalAPIUrl() {
-        return paypalAPIUrl;
-    }
-
-    public void setPaypalAPIUrl(String paypalAPIUrl) {
-        this.paypalAPIUrl = paypalAPIUrl;
-    }
-
-    /**
-     * Creates and adds a new {@link Order} to the database, with the selected payment processor. <br>
-     * Redirect your user to {@link Order#getPayUrl()} to pay and complete the order. <br>
-     * You can listen for payment completion with {@link Order#onPaymentReceived(Consumer)}. <br>
-     * @param product The product the user wants to buy.
-     * @param quantity The quantity of the product.
-     * @param successUrl Redirect the user to this url on a successful checkout.
-     * @param cancelUrl Redirect the user to this url on an aborted checkout.
-     */
-    public Order createStripeOrder(Product product, int quantity, String successUrl, String cancelUrl) throws StripeException, SQLException {
-        long priceInSmallestCurrency = product.getPriceInSmallestCurrency();
-        String currency = product.getCurrency();
-        String name = product.getName();
-        String description = product.getDescription();
-        int billingType = product.getBillingType();
-        int customBillingIntervallInDays = product.getCustomBillingIntervallInDays();
-        Session session = Session.create(SessionCreateParams.builder()
-                .setMode(SessionCreateParams.Mode.PAYMENT)
-                .setSuccessUrl(successUrl)
-                .setCancelUrl(cancelUrl)
-                .addLineItem(
-                        SessionCreateParams.LineItem.builder()
-                                .setQuantity(1L)
-                                // Provide the exact Price ID (e.g. pr_1234) of the product you want to sell
-                                .setPrice("{{PRICE_ID}}")
-                                .build())
-                .build());
-        Order order = new Order(
-                0, session.getUrl(), priceInSmallestCurrency, currency, name,
-                description, billingType, customBillingIntervallInDays,
-                null, null, null);
-        payHookDatabase.insertOrder(order);
-        return order;
-    }
-
     /**
      * Call this method after setting the credentials for your payment processors. <br>
-     * If the provided id doesn't exist in the database, it gets created/inserted. <br>
-     * If the provided id exists in the database and the new provided values differ from the values in the database, it gets updated. <br>
-     * The above also happens for the {@link Product}s saved on the servers of the payment processors. <br>
+     * If the provided id doesn't exist in the {@link #database}, the product gets created/inserted. <br>
+     * If the provided id exists in the {@link #database} and the new provided values differ from the values in the {@link #database}, it gets updated. <br>
+     * The above also happens for the {@link Product}s saved on the databases of the payment processors. <br>
      *
      * @param id                           The unique identifier of this product.
      * @param priceInSmallestCurrency      E.g., 100 cents to charge $1.00 or 100 to charge ¥100, a zero-decimal currency.
@@ -217,9 +208,10 @@ public class PayHookV3 {
     public Product createProduct(int id, long priceInSmallestCurrency,
                                  String currency, String name, String description,
                                  int billingType, int customBillingIntervallInDays) throws StripeException, SQLException, PayPalRESTException {
+        // TODO also link webhook urls
         Product newProduct = new Product(id, priceInSmallestCurrency, currency, name, description, billingType, customBillingIntervallInDays,
                 null, null);
-        Product dbProduct = payHookDatabase.getProductById(id);
+        Product dbProduct = database.getProductById(id);
         if (dbProduct == null) {
             dbProduct = new Product(id, priceInSmallestCurrency, currency, name, description, billingType, customBillingIntervallInDays,
                     null, null);
@@ -229,7 +221,7 @@ public class PayHookV3 {
                 if (dbProduct.isRecurring()) {
                     com.paypal.api.payments.Plan plan = new Plan(name, description, "INFINITE")
                             .create(paypalV1ApiContext);
-                    dbProduct.setPaypalProductId(plan.getId());
+                    dbProduct.paypalProductId = plan.getId();
                 }
             }
             if (stripeSecretKey != null) {
@@ -238,7 +230,7 @@ public class PayHookV3 {
                 params.put("description", description);
                 params.put("livemode", isStripeSandbox);
                 com.stripe.model.Product stripeProduct = com.stripe.model.Product.create(params);
-                dbProduct.setStripeProductId(stripeProduct.getId());
+                dbProduct.stripeProductId = stripeProduct.getId();
 
                 Map<String, Object> paramsPrice = new HashMap<>();
                 paramsPrice.put("currency", currency);
@@ -262,27 +254,27 @@ public class PayHookV3 {
                     paramsPrice.put("recurring", stripeRecurring);
                 }
                 com.stripe.model.Price stripePrice = com.stripe.model.Price.create(paramsPrice);
-                dbProduct.setStripePriceId(stripePrice.getId());
+                dbProduct.stripePriceId = stripePrice.getId();
             }
-            payHookDatabase.insertProduct(dbProduct);
+            database.insertProduct(dbProduct);
         }
 
-        newProduct.setPaypalProductId(dbProduct.getPaypalProductId());
-        newProduct.setStripeProductId(dbProduct.getStripeProductId());
+        newProduct.paypalProductId = dbProduct.paypalProductId;
+        newProduct.stripeProductId = dbProduct.stripeProductId;
 
         if (hasProductChanges(newProduct, dbProduct)) {
-            payHookDatabase.updateProduct(newProduct);
+            database.updateProduct(newProduct);
 
-            if (paypalClientId != null && paypalClientSecret != null && dbProduct.getPaypalProductId() != null) {
+            if (paypalClientId != null && paypalClientSecret != null && dbProduct.paypalProductId != null) {
                 // Note that PayPal doesn't store products, but only plans, in its databases.
                 // Thus, products don't need to get updated, except plans
                 if (dbProduct.isRecurring()) {
-                    com.paypal.api.payments.Plan plan = Plan.get(paypalV1ApiContext, dbProduct.getPaypalProductId());
+                    com.paypal.api.payments.Plan plan = Plan.get(paypalV1ApiContext, dbProduct.paypalProductId);
                     plan.update(); // TODO
                 }
             }
-            if (stripeSecretKey != null && dbProduct.getStripeProductId() != null) {
-                com.stripe.model.Product stripeProduct = com.stripe.model.Product.retrieve(dbProduct.getStripeProductId());
+            if (stripeSecretKey != null && dbProduct.stripeProductId != null) {
+                com.stripe.model.Product stripeProduct = com.stripe.model.Product.retrieve(dbProduct.stripeProductId);
                 Map<String, Object> params = new HashMap<>();
                 params.put("name", name);
                 params.put("description", description);
@@ -293,20 +285,118 @@ public class PayHookV3 {
         return newProduct;
     }
 
-    private boolean hasProductChanges(Product newProduct, Product dbProduct) {
-        if (newProduct.getId() != dbProduct.getId())
-            return true;
-        if (newProduct.getPriceInSmallestCurrency() != dbProduct.getPriceInSmallestCurrency())
-            return true;
-        if (!newProduct.getCurrency().equals(dbProduct.getCurrency()))
-            return true;
-        if (!newProduct.getName().equals(dbProduct.getName()))
-            return true;
-        if (!newProduct.getDescription().equals(dbProduct.getDescription()))
-            return true;
-        if (newProduct.getBillingType() != dbProduct.getBillingType())
-            return true;
-        return newProduct.getCustomBillingIntervallInDays() != dbProduct.getCustomBillingIntervallInDays();
+    /**
+     * Updates the {@link Product}s details in your local  and in
+     * the database of its {@link PaymentProcessor}.
+     */
+    public Product updateProduct(Product product){
+        // TODO
     }
 
+    /**
+     * Creates and adds a new {@link Order} to the database, with the selected payment processor. <br>
+     * Redirect your user to {@link Order#getPayUrl()} to pay and complete the order. <br>
+     * You can listen for payment completion with {@link Order#onPaymentReceived(Consumer)}. <br>
+     * @param products The product the user wants to buy.
+     * @param quantity The quantity of the product.
+     * @param successUrl Redirect the user to this url on a successful checkout.
+     * @param cancelUrl Redirect the user to this url on an aborted checkout.
+     */
+    public Order createOrder(PaymentProcessor paymentProcessor, String successUrl, String cancelUrl, Product... products) throws Exception {
+        Objects.requireNonNull(products);
+        if (products.length == 0) throw new Exception("Products array cannot be empty!");
+        String currency = products[0].currency;
+        long totalPriceInSmallestCurrency = 0;
+        Product[] productsCopy = Arrays.copyOf(products, products.length);
+        // Calculate total price, make sure all products have the same currency
+        // and support Stripe.
+        for (Product pCopy : productsCopy) {
+            for (Product p : products) {
+                if (!p.currency.equals(pCopy.currency)) {
+                    throw new Exception("All provided products must have the same currency!");
+                }
+            }
+            if(paymentProcessor.equals(PaymentProcessor.STRIPE) && !pCopy.isStripeSupported())
+                throw new Exception("One of the provided products does not support Stripe.");
+            totalPriceInSmallestCurrency += pCopy.priceInSmallestCurrency;
+        }
+        if(paymentProcessor.equals(PaymentProcessor.STRIPE)){
+            SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
+                    .setMode(SessionCreateParams.Mode.PAYMENT)
+                    .setSuccessUrl(successUrl)
+                    .setCancelUrl(cancelUrl);
+            for (Product p :
+                    products) {
+                paramsBuilder.addLineItem(
+                        SessionCreateParams.LineItem.builder()
+                                .setName(p.name)
+                                .setDescription(p.description)
+                                .setQuantity(1L)
+                                // Provide the exact Price ID (e.g. pr_1234) of the product you want to sell
+                                .setPrice("{{" + p.stripePriceId + "}}")
+                                .build());
+            }
+            Session session = Session.create(paramsBuilder.build());
+            return database.putOrder(session.getUrl(), totalPriceInSmallestCurrency, currency, products);
+        } else if(paymentProcessor.equals(PaymentProcessor.PAYPAL)){
+            //TODO
+        }
+        return null; // TODO
+    }
+
+    private boolean hasProductChanges(Product p1, Product p2) {
+        if (p1.id != p2.id)
+            return true;
+        if (p1.priceInSmallestCurrency != p2.priceInSmallestCurrency)
+            return true;
+        if (!p1.currency.equals(p2.currency))
+            return true;
+        if (!p1.name.equals(p2.name))
+            return true;
+        if (!p1.description.equals(p2.description))
+            return true;
+        if (p1.billingType != p2.billingType)
+            return true;
+        return p1.customBillingIntervallInDays != p2.customBillingIntervallInDays;
+    }
+
+    /**
+     * The provided WebHook event gets validated. <br>
+     * If its valid and really a 'payment received' event, then the
+     * code at {@link Order#onPaymentReceived(Consumer)} gest executed. <br>
+     * Note that the event type must be: PAYMENT.AUTHORIZATION.CREATED <br>
+     */
+    public void runPayPalPaymentReceived(PaypalWebhookEvent paypalWebhookEvent) throws WebHookValidationException, CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException, SignatureException, ParseBodyException, InvalidKeyException, HttpErrorException {
+        PayPalWebHookEventValidator validator = new PayPalWebHookEventValidator(paypalClientId, paypalClientSecret);
+        validator.validateWebhookEvent(paypalWebhookEvent);
+        final String eventTypeAuthorization = "PAYMENT.AUTHORIZATION.CREATED";
+        if(paypalWebhookEvent.getEventType().equalsIgnoreCase(eventTypeAuthorization)){
+            String captureURL = null;
+            JsonArray arrayLinks = paypalWebhookEvent.getBody().getAsJsonObject("resource").getAsJsonArray("links");
+            for (JsonElement e:
+                    arrayLinks) {
+                JsonObject obj = e.getAsJsonObject();
+                if (obj.get("rel").getAsString().equals("capture")){
+                    captureURL = obj.get("href").getAsString();
+                    break;
+                }
+            }
+            if (captureURL==null) throw new WebHookValidationException("Failed to find 'capture' url inside of: "+new GsonBuilder().setPrettyPrinting().create().toJson(arrayLinks));
+            new PaypalJsonUtils().postJsonAndGetResponse(captureURL,"{}", paypalBase64EncodedCredentials, 201);
+            // TODO
+            Payment payment = new Payment();
+            database.insertPayment(payment);
+
+        } else
+            throw new WebHookValidationException("Event type '"+paypalWebhookEvent.getEventType()+"' is wrong and should be '"+eventTypeAuthorization+"'!");
+    }
+
+    /**
+     * The provided WebHook event gets validated. <br>
+     * If its valid and really a 'payment received' event, then the
+     * code at {@link Order#onPaymentReceived(Consumer)} gest executed.
+     */
+    public void runStripePaymentReceived() {
+
+    }
 }

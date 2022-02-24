@@ -1,6 +1,6 @@
 package com.osiris.payhook;
 
-public enum PaymentProcessorType {
+public enum PaymentProcessor {
     PAYPAL,
     STRIPE
 }

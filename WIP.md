@@ -1,11 +1,18 @@
 ### Idea
 
-Working with payments in Java is real pain. If you want to expand to other
-third-party payment processors its hell.
+Working with payments in Java is painful. If you want to expand to other
+third-party payment processors its hell. Why not have a single, easy to use Java library
+to handle all of that annoying stuff? 
 
-That's why I thought to expand PayHook to handle all that.
-The basic idea is that we would process all payments only thorough webhook events.
-Which is to be honest, the safest and simplest way.
+Example workflow by using PayHooks' methods:
+1. Initialise the database
+2. Initialise the payment processors
+3. Create/Update your products
+4. Costumer selects products and creates an order
+5. Receive payment for that order and provide the products/services
+
+Sounds simple right? PayHook actually makes it this simple. The only prerequisites
+are having accounts with valid credentials at your payment processors and a database.
 
 ### Features
 
@@ -20,6 +27,7 @@ and try again later, several times.
 since all payments are at one place and not scattered over each payment processor.
 - TODO Live and Sandbox tables in the database, to ensure these are separated strictly.
 - Lowest level queries to the database to ensure maximum speed.
+- TODO Commandline tool to extract relevant data from the database.
 
 ### Installation
 
@@ -42,7 +50,9 @@ public class ExampleConstants {
     // Insert the below somewhere where it gets ran once.
     // For example in a Constants class of yours.
     try {
-      P = new PayHookV3("db_url",
+      P = new PayHookV3(
+              "payhook",
+              "db_url",
               "db_name",
               "db_password");
     } catch (SQLException e) {
