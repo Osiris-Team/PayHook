@@ -3,7 +3,7 @@ package com.osiris.payhook;
 import java.sql.SQLException;
 
 public class ExampleConstants {
-    public static final PayHookV3 P;
+    public static final PayHook P;
     public static final Product product;
     public static final Product productRecurring;
 
@@ -11,7 +11,7 @@ public class ExampleConstants {
         // Insert the below somewhere where it gets ran once.
         // For example in a Constants class of yours.
         try {
-            P = new PayHookV3(
+            P = new PayHook(
                     "payhook",
                     "db_url",
                     "db_name",
@@ -24,8 +24,8 @@ public class ExampleConstants {
         P.initStripe(true, "secret_key");
 
         // These should be made public static fields in your Constants class
-        product = P.createProduct();
-        productRecurring = P.createProduct();
+        product = P.putProduct();
+        productRecurring = P.putProduct();
 
         P.onMissedPayment(event -> { // Relevant if you have products with recurring payments (like subscriptions)
             try{

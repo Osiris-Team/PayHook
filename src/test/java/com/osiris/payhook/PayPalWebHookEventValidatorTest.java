@@ -1,6 +1,7 @@
 package com.osiris.payhook;
 
 import com.osiris.payhook.exceptions.ParseBodyException;
+import com.osiris.payhook.paypal.PayPalWebHookEventValidator;
 import com.osiris.payhook.paypal.PaypalWebhookEventValidationType;
 import org.junit.jupiter.api.Test;
 

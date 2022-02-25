@@ -7,6 +7,7 @@ import com.google.gson.JsonObject;
 import com.osiris.payhook.exceptions.HttpErrorException;
 import com.osiris.payhook.exceptions.ParseBodyException;
 import com.osiris.payhook.exceptions.WebHookValidationException;
+import com.osiris.payhook.paypal.PayPalWebHookEventValidator;
 import com.osiris.payhook.paypal.PaypalJsonUtils;
 import com.osiris.payhook.paypal.PaypalWebhookEvent;
 import com.osiris.payhook.paypal.codec.binary.Base64;
@@ -16,7 +17,6 @@ import com.paypal.base.rest.PayPalRESTException;
 import com.paypal.core.PayPalEnvironment;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
-import com.stripe.model.Price;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 
@@ -28,10 +28,17 @@ import java.security.SignatureException;
 import java.security.cert.CertificateException;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.function.Consumer;
 
-public class PayHookV3 {
+/**
+ * Still work in progress. <br>
+ * Release planned in v3.0 <br>
+ */
+public class PayHook {
     public final PayHookDatabase database;
     private Thread commandLineThread;
     private final List<Consumer<Event>> actionsOnMissedPayment = new ArrayList<>();
@@ -68,7 +75,7 @@ public class PayHookV3 {
      * @throws SQLException
      * @throws RuntimeException when there is an error in the thread, which checks for missed payments in a regular interval.
      */
-    public PayHookV3(String databaseName, String databaseUrl, String databaseUsername, String databasePassword) throws SQLException {
+    public PayHook(String databaseName, String databaseUrl, String databaseUsername, String databasePassword) throws SQLException {
         database = new PayHookDatabase(databaseName, DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword));
         new Thread(() -> {
             try {
@@ -205,9 +212,10 @@ public class PayHookV3 {
      *                                     5 = recurring payment with a custom intervall <br>
      * @param customBillingIntervallInDays The custom billing intervall in days. Note that billingType must be set to 5 for this to have affect.
      */
-    public Product createProduct(int id, long priceInSmallestCurrency,
-                                 String currency, String name, String description,
-                                 int billingType, int customBillingIntervallInDays) throws StripeException, SQLException, PayPalRESTException {
+    public Product putProduct(int id, long priceInSmallestCurrency,
+                              String currency, String name, String description,
+                              int billingType, int customBillingIntervallInDays) throws StripeException, SQLException, PayPalRESTException {
+        Converter converter = new Converter();
         // TODO also link webhook urls
         Product newProduct = new Product(id, priceInSmallestCurrency, currency, name, description, billingType, customBillingIntervallInDays,
                 null, null);
@@ -219,41 +227,15 @@ public class PayHookV3 {
                 // Note that PayPal doesn't store products, but only plans, in its databases.
                 // Thus, products don't need to get updated, except plans
                 if (dbProduct.isRecurring()) {
-                    com.paypal.api.payments.Plan plan = new Plan(name, description, "INFINITE")
-                            .create(paypalV1ApiContext);
+                    com.paypal.api.payments.Plan plan = converter.toPayPalPlan(dbProduct);
+                    plan.create(paypalV1ApiContext);
                     dbProduct.paypalProductId = plan.getId();
                 }
             }
             if (stripeSecretKey != null) {
-                Map<String, Object> params = new HashMap<>();
-                params.put("name", name);
-                params.put("description", description);
-                params.put("livemode", isStripeSandbox);
-                com.stripe.model.Product stripeProduct = com.stripe.model.Product.create(params);
+                com.stripe.model.Product stripeProduct = com.stripe.model.Product.create(converter.toStripeProduct(dbProduct, isStripeSandbox));
                 dbProduct.stripeProductId = stripeProduct.getId();
-
-                Map<String, Object> paramsPrice = new HashMap<>();
-                paramsPrice.put("currency", currency);
-                paramsPrice.put("product", stripeProduct.getId());
-                if (dbProduct.isRecurring()){
-                    Price.Recurring stripeRecurring = new Price.Recurring();
-                    if (dbProduct.isCustomBillingInterval()){
-                        stripeRecurring.setInterval("day");
-                        stripeRecurring.setIntervalCount((long) customBillingIntervallInDays);
-                    } else{
-                        stripeRecurring.setInterval("month");
-                        if (dbProduct.isBillingInterval1Month())
-                            stripeRecurring.setIntervalCount(1L);
-                        else if (dbProduct.isBillingInterval3Months())
-                            stripeRecurring.setIntervalCount(3L);
-                        else if (dbProduct.isBillingInterval6Months())
-                            stripeRecurring.setIntervalCount(6L);
-                        else if (dbProduct.isBillingInterval12Months())
-                            stripeRecurring.setIntervalCount(12L);
-                    }
-                    paramsPrice.put("recurring", stripeRecurring);
-                }
-                com.stripe.model.Price stripePrice = com.stripe.model.Price.create(paramsPrice);
+                com.stripe.model.Price stripePrice = com.stripe.model.Price.create(converter.toStripePrice(dbProduct));
                 dbProduct.stripePriceId = stripePrice.getId();
             }
             database.insertProduct(dbProduct);
@@ -262,7 +244,7 @@ public class PayHookV3 {
         newProduct.paypalProductId = dbProduct.paypalProductId;
         newProduct.stripeProductId = dbProduct.stripeProductId;
 
-        if (hasProductChanges(newProduct, dbProduct)) {
+        if (compareProducts(newProduct, dbProduct)) {
             database.updateProduct(newProduct);
 
             if (paypalClientId != null && paypalClientSecret != null && dbProduct.paypalProductId != null) {
@@ -270,16 +252,14 @@ public class PayHookV3 {
                 // Thus, products don't need to get updated, except plans
                 if (dbProduct.isRecurring()) {
                     com.paypal.api.payments.Plan plan = Plan.get(paypalV1ApiContext, dbProduct.paypalProductId);
-                    plan.update(); // TODO
+                    plan.update(paypalV1ApiContext, converter.toPayPalPlanPatch(dbProduct)); // TODO
                 }
             }
             if (stripeSecretKey != null && dbProduct.stripeProductId != null) {
                 com.stripe.model.Product stripeProduct = com.stripe.model.Product.retrieve(dbProduct.stripeProductId);
-                Map<String, Object> params = new HashMap<>();
-                params.put("name", name);
-                params.put("description", description);
-                params.put("livemode", isStripeSandbox);
-                stripeProduct.update(params);
+                stripeProduct.update(converter.toStripeProduct(dbProduct, isStripeSandbox));
+                com.stripe.model.Price stripePrice = com.stripe.model.Price.retrieve(dbProduct.stripePriceId);
+                stripePrice.update(converter.toStripePrice(dbProduct));
             }
         }
         return newProduct;
@@ -344,7 +324,11 @@ public class PayHookV3 {
         return null; // TODO
     }
 
-    private boolean hasProductChanges(Product p1, Product p2) {
+    /**
+     * Does not compare payment specific details.
+     * @return true if the provided {@link Product}s have different essential information.
+     */
+    private boolean compareProducts(Product p1, Product p2) {
         if (p1.id != p2.id)
             return true;
         if (p1.priceInSmallestCurrency != p2.priceInSmallestCurrency)

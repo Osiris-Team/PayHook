@@ -1,7 +1,5 @@
 package com.osiris.payhook.paypal;
 
-import com.osiris.payhook.PayPalWebHookEventValidator;
-
 import java.util.Map;
 
 /**

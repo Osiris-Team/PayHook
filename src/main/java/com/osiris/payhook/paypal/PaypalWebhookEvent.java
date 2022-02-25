@@ -2,7 +2,6 @@ package com.osiris.payhook.paypal;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.osiris.payhook.PayPalWebHookEventValidator;
 
 import java.util.List;
 
