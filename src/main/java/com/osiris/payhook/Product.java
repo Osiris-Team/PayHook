@@ -14,7 +14,7 @@ public class Product {
     public int customBillingIntervallInDays;
 
     // PayPal specific stuff:
-    public String paypalProductId; // TODO Create java API for Create/Update/Retrieve
+    public String paypalProductId;
     public String paypalPlanId; // TODO
 
     // Stripe specific stuff:

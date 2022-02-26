@@ -48,8 +48,8 @@ public class ExampleConstants {
 
     void onBuyBtnClick(){
         // The code below should be run when the user clicks on a buy button.
-        Order order = P.createOrder("https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel", product);
-        order.onPaymentReceived(event -> { // Note that this only gets ran once
+        Order order = P.createPayment("https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel", product);
+        P.onPayment(order., event -> { // Note that this only gets ran once
 
         });
     }

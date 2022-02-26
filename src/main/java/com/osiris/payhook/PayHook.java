@@ -4,7 +4,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
-import com.osiris.payhook.exceptions.HttpErrorException;
+import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
 import com.osiris.payhook.exceptions.ParseBodyException;
 import com.osiris.payhook.exceptions.WebHookValidationException;
 import com.osiris.payhook.paypal.PayPalWebHookEventValidator;
@@ -30,10 +30,7 @@ import java.security.SignatureException;
 import java.security.cert.CertificateException;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.function.Consumer;
 
 /**
@@ -43,7 +40,8 @@ import java.util.function.Consumer;
 public class PayHook {
     public final PayHookDatabase database;
     private Thread commandLineThread;
-    private final List<Consumer<Event>> actionsOnMissedPayment = new ArrayList<>();
+    private final List<Consumer<PaymentEvent>> actionsOnMissedPayment = new ArrayList<>();
+    private final List<Consumer<PaymentEvent>> actionsOnReceivedPayment = new ArrayList<>();
 
     // Stripe specific:
     public boolean isStripeSandbox;
@@ -91,58 +89,6 @@ public class PayHook {
         }).start();
     }
 
-    /**
-     * Executed when the due payment hasn't been received yet. <br>
-     * Note that the user is given one extra day to pay. <br>
-     * Also note that this is executed every hour, until the order is cancelled. <br>
-     */
-    public void onMissedPayment(Consumer<Event> action) {
-        synchronized (actionsOnMissedPayment) {
-            actionsOnMissedPayment.add(action);
-        }
-    }
-
-    private void executeMissedPayment(Event event) {
-        synchronized (actionsOnMissedPayment) {
-            for (Consumer<Event> action : actionsOnMissedPayment) {
-                action.accept(event);
-            }
-        }
-    }
-
-    public void checkForMissedPayments() throws SQLException {
-        List<Order> orders = database.getOrders();
-        long now = System.currentTimeMillis();
-        long extraTime = 86400000L; // Give the user one extra day to pay
-        long month = 2629800000L + extraTime;
-        long month3 = 7889400000L + extraTime;
-        long month6 = 15778800000L + extraTime;
-        long month12 = 31557600000L + extraTime;
-        for (Order o :
-                orders) {
-            if (o.isRecurring()) {
-                if (o.isBillingInterval1Month()) {
-                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month)
-                        executeMissedPayment(new Event(o));
-
-                } else if (o.isBillingInterval3Months()) {
-                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month3)
-                        executeMissedPayment(new Event(o));
-                } else if (o.isBillingInterval6Months()) {
-                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month6)
-                        executeMissedPayment(new Event(o));
-                } else if (o.isBillingInterval12Months()) {
-                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month12)
-                        executeMissedPayment(new Event(o));
-                } else { // Custom payment intervall
-                    long custom = o.getCustomBillingIntervallInDays() * 86400000L; // xdays multiplied with 1 day as millisecond
-                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > custom)
-                        executeMissedPayment(new Event(o));
-                }
-            }
-        }
-    }
-
     public void initCommandLineTool(){
         if(commandLineThread!=null) commandLineThread.interrupt();
         commandLineThread = new Thread(() -> {
@@ -153,14 +99,22 @@ public class PayHook {
                     String command = null;
                     while (!exit){
                         command = in.readLine();
-                        if (command.equals("exit")){
-                            exit = true;
-                        } else if(command.equals("help") || command.equals("h")){
-                            out.println("Available commands:");
-                            // TODO add commands like:
-                            // payments <days> // Prints all received payments from the last <days> (if not provided 30 days is the default)
-                        } else{
-                            out.println("Unknown command. Enter 'help' or 'h' for a list of all commands.");
+                        try{
+                            if (command.equals("exit")){
+                                exit = true;
+                            } else if(command.equals("help") || command.equals("h")){
+                                out.println("Available commands:");
+                                out.println("products delete <id> | Removes the product with the given id from the local database.");
+                                // TODO add commands like:
+                                // payments <days> // Prints all received payments from the last <days> (if not provided 30 days is the default)
+                            } else if(command.startsWith("products delete")){
+                                int id = Integer.parseInt(command.replaceFirst("products delete ", "").trim());
+                                database.deleteProductById(id); //TODO delete everywhere
+                            } else{
+                                out.println("Unknown command. Enter 'help' or 'h' for a list of all commands.");
+                            }
+                        } catch (Exception e) {
+                            e.printStackTrace();
                         }
                     }
                 }
@@ -218,7 +172,7 @@ public class PayHook {
      */
     public Product putProduct(int id, long priceInSmallestCurrency,
                               String currency, String name, String description,
-                              int billingType, int customBillingIntervallInDays) throws StripeException, SQLException, PayPalRESTException {
+                              int billingType, int customBillingIntervallInDays) throws StripeException, SQLException, PayPalRESTException, IOException, HttpErrorException {
         Converter converter = new Converter();
         // TODO also link webhook urls
         Product newProduct = new Product(id, priceInSmallestCurrency, currency, name, description, billingType, customBillingIntervallInDays,
@@ -228,8 +182,7 @@ public class PayHook {
             dbProduct = new Product(id, priceInSmallestCurrency, currency, name, description, billingType, customBillingIntervallInDays,
                     null, null);
             if (paypalClientId != null && paypalClientSecret != null) {
-                // Note that PayPal doesn't store products, but only plans, in its databases.
-                // Thus, products don't need to get updated, except plans
+                paypalREST.createProduct(dbProduct);
                 if (dbProduct.isRecurring()) {
                     com.paypal.api.payments.Plan plan = converter.toPayPalPlan(dbProduct);
                     plan.create(paypalV1ApiContext);
@@ -277,51 +230,91 @@ public class PayHook {
         // TODO
     }
 
+
     /**
-     * Creates and adds a new {@link Order} to the database, with the selected payment processor. <br>
-     * Redirect your user to {@link Order#getPayUrl()} to pay and complete the order. <br>
-     * You can listen for payment completion with {@link Order#onPaymentReceived(Consumer)}. <br>
-     * @param products The product the user wants to buy.
-     * @param quantity The quantity of the product.
+     * Products with no recurring payments are put together in one {@link Payment}. <br>
+     * Products with recurring payments, receive a {@link Payment} object each. <br>
+     * See {@link #createPayment(PaymentProcessor, String, String, Product...)} for details. <br>
+     */
+    public Payment[] createPayments(PaymentProcessor paymentProcessor, String successUrl, String cancelUrl, Product... products) throws Exception {
+        Objects.requireNonNull(products);
+        if (products.length == 0) throw new Exception("Products array cannot be empty!");
+
+    }
+
+    /**
+     * Creates a new pending {@link Payment} for each {@link Product}. <br>
+     * Redirect your user to {@link Payment#payUrl} to complete the payment. <br>
+     * Note that {@link Product}s WITHOUT recurring payments get grouped together <br>
+     * and can be paid over the same url. <br>
+     * You can listen for payment completion with {@link #onPayment(int, Consumer)}. <br>
+     * @param paymentProcessor The users' desired {@link PaymentProcessor}.
+     * @param products Array of {@link Product}s the user wants to buy.
+     *                Cannot be null, empty, or contain products with different currencies.
+     *                 If the user wants the same {@link Product} twice for example, simply add it twice to this array.
      * @param successUrl Redirect the user to this url on a successful checkout.
      * @param cancelUrl Redirect the user to this url on an aborted checkout.
      */
-    public Order createOrder(PaymentProcessor paymentProcessor, String successUrl, String cancelUrl, Product... products) throws Exception {
+    public List<Payment> createPayments(PaymentProcessor paymentProcessor, String successUrl, String cancelUrl, Product[] products) throws Exception {
         Objects.requireNonNull(products);
         if (products.length == 0) throw new Exception("Products array cannot be empty!");
         String currency = products[0].currency;
         long totalPriceInSmallestCurrency = 0;
-        Product[] productsCopy = Arrays.copyOf(products, products.length);
-        // Calculate total price, make sure all products have the same currency
-        // and support Stripe.
-        for (Product pCopy : productsCopy) {
-            for (Product p : products) {
-                if (!p.currency.equals(pCopy.currency)) {
+        List<Product> productsNOTrecurring = new ArrayList<>();
+        List<Product> productsRecurring = new ArrayList<>(1);
+        for (Product p :
+                products) {
+            if(paymentProcessor.equals(PaymentProcessor.STRIPE) && !p.isStripeSupported())
+                throw new Exception("Product with id '"+p.productId+"' does not support Stripe because of empty fields in the database!");
+            else if(paymentProcessor.equals(PaymentProcessor.PAYPAL) && !p.isPayPalSupported()){
+                throw new Exception("Product with id '"+p.productId+"' does not support PayPal because of empty fields in the database!");
+            }
+            if (p.isRecurring()) // Sort
+                productsRecurring.add(p);
+            else
+                productsNOTrecurring.add(p);
+        }
+        Map<Product, Integer> productsAndQuantity = new HashMap<>();
+        List<Product> productsCopy2 = new ArrayList<>(productsNOTrecurring);
+        for (Product p : productsNOTrecurring) { // Check
+            for (Product p2 : productsCopy2) {
+                if (!p2.currency.equals(p.currency)) {
                     throw new Exception("All provided products must have the same currency!");
                 }
+                if(p.equals(p2)){
+                    productsAndQuantity.merge(p, 1, Integer::sum);
+                }
             }
-            if(paymentProcessor.equals(PaymentProcessor.STRIPE) && !pCopy.isStripeSupported())
-                throw new Exception("One of the provided products does not support Stripe.");
-            totalPriceInSmallestCurrency += pCopy.priceInSmallestCurrency;
         }
+
+        List<Payment> payments = new ArrayList<>();
         if(paymentProcessor.equals(PaymentProcessor.STRIPE)){
-            SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
-                    .setMode(SessionCreateParams.Mode.PAYMENT)
-                    .setSuccessUrl(successUrl)
-                    .setCancelUrl(cancelUrl);
-            for (Product p :
-                    products) {
-                paramsBuilder.addLineItem(
-                        SessionCreateParams.LineItem.builder()
-                                .setName(p.name)
-                                .setDescription(p.description)
-                                .setQuantity(1L)
-                                // Provide the exact Price ID (e.g. pr_1234) of the product you want to sell
-                                .setPrice("{{" + p.stripePriceId + "}}")
-                                .build());
+            if(productsNOTrecurring.size() > 0){
+                SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
+                        .setMode(SessionCreateParams.Mode.PAYMENT)
+                        .setSuccessUrl(successUrl)
+                        .setCancelUrl(cancelUrl);
+                for (Product p :
+                        productsAndQuantity.keySet()) {
+                    int quantity = productsAndQuantity.get(p);
+                    paramsBuilder.addLineItem(
+                            SessionCreateParams.LineItem.builder()
+                                    .setName(p.name)
+                                    .setDescription(p.description)
+                                    .setQuantity((long) quantity)
+                                    .setPrice("{{" + p.stripePriceId + "}}")
+                                    .build());
+                    //TODO
+                    payments.add(new Payment(69, (quantity * p.priceInSmallestCurrency)))
+                }
+                Session session = Session.create(paramsBuilder.build());
+
+                return database.putOrder(session.getUrl(), totalPriceInSmallestCurrency, currency, products);
             }
-            Session session = Session.create(paramsBuilder.build());
-            return database.putOrder(session.getUrl(), totalPriceInSmallestCurrency, currency, products);
+            for (Product p :
+                    productsRecurring) {
+                //TODO
+            }
         } else if(paymentProcessor.equals(PaymentProcessor.PAYPAL)){
             //TODO
         }
@@ -346,6 +339,20 @@ public class PayHook {
         if (p1.billingType != p2.billingType)
             return true;
         return p1.customBillingIntervallInDays != p2.customBillingIntervallInDays;
+    }
+
+    /**
+     * Executed when a valid payment was received on a WebHook. <br>
+     */
+    public void onPayment(int paymentId, Consumer<PaymentEvent> action) {
+        synchronized (actionsOnReceivedPayment) {
+            Consumer<PaymentEvent> actualAction = paymentEvent -> {
+                if(paymentEvent.payment.paymentId == paymentId){
+                    action.accept(paymentEvent);
+                }
+            };
+            actionsOnReceivedPayment.add(actualAction);
+        }
     }
 
     /**
@@ -386,5 +393,57 @@ public class PayHook {
      */
     public void runStripePaymentReceived() {
 
+    }
+
+    /**
+     * Executed when the due payment hasn't been received yet. <br>
+     * Note that the user is given one extra day to pay. <br>
+     * Also note that this is executed every hour, until the order is cancelled. <br>
+     */
+    public void onMissedPayment(Consumer<PaymentEvent> action) {
+        synchronized (actionsOnMissedPayment) {
+            actionsOnMissedPayment.add(action);
+        }
+    }
+
+    private void executeMissedPayment(PaymentEvent paymentEvent) {
+        synchronized (actionsOnMissedPayment) {
+            for (Consumer<PaymentEvent> action : actionsOnMissedPayment) {
+                action.accept(paymentEvent);
+            }
+        }
+    }
+
+    public void checkForMissedPayments() throws SQLException {
+        List<Order> orders = database.getOrders();
+        long now = System.currentTimeMillis();
+        long extraTime = 86400000L; // Give the user one extra day to pay
+        long month = 2629800000L + extraTime;
+        long month3 = 7889400000L + extraTime;
+        long month6 = 15778800000L + extraTime;
+        long month12 = 31557600000L + extraTime;
+        for (Order o :
+                orders) {
+            if (o.isRecurring()) {
+                if (o.isBillingInterval1Month()) {
+                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month)
+                        executeMissedPayment(new PaymentEvent(o));
+
+                } else if (o.isBillingInterval3Months()) {
+                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month3)
+                        executeMissedPayment(new PaymentEvent(o));
+                } else if (o.isBillingInterval6Months()) {
+                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month6)
+                        executeMissedPayment(new PaymentEvent(o));
+                } else if (o.isBillingInterval12Months()) {
+                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month12)
+                        executeMissedPayment(new PaymentEvent(o));
+                } else { // Custom payment intervall
+                    long custom = o.getCustomBillingIntervallInDays() * 86400000L; // xdays multiplied with 1 day as millisecond
+                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > custom)
+                        executeMissedPayment(new PaymentEvent(o));
+                }
+            }
+        }
     }
 }

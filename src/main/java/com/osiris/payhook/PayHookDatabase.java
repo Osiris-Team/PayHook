@@ -136,4 +136,8 @@ public class PayHookDatabase {
     public Connection getDatabaseConnection() {
         return databaseConnection;
     }
+
+    public void deleteProductById(int id) {
+        //TODO
+    }
 }

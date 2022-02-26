@@ -25,9 +25,11 @@ import com.osiris.payhook.paypal.codec.binary.Base64;
 import java.io.IOException;
 import java.sql.Timestamp;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Objects;
+import java.util.TimeZone;
 
 /**
  * PayPals' Java SDKs don't cover the complete REST API. <br>
@@ -93,16 +95,16 @@ public class PayPalREST {
     public PayPalREST updateProduct(Product product) throws IOException, HttpErrorException {
         Objects.requireNonNull(product.paypalProductId);
         JsonArray arr = new JsonArray();
-        JsonObject patch1 = new JsonObject();
-        JsonObject patch2 = new JsonObject();
-        arr.add(patch1);
-        arr.add(patch2);
-        patch1.addProperty("op", "replace");
-        patch1.addProperty("path", "/name");
-        patch1.addProperty("value", product.name);
-        patch2.addProperty("op", "replace");
-        patch2.addProperty("path", "/description");
-        patch2.addProperty("value", product.description);
+        JsonObject patchName = new JsonObject();
+        patchName.addProperty("op", "replace");
+        patchName.addProperty("path", "/name");
+        patchName.addProperty("value", product.name);
+        arr.add(patchName);
+        JsonObject patchDesc = new JsonObject();
+        patchDesc.addProperty("op", "replace");
+        patchDesc.addProperty("path", "/description");
+        patchDesc.addProperty("value", product.description);
+        arr.add(patchDesc);
         utilsJson.patchJsonAndGetResponse(BASE_URL+"/catalogs/products/"+product.paypalProductId, arr, this);
         return this;
     }
@@ -198,6 +200,16 @@ public class PayPalREST {
                         + "/transactions?start_time=" + formattedStartTime + "&end_time=" + formattedEndTime, this);
         AL.debug(this.getClass(), "RESPONSE: " + new GsonBuilder().setPrettyPrinting().create().toJson(response));
         return response.getAsJsonObject().get("transactions").getAsJsonArray();
+    }
+
+    public Date getLastPaymentDate(String subscriptionId) throws IOException, HttpErrorException, ParseException {
+        JsonObject obj = new UtilsPayPalJson().postJsonAndGetResponse(
+                        BASE_URL + "/billing/subscriptions/" + subscriptionId, null, this)
+                .getAsJsonObject();
+        String timestamp = obj.getAsJsonObject("billing_info").getAsJsonObject("last_payment").get("time").getAsString();
+        SimpleDateFormat sf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        sf.setTimeZone(TimeZone.getTimeZone("Etc/UTC"));
+        return sf.parse(timestamp);
     }
 
 

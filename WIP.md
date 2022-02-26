@@ -1,7 +1,7 @@
 ### Idea
 
 Working with payments in Java is painful. If you want to expand to other
-third-party payment processors its hell. Why not have a single, easy to use Java library
+third-party payment processors its hell. Why not have a single and easy to use Java library
 to handle all of that annoying stuff? 
 
 Example workflow by using PayHooks' methods:
@@ -20,13 +20,12 @@ are having accounts with valid credentials at your payment processors and a data
 - Catches all payments. If your application is offline for example 
 payment processors notice that the webhook event wasn't received 
 and try again later, several times.
-- Notifies you on missed payments by the user. For example when the user misses a payment for his subscription.
-- Simplified product and order creation (also across multiple payment-processors), through product and order abstraction.
-- Handles saving of products and orders in your SQL database
+- Actions on missed payments by the user. For example when the user misses a payment for his subscription.
+- Easy product and order creation across multiple payment-processors, through abstraction.
+- Saves everything to your SQL database, via low-level queries to ensure maximum speed.
 - TODO Saves each payment to the database. This saves you time when creating summaries or tax reports, 
 since all payments are at one place and not scattered over each payment processor.
 - TODO Live and Sandbox tables in the database, to ensure these are separated strictly.
-- Lowest level queries to the database to ensure maximum speed.
 - TODO Commandline tool to extract relevant data from the database.
 
 ### Installation
