@@ -1,16 +1,20 @@
-package com.osiris.payhook;
+package com.osiris.payhook.utils;
 
-import com.paypal.api.payments.MerchantPreferences;
-import com.paypal.api.payments.Patch;
-import com.paypal.api.payments.Plan;
+import com.osiris.payhook.Product;
+import com.paypal.api.payments.*;
 import com.stripe.model.Price;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class Converter {
+
+    public Currency toPayPalCurrency(Product product){
+        return new Currency(product.currency, new BigDecimal(product.priceInSmallestCurrency).divide(new BigDecimal(100)).toPlainString());
+    }
 
     public Map<String, Object> toStripeProduct(Product product, boolean isStripeSandbox){
         Map<String, Object> params = new HashMap<>();
@@ -47,7 +51,27 @@ public class Converter {
 
     public com.paypal.api.payments.Plan toPayPalPlan(Product product) {
         com.paypal.api.payments.Plan plan = new Plan(product.name, product.description, "INFINITE");
-        plan.setMerchantPreferences(new MerchantPreferences())
+        plan.setMerchantPreferences(new MerchantPreferences()
+                .setAutoBillAmount("YES").setAcceptedPaymentType());
+        List<PaymentDefinition> paymentDefinitions = new ArrayList<>(1);
+        PaymentDefinition paymentDefinition = new PaymentDefinition().setAmount(toPayPalCurrency(product)).setType("REGULAR");
+        if (product.isCustomBillingInterval()){
+            paymentDefinition.setFrequency()
+            paymentDefinition.setFrequency("DAY");
+            paymentDefinition.setCycles(""+product.customBillingIntervallInDays);
+        } else{
+            paymentDefinition.setFrequency("MONTH");
+            if (product.isBillingInterval1Month())
+                paymentDefinition.setCycles("1");
+            else if (product.isBillingInterval3Months())
+                paymentDefinition.setCycles("3");
+            else if (product.isBillingInterval6Months())
+                paymentDefinition.setCycles("6");
+            else if (product.isBillingInterval12Months())
+                paymentDefinition.setCycles("12");
+        }
+        paymentDefinitions.add();
+        plan.setPaymentDefinitions(paymentDefinitions);
         return plan;
     }
 

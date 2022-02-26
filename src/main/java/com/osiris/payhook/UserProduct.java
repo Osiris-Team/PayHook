@@ -4,8 +4,11 @@ package com.osiris.payhook;
  * Can be bought by a consumer. <br>
  * Supports multiple {@link PaymentProcessor}s, one-time and recurring payments. <br>
  */
-public class Product {
+public class UserProduct {
+    public final int userProductId;
     public final int productId;
+    public final int orderId;
+    public final int paymentId;
     public long priceInSmallestCurrency;
     public String currency;
     public String name;
@@ -21,11 +24,11 @@ public class Product {
     public String stripeProductId;
     public String stripePriceId;
 
-    public Product(int productId, long priceInSmallestCurrency,
-                   String currency, String name, String description,
-                   int billingType, int customBillingIntervallInDays,
-                   String paypalProductId, String stripeProductId) {
-        this.productId = productId;
+    public UserProduct(int id, long priceInSmallestCurrency,
+                       String currency, String name, String description,
+                       int billingType, int customBillingIntervallInDays,
+                       String paypalProductId, String stripeProductId) {
+        this.id = id;
         this.priceInSmallestCurrency = priceInSmallestCurrency;
         this.currency = currency;
         this.name = name;

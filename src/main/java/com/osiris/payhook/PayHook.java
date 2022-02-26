@@ -11,6 +11,8 @@ import com.osiris.payhook.paypal.PayPalWebHookEventValidator;
 import com.osiris.payhook.paypal.PaypalJsonUtils;
 import com.osiris.payhook.paypal.PaypalWebhookEvent;
 import com.osiris.payhook.paypal.codec.binary.Base64;
+import com.osiris.payhook.paypal.custom.PayPalREST;
+import com.osiris.payhook.utils.Converter;
 import com.paypal.api.payments.Plan;
 import com.paypal.base.rest.APIContext;
 import com.paypal.base.rest.PayPalRESTException;
@@ -49,10 +51,10 @@ public class PayHook {
 
     // PayPal specific:
     public boolean isPaypalSandbox;
-    private String paypalAPIUrl;
     private String paypalClientId;
     private String paypalClientSecret;
     private String paypalBase64EncodedCredentials;
+    private PayPalREST paypalREST;
     private APIContext paypalV1ApiContext;
     private PayPalEnvironment paypalV2ApiContext;
 
@@ -175,9 +177,11 @@ public class PayHook {
         this.isPaypalSandbox = isSandbox;
 
         if (isSandbox) {
+            paypalREST = new PayPalREST(clientId, clientSecret, PayPalREST.Mode.SANDBOX);
             paypalV1ApiContext = new APIContext(clientId, clientSecret, "sandbox");
             paypalV2ApiContext = new PayPalEnvironment.Sandbox(clientId, clientSecret);
         } else {
+            paypalREST = new PayPalREST(clientId, clientSecret, PayPalREST.Mode.LIVE);
             paypalV1ApiContext = new APIContext(clientId, clientSecret, "live");
             paypalV2ApiContext = new PayPalEnvironment.Live(clientId, clientSecret);
         }
@@ -229,7 +233,7 @@ public class PayHook {
                 if (dbProduct.isRecurring()) {
                     com.paypal.api.payments.Plan plan = converter.toPayPalPlan(dbProduct);
                     plan.create(paypalV1ApiContext);
-                    dbProduct.paypalProductId = plan.getId();
+                    dbProduct.paypalPlanId = plan.getId();
                 }
             }
             if (stripeSecretKey != null) {
@@ -329,7 +333,7 @@ public class PayHook {
      * @return true if the provided {@link Product}s have different essential information.
      */
     private boolean compareProducts(Product p1, Product p2) {
-        if (p1.id != p2.id)
+        if (p1.productId != p2.productId)
             return true;
         if (p1.priceInSmallestCurrency != p2.priceInSmallestCurrency)
             return true;
