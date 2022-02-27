@@ -1,21 +1,19 @@
-### Idea
+### Aim
 
 Working with payments in Java is painful. If you want to expand to other
-third-party payment processors its hell. Why not have a single and easy to use Java library
-to handle all of that annoying stuff? 
-
-Example workflow by using PayHooks' methods:
-1. Initialise the database
-2. Initialise the payment processors
-3. Create/Update your products
-4. Costumer selects products and creates an order
-5. Receive payment for that order and provide the products/services
-
-Sounds simple right? PayHook actually makes it this simple. The only prerequisites
-are having accounts with valid credentials at your payment processors and a database.
+third-party payment processors it's hell, that's why PayHook exists.
+```java
+Payment payment = payHook.createPayment("user_id", product, PaymentProcessor.PAYPAL, "success_url", "cancel_url");
+payHook.onPayment(payment.paymentId, event -> {
+    // Executed when the payment was received.
+});
+```
+PayHooks' main goal is simplicity, thus there are only 3 important Java objects (**PayHook** | **Product** | **Payment**)
+and as you can see above, creating payments can be done in one line.
 
 ### Features
-
+- Support for regular products and products with recurring payments (subscriptions).
+- Supported payment processors: PayPal and Stripe.
 - Secure, verified payments without duplicates, due to the design being based solely on validated webhook events.
 - Catch all payments. If your application is offline for example 
 payment processors notice that the webhook event wasn't received 
@@ -31,7 +29,7 @@ since all payments are at one place and not scattered over each payment processo
 ### Installation
 
 Prerequisites:
-- SQL database like MySQL, MariaDB, etc... (this is where PayHook will store the orders, products and payments)
+- SQL database like MySQL, MariaDB, etc...
 - 5 minutes of free time to set this up.
 
 Setup:

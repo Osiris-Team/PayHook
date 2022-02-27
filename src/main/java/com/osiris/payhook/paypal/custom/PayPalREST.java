@@ -21,6 +21,7 @@ import com.osiris.autoplug.webserver.objects.UserOrder;
 import com.osiris.autoplug.webserver.payment.paypal.PayPalRefund;
 import com.osiris.payhook.Product;
 import com.osiris.payhook.paypal.codec.binary.Base64;
+import com.paypal.base.rest.PayPalRESTException;
 
 import java.io.IOException;
 import java.sql.Timestamp;
@@ -107,6 +108,50 @@ public class PayPalREST {
         arr.add(patchDesc);
         utilsJson.patchJsonAndGetResponse(BASE_URL+"/catalogs/products/"+product.paypalProductId, arr, this);
         return this;
+    }
+
+    /**
+     * Returns a string array like this: <br>
+     * [subscriptionId, approveUrl]
+     */
+    public String[] createSubscription(String brandName, String planId, String returnUrl, String cancelUrl) throws WrongJsonTypeException, IOException, HttpErrorException, PayPalRESTException {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("plan_id", planId);
+
+        JsonObject applicationContext = new JsonObject();
+        obj.add("application_context", applicationContext);
+        applicationContext.addProperty("brand_name", brandName);
+        applicationContext.addProperty("locale", "en-US");
+        applicationContext.addProperty("shipping_preference", "NO_SHIPPING");
+        applicationContext.addProperty("user_action", "SUBSCRIBE_NOW");
+
+        JsonObject paymentMethod = new JsonObject();
+        applicationContext.add("payment_method", paymentMethod);
+        paymentMethod.addProperty("payer_selected", "PAYPAL");
+        paymentMethod.addProperty("payee_preferred", "IMMEDIATE_PAYMENT_REQUIRED");
+
+        applicationContext.addProperty("return_url", returnUrl);
+        applicationContext.addProperty("cancel_url", cancelUrl);
+
+
+        JsonObject resultObj = utilsJson.postJsonAndGetResponse(BASE_URL + "/billing/subscriptions", obj, this, 201)
+                .getAsJsonObject();
+
+        String approveUrl = null;
+        String editUrl = null;
+        String selfUrl = null;
+        for (JsonElement element :
+                resultObj.get("links").getAsJsonArray()) {
+            if (element.getAsJsonObject().get("rel").getAsString().equals("approve"))
+                approveUrl = element.getAsJsonObject().get("href").getAsString();
+            if (element.getAsJsonObject().get("rel").getAsString().equals("edit"))
+                editUrl = element.getAsJsonObject().get("href").getAsString();
+            if (element.getAsJsonObject().get("rel").getAsString().equals("self"))
+                selfUrl = element.getAsJsonObject().get("href").getAsString();
+            else
+                throw new PayPalRESTException("Couldn't determine url type: " + element.getAsJsonObject().get("rel").getAsString());
+        }
+        return new String[]{resultObj.get("id").getAsString(), approveUrl};
     }
 
     /**

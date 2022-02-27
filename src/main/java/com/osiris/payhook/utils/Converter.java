@@ -12,6 +12,10 @@ import java.util.Map;
 
 public class Converter {
 
+    public Currency toPayPalCurrency(String currency, long priceInSmallestCurrency){
+        return new Currency(currency, new BigDecimal(priceInSmallestCurrency).divide(new BigDecimal(100)).toPlainString());
+    }
+
     public Currency toPayPalCurrency(Product product){
         return new Currency(product.currency, new BigDecimal(product.priceInSmallestCurrency).divide(new BigDecimal(100)).toPlainString());
     }

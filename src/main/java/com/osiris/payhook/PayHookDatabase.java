@@ -6,15 +6,15 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class PayHookDatabase {
-    public final String name;
     private final Connection databaseConnection;
     public final AtomicInteger paymentsId = new AtomicInteger();
 
-    public PayHookDatabase(String name, Connection databaseConnection) throws SQLException {
-        this.name = name;
+    public PayHookDatabase(Connection databaseConnection, boolean isSandbox) throws SQLException {
         this.databaseConnection = databaseConnection;
+
         try (Statement stm = databaseConnection.createStatement()) {
-            stm.executeUpdate("CREATE DATABASE IF NOT EXISTS "+name);
+            if(isSandbox) stm.executeUpdate("CREATE DATABASE IF NOT EXISTS payhook_sandbox");
+            else stm.executeUpdate("CREATE DATABASE IF NOT EXISTS payhook");
             stm.executeUpdate("CREATE TABLE IF NOT EXISTS products" +
                     "(id int NOT NULL PRIMARY KEY, " +
                     ")"); // TODO price, currency, name, description, billingType, customBillingIntervallInDays, paypalProductId
@@ -27,6 +27,7 @@ public class PayHookDatabase {
                     "(id int NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
                     ")"); // TODO
         }
+
         //paymentsId.set(); // TODO
     }
 

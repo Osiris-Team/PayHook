@@ -17,6 +17,9 @@ import com.paypal.api.payments.Plan;
 import com.paypal.base.rest.APIContext;
 import com.paypal.base.rest.PayPalRESTException;
 import com.paypal.core.PayPalEnvironment;
+import com.paypal.core.PayPalHttpClient;
+import com.paypal.http.HttpResponse;
+import com.paypal.orders.*;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.checkout.Session;
@@ -39,7 +42,9 @@ import java.util.function.Consumer;
  * Release planned in v3.0 <br>
  */
 public class PayHook {
+    public final String brandName;
     public final PayHookDatabase database;
+    public final boolean isSandbox;
     private Thread commandLineThread;
     private final List<Consumer<PaymentEvent>> actionsOnMissedPayment = new ArrayList<>();
     private final List<Consumer<PaymentEvent>> actionsOnReceivedPayment = new ArrayList<>();
@@ -54,30 +59,29 @@ public class PayHook {
     private String paypalClientSecret;
     private String paypalBase64EncodedCredentials;
     private PayPalREST paypalREST;
-    private APIContext paypalV1ApiContext;
-    private PayPalEnvironment paypalV2ApiContext;
+    private APIContext paypalV1;
+    private PayPalHttpClient paypalV2;
 
     /**
-     * PayHook makes payments easy. Example workflow: <br>
-     * 1. Set the credentials of your payment processors. <br>
-     * 2. Create/Update {@link Product}s. <br>
-     * 3. User selects a {@link PaymentProcessor} and creates an {@link Order} that contains selected {@link Product}s. <br>
-     * 4. Redirect user to the payment processor, to complete the payment. <br>
-     * 5. Get notified once the payment was received. <br>
-     * <br>
-     * Example with Stripe: <br>
-     * 1. {@link #createStripeOrder(long, String, String, String)} <br>
-     * 2. {@link Order#createPaymentUrl} <br>
-     * 3. <br>
+     * If {@link #isSandbox} = true then the "payhook_sandbox" database will get created/used, otherwise
+     * the default "payhook" database.
+     * Remember to set your {@link PaymentProcessor} credentials, before
+     * creating/updating any {@link Product}s. <br>
      *
-     * @param databaseUrl
-     * @param databaseUsername
-     * @param databasePassword
-     * @throws SQLException
+     * @param databaseUrl Example: "jdbc:mysql://localhost:3306/db_name?serverTimezone=Europe/Rome". Note that
+     *                    PayHook will replace "db_name" with either "payhook" or "payhook_sandbox".
+     * @param databaseUsername Example: "root".
+     * @param databasePassword Example: "".
+     * @throws SQLException When the databaseUrl does not contain "db_name" or another error happens during database initialisation.
      * @throws RuntimeException when there is an error in the thread, which checks for missed payments in a regular interval.
      */
-    public PayHook(String databaseName, String databaseUrl, String databaseUsername, String databasePassword) throws SQLException {
-        database = new PayHookDatabase(databaseName, DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword));
+    public PayHook(String brandName, String databaseUrl, String databaseUsername, String databasePassword, boolean isSandbox) throws SQLException {
+        this.brandName = brandName;
+        this.isSandbox = isSandbox;
+        if (!databaseUrl.contains("db_name")) throw new SQLException("Your databaseUrl must contain 'db_name' as database name, so it can be replaced later!");
+        if(isSandbox) databaseUrl = databaseUrl.replace("db_name", "payhook_sandbox");
+        else databaseUrl = databaseUrl.replace("db_name", "payhook");
+        database = new PayHookDatabase(DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword), isSandbox);
         new Thread(() -> {
             try {
                 while (true) {
@@ -133,12 +137,12 @@ public class PayHook {
 
         if (isSandbox) {
             paypalREST = new PayPalREST(clientId, clientSecret, PayPalREST.Mode.SANDBOX);
-            paypalV1ApiContext = new APIContext(clientId, clientSecret, "sandbox");
-            paypalV2ApiContext = new PayPalEnvironment.Sandbox(clientId, clientSecret);
+            paypalV1 = new APIContext(clientId, clientSecret, "sandbox");
+            paypalV2 = new PayPalHttpClient(new PayPalEnvironment.Sandbox(clientId, clientSecret));
         } else {
             paypalREST = new PayPalREST(clientId, clientSecret, PayPalREST.Mode.LIVE);
-            paypalV1ApiContext = new APIContext(clientId, clientSecret, "live");
-            paypalV2ApiContext = new PayPalEnvironment.Live(clientId, clientSecret);
+            paypalV1 = new APIContext(clientId, clientSecret, "live");
+            paypalV2 = new PayPalHttpClient(new PayPalEnvironment.Live(clientId, clientSecret));
         }
         paypalBase64EncodedCredentials = Base64.encodeBase64String((clientId + ":" + clientSecret).getBytes());
     }
@@ -186,7 +190,7 @@ public class PayHook {
                 paypalREST.createProduct(dbProduct);
                 if (dbProduct.isRecurring()) {
                     com.paypal.api.payments.Plan plan = converter.toPayPalPlan(dbProduct);
-                    plan.create(paypalV1ApiContext);
+                    plan.create(paypalV1);
                     dbProduct.paypalPlanId = plan.getId();
                 }
             }
@@ -209,8 +213,8 @@ public class PayHook {
                 // Note that PayPal doesn't store products, but only plans, in its databases.
                 // Thus, products don't need to get updated, except plans
                 if (dbProduct.isRecurring()) {
-                    com.paypal.api.payments.Plan plan = Plan.get(paypalV1ApiContext, dbProduct.paypalProductId);
-                    plan.update(paypalV1ApiContext, converter.toPayPalPlanPatch(dbProduct)); // TODO
+                    com.paypal.api.payments.Plan plan = Plan.get(paypalV1, dbProduct.paypalProductId);
+                    plan.update(paypalV1, converter.toPayPalPlanPatch(dbProduct)); // TODO
                 }
             }
             if (stripeSecretKey != null && dbProduct.stripeProductId != null) {
@@ -235,10 +239,10 @@ public class PayHook {
      * Convenience method for creating a single {@link Payment} for a single {@link Product}. <br>
      * See {@link #createPayments(String, PaymentProcessor, String, String, List)} for details. <br>
      */
-    public Payment createPayment(String userId, PaymentProcessor paymentProcessor, String successUrl, String cancelUrl, Product product) throws Exception {
+    public Payment createPayment(String userId, Product product, PaymentProcessor paymentProcessor, String successUrl, String cancelUrl) throws Exception {
         List<Product> products = new ArrayList<>(1);
         products.add(product);
-        return createPayments(userId, paymentProcessor, successUrl, cancelUrl, products)
+        return createPayments(userId, products, paymentProcessor, successUrl, cancelUrl)
                 .get(0);
     }
 
@@ -246,12 +250,12 @@ public class PayHook {
      * Convenience method for creating a single {@link Payment} for a single {@link Product}. <br>
      * See {@link #createPayments(String, PaymentProcessor, String, String, List)} for details. <br>
      */
-    public Payment createPayment(String userId, PaymentProcessor paymentProcessor, String successUrl, String cancelUrl, Product product, int quantity) throws Exception {
+    public Payment createPayment(String userId, Product product, int quantity, PaymentProcessor paymentProcessor, String successUrl, String cancelUrl) throws Exception {
         List<Product> products = new ArrayList<>(5);
         for (int i = 0; i < quantity; i++) {
             products.add(product);
         }
-        return createPayments(userId, paymentProcessor, successUrl, cancelUrl, products)
+        return createPayments(userId, products, paymentProcessor, successUrl, cancelUrl)
                 .get(0);
     }
 
@@ -262,14 +266,15 @@ public class PayHook {
      * and can be paid over the same url. <br>
      * You can listen for payment completion with {@link #onPayment(int, Consumer)}. <br>
      * @param userId Unique identifier of the buying user.
-     * @param paymentProcessor The users' desired {@link PaymentProcessor}.
      * @param products List of {@link Product}s the user wants to buy.
      *                Cannot be null, empty, or contain products with different currencies.
      *                 If the user wants the same {@link Product} twice for example, simply add it twice to this list.
+     * @param paymentProcessor The users' desired {@link PaymentProcessor}.
      * @param successUrl Redirect the user to this url on a successful checkout.
      * @param cancelUrl Redirect the user to this url on an aborted checkout.
      */
-    public List<Payment> createPayments(String userId, PaymentProcessor paymentProcessor, String successUrl, String cancelUrl, List<Product> products) throws Exception {
+    public List<Payment> createPayments(String userId, List<Product> products, PaymentProcessor paymentProcessor, String successUrl, String cancelUrl) throws Exception {
+        Converter converter = new Converter();
         Objects.requireNonNull(products);
         if (products.size() == 0) throw new Exception("Products array cannot be empty!");
         List<Product> productsNOTrecurring = new ArrayList<>();
@@ -301,7 +306,7 @@ public class PayHook {
 
         Timestamp now = new Timestamp(System.currentTimeMillis());
         List<Payment> payments = new ArrayList<>();
-        if(paymentProcessor.equals(PaymentProcessor.STRIPE)){
+        if(paymentProcessor.equals(PaymentProcessor.STRIPE)){ // STRIPE
             if(productsNOTrecurring.size() > 0){
                 int paymentId = database.paymentsId.incrementAndGet();
                 SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
@@ -352,10 +357,75 @@ public class PayHook {
                 payments.add(payment);
                 database.insertPayment(payment);
             }
-        } else if(paymentProcessor.equals(PaymentProcessor.PAYPAL)){
-            //TODO
+        } else if(paymentProcessor.equals(PaymentProcessor.PAYPAL)){ // PAYPAL
+            if(productsNOTrecurring.size() > 0){
+                int paymentId = database.paymentsId.incrementAndGet();
+                OrderRequest orderRequest = new OrderRequest();
+                orderRequest.checkoutPaymentIntent("CAPTURE");
+
+                ApplicationContext applicationContext = new ApplicationContext().brandName(brandName).landingPage("BILLING")
+                        .cancelUrl(cancelUrl).returnUrl(successUrl).userAction("CONTINUE")
+                        .shippingPreference("NO_SHIPPING");
+                orderRequest.applicationContext(applicationContext);
+
+                String currency = null;
+                long priceTotal = 0;
+                List<Item> items = new ArrayList<>();
+                for (Product p :
+                        productsAndQuantity.keySet()) {
+                    currency = p.currency;
+                    int quantity = productsAndQuantity.get(p);
+                    priceTotal += p.priceInSmallestCurrency;
+                    items.add(new Item().name(p.name).description(p.description)
+                            .unitAmount(new Money().currencyCode(p.currency).value(converter.toPayPalCurrency(p).getValue())).quantity(""+quantity)
+                            .category("DIGITAL_GOODS"));
+                    payments.add(new Payment(paymentId, p.productId, userId, quantity,
+                            (quantity * p.priceInSmallestCurrency), p.currency, true,
+                            p.name, null, null, now,
+                            null, null, null));
+                }
+                PurchaseUnitRequest purchaseUnitRequest = new PurchaseUnitRequest()
+                        .description(brandName).softDescriptor(brandName)
+                        .amountWithBreakdown(new AmountWithBreakdown().currencyCode(currency).value(converter.toPayPalCurrency(currency, priceTotal).getValue())
+                                .amountBreakdown(new AmountBreakdown().itemTotal(new Money().currencyCode(currency).value(converter.toPayPalCurrency(currency, priceTotal).getValue()))
+                                ))
+                        .items(items);
+                List<PurchaseUnitRequest> purchaseUnitRequests = new ArrayList<>();
+                purchaseUnitRequests.add(purchaseUnitRequest);
+                orderRequest.purchaseUnits(purchaseUnitRequests);
+                OrdersCreateRequest request = new OrdersCreateRequest();
+                request.header("prefer", "return=representation");
+                request.requestBody(orderRequest);
+
+                HttpResponse<Order> response = paypalV2.execute(request);
+                if (response.statusCode() != 201) throw new PayPalRESTException("Failed to create order! PayPal returned error code '"+response.statusCode()+"'.");
+                String payUrl = null;
+                for (LinkDescription link : response.result().links()) {
+                    if (link.rel().equals("approve")){
+                        payUrl = link.href();
+                        break;
+                    }
+                }
+                if(payUrl == null) throw new PayPalRESTException("Failed to determine payUrl!");
+                for (Payment payment :
+                        payments) {
+                    payment.payUrl = payUrl;
+                    database.insertPayment(payment);
+                }
+            }
+            for (Product p :
+                    productsRecurring) {
+                int paymentId = database.paymentsId.incrementAndGet();
+                String[] arr = paypalREST.createSubscription(brandName, p.paypalPlanId, successUrl, cancelUrl);
+                Payment payment = new Payment(paymentId, p.productId, userId, 1,
+                        p.priceInSmallestCurrency, p.currency, true,
+                        p.name, arr[1], arr[0], now,
+                        null, null, null);
+                payments.add(payment);
+                database.insertPayment(payment);
+            }
         }
-        return null; // TODO
+        return payments;
     }
 
     /**

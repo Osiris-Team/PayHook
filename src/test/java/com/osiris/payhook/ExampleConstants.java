@@ -12,10 +12,11 @@ public class ExampleConstants {
         // For example in a Constants class of yours.
         try {
             P = new PayHook(
-                    "payhook",
+                    "Brand-Name",
                     "db_url",
-                    "db_name",
-                    "db_password");
+                    "db_username",
+                    "db_password",
+                    true);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -39,14 +40,14 @@ public class ExampleConstants {
 
     void onBuyBtnClick() throws Exception {
         // The code below should be run when the user clicks on a buy button.
-        Payment payment = P.createPayment("USER_ID", PaymentProcessor.PAYPAL, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel", product);
+        Payment payment = P.createPayment("USER_ID", product, PaymentProcessor.PAYPAL, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
         P.onPayment(payment.paymentId, event -> {
             // Executed when the payment was received.
         });
     }
 
     void onAnotherBuyBtnClick() throws Exception {
-        Payment payment = P.createPayment("USER_ID", PaymentProcessor.STRIPE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel", productRecurring);
+        Payment payment = P.createPayment("USER_ID", productRecurring, PaymentProcessor.STRIPE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
         P.onPayment(payment.paymentId, event -> {
             // Executed when the payment was received.
         });
