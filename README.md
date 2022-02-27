@@ -80,7 +80,7 @@ public class PayHookExample {
 ## Funding
 I am actively maintaining this repository, publishing new releases and working on its codebase basically for free, since
 I believe in open-sourced code and its benefits for everyone. So if you find this project useful consider funding
-this project via [PayPal](https://www.paypal.com/donate?hosted_button_id=JNXQCWF2TF9W4). Thank you!
+it via [PayPal](https://www.paypal.com/donate?hosted_button_id=JNXQCWF2TF9W4). Thank you!
 
 ## FAQ
 <div>
