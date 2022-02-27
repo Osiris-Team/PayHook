@@ -30,6 +30,7 @@ import java.security.SignatureException;
 import java.security.cert.CertificateException;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.*;
 import java.util.function.Consumer;
 
@@ -230,16 +231,28 @@ public class PayHook {
         // TODO
     }
 
+    /**
+     * Convenience method for creating a single {@link Payment} for a single {@link Product}. <br>
+     * See {@link #createPayments(String, PaymentProcessor, String, String, List)} for details. <br>
+     */
+    public Payment createPayment(String userId, PaymentProcessor paymentProcessor, String successUrl, String cancelUrl, Product product) throws Exception {
+        List<Product> products = new ArrayList<>(1);
+        products.add(product);
+        return createPayments(userId, paymentProcessor, successUrl, cancelUrl, products)
+                .get(0);
+    }
 
     /**
-     * Products with no recurring payments are put together in one {@link Payment}. <br>
-     * Products with recurring payments, receive a {@link Payment} object each. <br>
-     * See {@link #createPayment(PaymentProcessor, String, String, Product...)} for details. <br>
+     * Convenience method for creating a single {@link Payment} for a single {@link Product}. <br>
+     * See {@link #createPayments(String, PaymentProcessor, String, String, List)} for details. <br>
      */
-    public Payment[] createPayments(PaymentProcessor paymentProcessor, String successUrl, String cancelUrl, Product... products) throws Exception {
-        Objects.requireNonNull(products);
-        if (products.length == 0) throw new Exception("Products array cannot be empty!");
-
+    public Payment createPayment(String userId, PaymentProcessor paymentProcessor, String successUrl, String cancelUrl, Product product, int quantity) throws Exception {
+        List<Product> products = new ArrayList<>(5);
+        for (int i = 0; i < quantity; i++) {
+            products.add(product);
+        }
+        return createPayments(userId, paymentProcessor, successUrl, cancelUrl, products)
+                .get(0);
     }
 
     /**
@@ -248,18 +261,17 @@ public class PayHook {
      * Note that {@link Product}s WITHOUT recurring payments get grouped together <br>
      * and can be paid over the same url. <br>
      * You can listen for payment completion with {@link #onPayment(int, Consumer)}. <br>
+     * @param userId Unique identifier of the buying user.
      * @param paymentProcessor The users' desired {@link PaymentProcessor}.
-     * @param products Array of {@link Product}s the user wants to buy.
+     * @param products List of {@link Product}s the user wants to buy.
      *                Cannot be null, empty, or contain products with different currencies.
-     *                 If the user wants the same {@link Product} twice for example, simply add it twice to this array.
+     *                 If the user wants the same {@link Product} twice for example, simply add it twice to this list.
      * @param successUrl Redirect the user to this url on a successful checkout.
      * @param cancelUrl Redirect the user to this url on an aborted checkout.
      */
-    public List<Payment> createPayments(PaymentProcessor paymentProcessor, String successUrl, String cancelUrl, Product[] products) throws Exception {
+    public List<Payment> createPayments(String userId, PaymentProcessor paymentProcessor, String successUrl, String cancelUrl, List<Product> products) throws Exception {
         Objects.requireNonNull(products);
-        if (products.length == 0) throw new Exception("Products array cannot be empty!");
-        String currency = products[0].currency;
-        long totalPriceInSmallestCurrency = 0;
+        if (products.size() == 0) throw new Exception("Products array cannot be empty!");
         List<Product> productsNOTrecurring = new ArrayList<>();
         List<Product> productsRecurring = new ArrayList<>(1);
         for (Product p :
@@ -287,9 +299,11 @@ public class PayHook {
             }
         }
 
+        Timestamp now = new Timestamp(System.currentTimeMillis());
         List<Payment> payments = new ArrayList<>();
         if(paymentProcessor.equals(PaymentProcessor.STRIPE)){
             if(productsNOTrecurring.size() > 0){
+                int paymentId = database.paymentsId.incrementAndGet();
                 SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
                         .setMode(SessionCreateParams.Mode.PAYMENT)
                         .setSuccessUrl(successUrl)
@@ -304,16 +318,39 @@ public class PayHook {
                                     .setQuantity((long) quantity)
                                     .setPrice("{{" + p.stripePriceId + "}}")
                                     .build());
-                    //TODO
-                    payments.add(new Payment(69, (quantity * p.priceInSmallestCurrency)))
+                    payments.add(new Payment(paymentId, p.productId, userId, quantity,
+                            (quantity * p.priceInSmallestCurrency), p.currency, true,
+                            p.name, null, null, now,
+                            null, null, null));
                 }
                 Session session = Session.create(paramsBuilder.build());
-
-                return database.putOrder(session.getUrl(), totalPriceInSmallestCurrency, currency, products);
+                for (Payment payment :
+                        payments) {
+                    payment.payUrl = session.getUrl();
+                    database.insertPayment(payment);
+                }
             }
             for (Product p :
                     productsRecurring) {
-                //TODO
+                int paymentId = database.paymentsId.incrementAndGet();
+                SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
+                        .setMode(SessionCreateParams.Mode.PAYMENT)
+                        .setSuccessUrl(successUrl)
+                        .setCancelUrl(cancelUrl);
+                paramsBuilder.addLineItem(
+                        SessionCreateParams.LineItem.builder()
+                                .setName(p.name)
+                                .setDescription(p.description)
+                                .setQuantity((long) 1)
+                                .setPrice("{{" + p.stripePriceId + "}}")
+                                .build());
+                Session session = Session.create(paramsBuilder.build());
+                Payment payment = new Payment(paymentId, p.productId, userId, 1,
+                        p.priceInSmallestCurrency, p.currency, true,
+                        p.name, session.getUrl(), null, now,
+                        null, null, null);
+                payments.add(payment);
+                database.insertPayment(payment);
             }
         } else if(paymentProcessor.equals(PaymentProcessor.PAYPAL)){
             //TODO

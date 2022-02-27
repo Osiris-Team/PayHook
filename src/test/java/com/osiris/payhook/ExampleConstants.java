@@ -23,41 +23,32 @@ public class ExampleConstants {
         P.initPayPal(true, "client_id", "client_secret");
         P.initStripe(true, "secret_key");
 
-        // These should be made public static fields in your Constants class
         product = P.putProduct();
         productRecurring = P.putProduct();
 
-        P.onMissedPayment(event -> { // Relevant if you have products with recurring payments (like subscriptions)
+        P.onMissedPayment(event -> {
+            // Executed when the user misses the payment for a subscription (recurring).
             try{
-                Order o = event.getOrder();
-                // TODO what should happen when the user misses a payment?
-                // TODO implement logic.
+                Product product = event.product;
+                Payment payment = event.payment;
             } catch (Exception e) {
-                // TODO handle exception
                 e.printStackTrace();
             }
         });
-
-        P.onException(e -> {
-           // TODO handle exception
-        });
-
-        P.runPayPalPaymentReceived();
-        P.runStripePaymentReceived();
     }
 
-    void onBuyBtnClick(){
+    void onBuyBtnClick() throws Exception {
         // The code below should be run when the user clicks on a buy button.
-        Order order = P.createPayment("https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel", product);
-        P.onPayment(order., event -> { // Note that this only gets ran once
-
+        Payment payment = P.createPayment("USER_ID", PaymentProcessor.PAYPAL, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel", product);
+        P.onPayment(payment.paymentId, event -> {
+            // Executed when the payment was received.
         });
     }
 
-    void onAnotherBuyBtnClick(){
-        Order order = P.createStripeOrder(productRecurring);
-        order.onPaymentReceived(event -> {
-
+    void onAnotherBuyBtnClick() throws Exception {
+        Payment payment = P.createPayment("USER_ID", PaymentProcessor.STRIPE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel", productRecurring);
+        P.onPayment(payment.paymentId, event -> {
+            // Executed when the payment was received.
         });
     }
 }

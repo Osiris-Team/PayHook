@@ -3,10 +3,12 @@ package com.osiris.payhook;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class PayHookDatabase {
     public final String name;
     private final Connection databaseConnection;
+    public final AtomicInteger paymentsId = new AtomicInteger();
 
     public PayHookDatabase(String name, Connection databaseConnection) throws SQLException {
         this.name = name;
@@ -25,6 +27,7 @@ public class PayHookDatabase {
                     "(id int NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
                     ")"); // TODO
         }
+        //paymentsId.set(); // TODO
     }
 
     public void insertProduct(Product product) throws SQLException {
@@ -138,6 +141,10 @@ public class PayHookDatabase {
     }
 
     public void deleteProductById(int id) {
+        //TODO
+    }
+
+    public Payment insertPayment(Payment payment) {
         //TODO
     }
 }
