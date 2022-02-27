@@ -17,16 +17,16 @@ are having accounts with valid credentials at your payment processors and a data
 ### Features
 
 - Secure, verified payments without duplicates, due to the design being based solely on validated webhook events.
-- Catches all payments. If your application is offline for example 
+- Catch all payments. If your application is offline for example 
 payment processors notice that the webhook event wasn't received 
 and try again later, several times.
-- Actions on missed payments by the user. For example when the user misses a payment for his subscription.
-- Easy product and order creation across multiple payment-processors, through abstraction.
-- Saves everything to your SQL database, via low-level queries to ensure maximum speed.
-- TODO Saves each payment to the database. This saves you time when creating summaries or tax reports, 
+- Actions on missed payments. Cancel the users subscription if the amount due was not paid.
+- Easy product/payment creation across multiple payment-processors, through abstraction.
+- Low-level SQL queries to ensure maximum speed.
+- Payments saved to the database. This saves you time when creating summaries or tax reports, 
 since all payments are at one place and not scattered over each payment processor.
 - TODO Live and Sandbox tables in the database, to ensure these are separated strictly.
-- TODO Commandline tool to extract relevant data from the database.
+- Commandline tool to extract relevant data from the database and modify it.
 
 ### Installation
 
