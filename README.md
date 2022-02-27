@@ -2,7 +2,6 @@
 A Java-API for validating PayPals Webhook events/notifications.
 ## Links
  - Support and chat over at [Discord](https://discord.com/invite/GGNmtCC)
- - Support the development by [donating](https://www.paypal.com/donate?hosted_button_id=JNXQCWF2TF9W4)
 ## Installation
 [Click here for maven/gradle/sbt/leinigen instructions.](https://jitpack.io/#Osiris-Team/PayHook/LATEST)
 Java 8+ required.
@@ -78,6 +77,11 @@ public class PayHookExample {
     }
 }
 ```
+## Funding
+I am actively maintaining this repository, publishing new releases and working on its codebase basically for free, since
+I believe in open-sourced code and its benefits for everyone. So if you find this project useful consider funding
+this project via [PayPal](https://www.paypal.com/donate?hosted_button_id=JNXQCWF2TF9W4). Thank you!
+
 ## FAQ
 <div>
  <details>
