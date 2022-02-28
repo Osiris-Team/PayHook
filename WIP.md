@@ -39,54 +39,54 @@ Setup:
 
 ```java
 public class ExampleConstants {
-  public static final PayHookV3 P;
-  public static final Product product;
-  public static final Product productRecurring;
+    public static Product pCoolCookie;
+    public static Product pCoolSubscription;
 
-  static {
     // Insert the below somewhere where it gets ran once.
-    // For example in a Constants class of yours.
-    try {
-      P = new PayHookV3(
-              "payhook",
-              "db_url",
-              "db_name",
-              "db_password");
-    } catch (SQLException e) {
-      throw new RuntimeException(e);
+    // For example in the static constructor of a Constants class of yours, like shown here.
+    static {
+        try {
+            PayHook.init(
+                    "Brand-Name",
+                    "db_url",
+                    "db_username",
+                    "db_password",
+                    true); // Sandbox
+
+            PayHook.initPayPal("client_id", "client_secret", "https://my-shop.com/paypal-hook");
+            PayHook.initStripe("secret_key", "https://my-shop.com/stripe-hook");
+
+            pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", PaymentType.ONE_TIME, 0);
+            pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", PaymentType.RECURRING, 0);
+
+            PayHook.onMissedPayment(event -> {
+                // Executed when the user misses the payment for a subscription (recurring).
+                try{
+                    Product product = event.product;
+                    Payment payment = event.payment;
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } 
     }
 
-    P.initPayPal(true, "client_id", "client_secret");
-    P.initStripe(true, "secret_key");
-    
-    product = P.createProduct();
-    productRecurring = P.createProduct();
+    void onBuyBtnClick() throws Exception {
+        // The code below should be run when the user clicks on a buy button.
+        Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
+        PayHook.onPayment(payment.paymentId, event -> {
+            // Executed when the payment was received.
+        });
+    }
 
-    P.onMissedPayment(event -> { // Relevant if you have products with recurring payments (like subscriptions)
-      try{
-        Order o = event.getOrder();
-        // TODO what should happen when the user misses a payment?
-        // TODO implement logic.
-      } catch (Exception e) {
-        // TODO handle exception
-        e.printStackTrace();
-      }
-    });
-  }
-  
-  // The code below should be run when the user clicks on a buy button.
-  void onBuyBtnClick(){
-    Order order1 = P.createStripeOrder(product);
-    Order order2 = P.createStripeOrder(productRecurring);
-
-    order1.onPaymentReceived(event -> { // Note that this only gets ran once
-
-    });
-
-    order2.onPaymentReceived(event -> {
-
-    });
-  }
+    void onAnotherBuyBtnClick() throws Exception {
+        Payment payment = PayHook.createPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
+        PayHook.onPayment(payment.paymentId, event -> {
+            // Executed when the payment was received.
+        });
+    }
 }
 ```
 Webhooks:

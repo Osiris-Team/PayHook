@@ -10,7 +10,7 @@ public class Product {
     public String currency;
     public String name;
     public String description;
-    public int billingType; // Returns a value from 0 to 5
+    public PaymentType paymentType; // Returns a value from 0 to 5
     public int customBillingIntervallInDays;
 
     // PayPal specific stuff:
@@ -23,14 +23,14 @@ public class Product {
 
     public Product(int productId, long priceInSmallestCurrency,
                    String currency, String name, String description,
-                   int billingType, int customBillingIntervallInDays,
+                   PaymentType paymentType, int customBillingIntervallInDays,
                    String paypalProductId, String stripeProductId) {
         this.productId = productId;
         this.priceInSmallestCurrency = priceInSmallestCurrency;
         this.currency = currency;
         this.name = name;
         this.description = description;
-        this.billingType = billingType;
+        this.paymentType = paymentType;
         this.customBillingIntervallInDays = customBillingIntervallInDays;
         this.paypalProductId = paypalProductId;
         this.stripeProductId = stripeProductId;
@@ -51,27 +51,27 @@ public class Product {
     }
 
     public boolean isRecurring() { // For example a subscription
-        return billingType != 0;
+        return paymentType != 0;
     }
 
     public boolean isBillingInterval1Month() {
-        return billingType == 1;
+        return paymentType == 1;
     }
 
     public boolean isBillingInterval3Months() {
-        return billingType == 2;
+        return paymentType == 2;
     }
 
     public boolean isBillingInterval6Months() {
-        return billingType == 3;
+        return paymentType == 3;
     }
 
     public boolean isBillingInterval12Months() {
-        return billingType == 4;
+        return paymentType == 4;
     }
 
     public boolean isCustomBillingInterval() {
-        return billingType == 5;
+        return paymentType == 5;
     }
 
     public String getFormattedPrice() {

@@ -56,25 +56,24 @@ public class Converter {
     public com.paypal.api.payments.Plan toPayPalPlan(Product product) {
         com.paypal.api.payments.Plan plan = new Plan(product.name, product.description, "INFINITE");
         plan.setMerchantPreferences(new MerchantPreferences()
-                .setAutoBillAmount("YES").setAcceptedPaymentType());
+                .setAutoBillAmount("YES"));
         List<PaymentDefinition> paymentDefinitions = new ArrayList<>(1);
         PaymentDefinition paymentDefinition = new PaymentDefinition().setAmount(toPayPalCurrency(product)).setType("REGULAR");
         if (product.isCustomBillingInterval()){
-            paymentDefinition.setFrequency()
             paymentDefinition.setFrequency("DAY");
-            paymentDefinition.setCycles(""+product.customBillingIntervallInDays);
+            paymentDefinition.setFrequencyInterval(""+product.customBillingIntervallInDays);
         } else{
             paymentDefinition.setFrequency("MONTH");
             if (product.isBillingInterval1Month())
-                paymentDefinition.setCycles("1");
+                paymentDefinition.setFrequencyInterval("1");
             else if (product.isBillingInterval3Months())
-                paymentDefinition.setCycles("3");
+                paymentDefinition.setFrequencyInterval("3");
             else if (product.isBillingInterval6Months())
-                paymentDefinition.setCycles("6");
+                paymentDefinition.setFrequencyInterval("6");
             else if (product.isBillingInterval12Months())
-                paymentDefinition.setCycles("12");
+                paymentDefinition.setFrequencyInterval("12");
         }
-        paymentDefinitions.add();
+        paymentDefinitions.add(paymentDefinition);
         plan.setPaymentDefinitions(paymentDefinitions);
         return plan;
     }

@@ -257,6 +257,27 @@ public class PayPalREST {
         return sf.parse(timestamp);
     }
 
+    public JsonArray getWebhooks() throws IOException, HttpErrorException {
+        return utilsJson.postJsonAndGetResponse(
+                        BASE_URL + "/notifications/webhooks", null, this)
+                .getAsJsonObject().getAsJsonArray("webhooks");
+    }
+
+    public PayPalREST createWebhook(String webhookUrl, String... eventTypes) throws IOException, HttpErrorException {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("url", webhookUrl);
+        JsonArray arr = new JsonArray();
+        for (String eventType :
+                eventTypes) {
+            JsonObject o = new JsonObject();
+            o.addProperty("name", eventType);
+            arr.add(o);
+        }
+        obj.add("event_types", arr);
+        utilsJson.postJsonAndGetResponse(
+                        BASE_URL + "/notifications/webhooks", obj, this);
+        return this;
+    }
 
     public enum Mode {
         LIVE, SANDBOX

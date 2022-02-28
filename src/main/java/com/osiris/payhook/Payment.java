@@ -16,18 +16,17 @@ public class Payment {
      */
     public final String userId;
     /**
-     * The user can buy the same {@link Product} twice for example, then
-     * the {@link #quantity} would be 2.
+     * The amount of money the user has to pay, in the smallest currency. Example: 100 = 1€. <br>
+     * Note that this was already multiplied by the {@link #productQuantity}. <br>
      */
-    public int quantity;
-    /**
-     * The price in the smallest currency. Example: 100 = 1€. <br>
-     * Note that this price was already multiplied by the amount of the {@link Product}. <br>
-     */
-    public long price;
+    public long amount;
     public String currency;
-    public boolean isPending;
     public String productName;
+    /**
+     * The user can buy the same {@link Product} twice for example, then
+     * the {@link #productQuantity} would be 2.
+     */
+    public int productQuantity;
     public String payUrl;
 
     // PayPal:
@@ -37,33 +36,37 @@ public class Payment {
     // TODO
 
     // Information related to the status of the order:
-    public Timestamp creationTimestamp;
-    public Timestamp lastPaymentTimestamp;
-    public Timestamp refundTimestamp;
-    public Timestamp cancelTimestamp;
+    public Timestamp timestampCreated;
+    public Timestamp timestampReceived;
+    public Timestamp timestampRefunded;
+    /**
+     * The amount of money that was refunded, in the smallest currency. Example: 100 = 1€. <br>
+     */
+    public long amountRefunded;
+    public Timestamp timestampCancelled;
 
     // Not stored inside the database:
     public PaymentProcessor paymentProcessor;
     private final List<Consumer<PaymentEvent>> actionsOnReceivedPayment = new ArrayList<>();
 
 
-    public Payment(int paymentId, int productId, String userId, int quantity, long price, String currency, boolean isPending, String productName,
+    public Payment(int paymentId, int productId, String userId, int productQuantity, long amount, String currency, String productName,
                    String payUrl, String paypalSubscriptionId,
-                   Timestamp creationTimestamp, Timestamp lastPaymentTimestamp, Timestamp refundTimestamp, Timestamp cancelTimestamp) {
+                   Timestamp timestampCreated, Timestamp timestampReceived, Timestamp timestampRefunded, long amountRefunded, Timestamp timestampCancelled) {
         this.paymentId = paymentId;
         this.productId = productId;
         this.userId = userId;
-        this.quantity = quantity;
-        this.price = price;
+        this.productQuantity = productQuantity;
+        this.amount = amount;
         this.currency = currency;
-        this.isPending = isPending;
         this.productName = productName;
         this.payUrl = payUrl;
         this.paypalSubscriptionId = paypalSubscriptionId;
-        this.creationTimestamp = creationTimestamp;
-        this.lastPaymentTimestamp = lastPaymentTimestamp;
-        this.refundTimestamp = refundTimestamp;
-        this.cancelTimestamp = cancelTimestamp;
+        this.timestampCreated = timestampCreated;
+        this.timestampReceived = timestampReceived;
+        this.timestampRefunded = timestampRefunded;
+        this.amountRefunded = amountRefunded;
+        this.timestampCancelled = timestampCancelled;
         this.paymentProcessor = getPaymentProcessor();
     }
 
@@ -71,6 +74,27 @@ public class Payment {
         if (isPayPalSupported()) return PaymentProcessor.PAYPAL;
         else if(isStripeSupported()) return PaymentProcessor.STRIPE;
         else return null;
+    }
+
+    /**
+     * Returns true when {@link #timestampReceived} is null.
+     */
+    public boolean isPending(){
+        return timestampReceived == null;
+    }
+
+    /**
+     * Returns true when {@link #timestampRefunded} is not null.
+     */
+    public boolean isRefunded(){
+        return timestampRefunded != null;
+    }
+
+    /**
+     * Returns true when {@link #timestampCancelled} is not null.
+     */
+    public boolean isCancelled(){
+        return timestampCancelled != null;
     }
 
     /**
@@ -88,6 +112,6 @@ public class Payment {
     }
 
     public String getFormattedPrice() {
-        return price + " " + currency;
+        return amount + " " + currency;
     }
 }
