@@ -5,6 +5,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
+/**
+ * Represents a received or sent payment. <br>
+ */
 public class Payment {
     public final int paymentId;
     /**
@@ -16,8 +19,8 @@ public class Payment {
      */
     public final String userId;
     /**
-     * The amount of money the user has to pay, in the smallest currency. Example: 100 = 1€. <br>
-     * Note that this was already multiplied by the {@link #productQuantity}. <br>
+     * The amount of money in the smallest currency. Example: 100 = 1€. <br>
+     * Negative amount if the money was sent (for example in a refund), positive when received. <br>
      */
     public long amount;
     public String currency;
@@ -30,6 +33,7 @@ public class Payment {
     public String payUrl;
 
     // PayPal:
+    public String paypalOrderId;
     public String paypalSubscriptionId; // TODO
 
     // Stripe specific stuff:

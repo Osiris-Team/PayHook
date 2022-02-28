@@ -20,6 +20,8 @@ import com.osiris.autoplug.webserver.database.queries.QueriesUser;
 import com.osiris.autoplug.webserver.objects.UserOrder;
 import com.osiris.autoplug.webserver.payment.paypal.PayPalRefund;
 import com.osiris.payhook.Product;
+import com.osiris.payhook.paypal.PaypalJsonUtils;
+import com.osiris.payhook.paypal.PaypalWebhookEventHeader;
 import com.osiris.payhook.paypal.codec.binary.Base64;
 import com.paypal.base.rest.PayPalRESTException;
 
@@ -277,6 +279,25 @@ public class PayPalREST {
         utilsJson.postJsonAndGetResponse(
                         BASE_URL + "/notifications/webhooks", obj, this);
         return this;
+    }
+
+    public boolean isWebhookEventValid(PaypalWebhookEventHeader webhookEventHeader, String webhookEventBody, String validWebhookId) throws IOException {
+        String json = "{\n" +
+                "  \"transmission_id\": \"" + webhookEventHeader.getTransmissionId() + "\",\n" +
+                "  \"transmission_time\": \"" + webhookEventHeader.getTimestamp() + "\",\n" +
+                "  \"cert_url\": \"" + webhookEventHeader.getCertUrl() + "\",\n" +
+                "  \"auth_algo\": \"" + webhookEventHeader.getAuthAlgorithm() + "\",\n" +
+                "  \"transmission_sig\": \"" + webhookEventHeader.getTransmissionSignature() + "\",\n" +
+                "  \"webhook_id\": \"" + validWebhookId + "\",\n" +
+                "  \"webhook_event\": " + webhookEventBody + "\n" +
+                "}";
+
+        // Expected response:
+        // {"verification_status": "SUCCESS"}
+        return new PaypalJsonUtils().postJsonAndGetResponse(
+                BASE_URL+ "/notifications/verify-webhook-signature",
+                json,
+                credBase64).getAsJsonObject().get("verification_status").getAsString().equalsIgnoreCase("SUCCESS");
     }
 
     public enum Mode {

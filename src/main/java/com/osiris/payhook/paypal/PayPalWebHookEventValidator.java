@@ -1,7 +1,7 @@
 package com.osiris.payhook.paypal;
 
 import com.google.gson.*;
-import com.osiris.payhook.exceptions.HttpErrorException;
+import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
 import com.osiris.payhook.exceptions.ParseBodyException;
 import com.osiris.payhook.exceptions.ParseHeaderException;
 import com.osiris.payhook.exceptions.WebHookValidationException;

@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
 import com.osiris.payhook.exceptions.ParseBodyException;
+import com.osiris.payhook.exceptions.ParseHeaderException;
 import com.osiris.payhook.exceptions.WebHookValidationException;
 import com.osiris.payhook.paypal.PayPalWebHookEventValidator;
 import com.osiris.payhook.paypal.PaypalJsonUtils;
@@ -27,11 +28,6 @@ import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 
 import java.io.*;
-import java.security.InvalidKeyException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SignatureException;
-import java.security.cert.CertificateException;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -49,11 +45,11 @@ public final class PayHook {
     public static boolean isSandbox = false;
     private static Thread commandLineThread;
     private static final List<Consumer<PaymentEvent>> actionsOnMissedPayment = new ArrayList<>();
-    private static final List<Consumer<PaymentEvent>> actionsOnReceivedPayment = new ArrayList<>();
+    private static final Map<Integer, Consumer<PaymentEvent>> paymentIdsAndActionsOnReceivedPayment = new HashMap<>();
 
     // Stripe specific:
     private static String stripeSecretKey;
-    public static String stripeEventType = "PAYMENT.AUTHORIZATION.CREATED";
+    private static String stripeWebhookEventType = "PAYMENT.AUTHORIZATION.CREATED"; // TODO
 
     // PayPal specific:
     private static String paypalClientId;
@@ -62,7 +58,8 @@ public final class PayHook {
     private static PayPalREST paypalREST;
     private static APIContext paypalV1;
     private static PayPalHttpClient paypalV2;
-    public static String paypalEventType = "PAYMENT.AUTHORIZATION.CREATED";
+    private static String paypalWebhookId;
+    private static List<String> paypalWebhookEventTypes = Arrays.asList("PAYMENT.AUTHORIZATION.CREATED");
 
     /**
      * If {@link #isSandbox} = true then the "payhook_sandbox" database will get created/used, otherwise
@@ -163,11 +160,12 @@ public final class PayHook {
             JsonObject webhook = e.getAsJsonObject();
             String url = webhook.get("url").getAsString();
             if(url.equals(webhookUrl)){
+                paypalWebhookId = webhook.get("id").getAsString();
                 containsWebhookUrl = true;
                 break;
             }
         }
-        if(!containsWebhookUrl) paypalREST.createWebhook(webhookUrl, paypalEventType);
+        if(!containsWebhookUrl) paypalREST.createWebhook(webhookUrl, paypalWebhookEventTypes);
     }
 
     public static void initStripe(String secretKey, String webhookUrl) throws StripeException {
@@ -187,7 +185,7 @@ public final class PayHook {
             Map<String, Object> params2 = new HashMap<>();
             params2.put("url", webhookUrl);
             List<String> list = new ArrayList<>(1);
-            list.add(stripeEventType);
+            list.add(stripeWebhookEventType);
             params2.put("enabled_events", list);
             WebhookEndpoint.create(params2);
         }
@@ -228,7 +226,7 @@ public final class PayHook {
                 }
             }
             if (stripeSecretKey != null) {
-                com.stripe.model.Product stripeProduct = com.stripe.model.Product.create(converter.toStripeProduct(dbProduct, isStripeSandbox));
+                com.stripe.model.Product stripeProduct = com.stripe.model.Product.create(converter.toStripeProduct(dbProduct, isSandbox));
                 dbProduct.stripeProductId = stripeProduct.getId();
                 com.stripe.model.Price stripePrice = com.stripe.model.Price.create(converter.toStripePrice(dbProduct));
                 dbProduct.stripePriceId = stripePrice.getId();
@@ -252,7 +250,7 @@ public final class PayHook {
             }
             if (stripeSecretKey != null && dbProduct.stripeProductId != null) {
                 com.stripe.model.Product stripeProduct = com.stripe.model.Product.retrieve(dbProduct.stripeProductId);
-                stripeProduct.update(converter.toStripeProduct(dbProduct, isStripeSandbox));
+                stripeProduct.update(converter.toStripeProduct(dbProduct, isSandbox));
                 com.stripe.model.Price stripePrice = com.stripe.model.Price.retrieve(dbProduct.stripePriceId);
                 stripePrice.update(converter.toStripePrice(dbProduct));
             }
@@ -261,16 +259,17 @@ public final class PayHook {
     }
 
     /**
-     * Updates the {@link Product}s details in your local  and in
+     * Updates the {@link Product}s details in your local and in
      * the database of its {@link PaymentProcessor}.
      */
     public static Product updateProduct(Product product){
         // TODO
+        return product;
     }
 
     /**
      * Convenience method for creating a single {@link Payment} for a single {@link Product}. <br>
-     * See {@link #createPayments(String, PaymentProcessor, String, String, List)} for details. <br>
+     * See {@link #createPayments(String, List, PaymentProcessor, String, String)}} for details. <br>
      */
     public static Payment createPayment(String userId, Product product, PaymentProcessor paymentProcessor, String successUrl, String cancelUrl) throws Exception {
         List<Product> products = new ArrayList<>(1);
@@ -281,7 +280,7 @@ public final class PayHook {
 
     /**
      * Convenience method for creating a single {@link Payment} for a single {@link Product}. <br>
-     * See {@link #createPayments(String, PaymentProcessor, String, String, List)} for details. <br>
+     * See {@link #createPayments(String, List, PaymentProcessor, String, String)} for details. <br>
      */
     public static Payment createPayment(String userId, Product product, int quantity, PaymentProcessor paymentProcessor, String successUrl, String cancelUrl) throws Exception {
         List<Product> products = new ArrayList<>(5);
@@ -297,7 +296,7 @@ public final class PayHook {
      * Redirect your user to {@link Payment#payUrl} to complete the payment. <br>
      * Note that {@link Product}s WITHOUT recurring payments get grouped together <br>
      * and can be paid over the same url. <br>
-     * You can listen for payment completion with {@link #onPayment(int, Consumer)}. <br>
+     * You can listen for payment completion with {@link #onReceivedPayment(int, Consumer)}. <br>
      * @param userId Unique identifier of the buying user.
      * @param products List of {@link Product}s the user wants to buy.
      *                Cannot be null, empty, or contain products with different currencies.
@@ -486,42 +485,43 @@ public final class PayHook {
     }
 
     /**
-     * Executed when a valid payment was received on a WebHook. <br>
+     * Executed when a valid payment was received on via a webhook event. <br>
      */
-    public static void onPayment(int paymentId, Consumer<PaymentEvent> action) {
-        synchronized (actionsOnReceivedPayment) {
-            Consumer<PaymentEvent> actualAction = paymentEvent -> {
+    public static void onReceivedPayment(int paymentId, Consumer<PaymentEvent> action) {
+        synchronized (paymentIdsAndActionsOnReceivedPayment) {
+            Consumer<PaymentEvent> actualAction = null;
+            actualAction = paymentEvent -> {
                 if(paymentEvent.payment.paymentId == paymentId){
                     action.accept(paymentEvent);
                 }
             };
-            actionsOnReceivedPayment.add(actualAction);
+            paymentIdsAndActionsOnReceivedPayment.put(paymentId, actualAction);
         }
     }
 
     /**
+     * Validates the webhook event and does further type-specific stuff. <br>
      * Execute this method at your webhook endpoint. <br>
-     * For example on the "https://my-shop.com/paypal-hook" url. <br>
+     * For example when a POST request happens on the "https://my-shop.com/paypal-hook" url. <br>
      * Note that its recommended returning a 200 status code before executing this method <br>
      * to avoid timeouts and duplicate webhook events. <br>
+     * Supported webhook types for PayPal: <br>
+     * - PAYMENT.AUTHORIZATION.CREATED | {@link #onReceivedPayment(int, Consumer)}<br>
+     * - BILLING.SUBSCRIPTION.CANCELLED | {@link #onCancelledSubscription()} <br>
+     * @throws WebHookValidationException When the provided webhook event is not valid.
      */
-    public static void receiveWebhookEvent(PaymentProcessor paymentProcessor, Map<String, String> header, String body){
+    public static void receiveWebhookEvent(PaymentProcessor paymentProcessor, Map<String, String> header, String body) throws ParseHeaderException, IOException, WebHookValidationException, ParseBodyException {
+        if(paymentProcessor.equals(PaymentProcessor.PAYPAL)){
+            PayPalWebHookEventValidator validator = new PayPalWebHookEventValidator(paypalClientId, paypalClientSecret);
+            PaypalWebhookEvent event = new PaypalWebhookEvent(paypalWebhookId, null,
+                    validator.parseAndGetHeader(header), validator.parseAndGetBody(body));
+            if(!paypalREST.isWebhookEventValid(event.getHeader(), body, paypalWebhookId))
+                throw new WebHookValidationException("The provided webhook event is not valid!");
+            if(!event.getEventType().equalsIgnoreCase(paypalWebhookEventTypes))
+                throw new WebHookValidationException("The provided webhook event type '"+event.getEventType()+"' does not match '"+ paypalWebhookEventTypes +"' and thus is not valid!");
 
-    }
-
-    /**
-     * The provided WebHook event gets validated. <br>
-     * If its valid and really a 'payment received' event, then the
-     * code at {@link Order#onPaymentReceived(Consumer)} gest executed. <br>
-     * Note that the event type must be: PAYMENT.AUTHORIZATION.CREATED <br>
-     */
-    public void runPayPalPaymentReceived(PaypalWebhookEvent paypalWebhookEvent) throws WebHookValidationException, CertificateException, IOException, KeyStoreException, NoSuchAlgorithmException, SignatureException, ParseBodyException, InvalidKeyException, HttpErrorException {
-        PayPalWebHookEventValidator validator = new PayPalWebHookEventValidator(paypalClientId, paypalClientSecret);
-        validator.validateWebhookEvent(paypalWebhookEvent);
-        final String eventTypeAuthorization = "PAYMENT.AUTHORIZATION.CREATED";
-        if(paypalWebhookEvent.getEventType().equalsIgnoreCase(eventTypeAuthorization)){
             String captureURL = null;
-            JsonArray arrayLinks = paypalWebhookEvent.getBody().getAsJsonObject("resource").getAsJsonArray("links");
+            JsonArray arrayLinks = event.getBody().getAsJsonObject("resource").getAsJsonArray("links");
             for (JsonElement e:
                     arrayLinks) {
                 JsonObject obj = e.getAsJsonObject();
@@ -531,22 +531,12 @@ public final class PayHook {
                 }
             }
             if (captureURL==null) throw new WebHookValidationException("Failed to find 'capture' url inside of: "+new GsonBuilder().setPrettyPrinting().create().toJson(arrayLinks));
+            paypalREST.captureSubscription();
             new PaypalJsonUtils().postJsonAndGetResponse(captureURL,"{}", paypalBase64EncodedCredentials, 201);
             // TODO
             Payment payment = new Payment();
             database.insertPayment(payment);
-
-        } else
-            throw new WebHookValidationException("Event type '"+paypalWebhookEvent.getEventType()+"' is wrong and should be '"+eventTypeAuthorization+"'!");
-    }
-
-    /**
-     * The provided WebHook event gets validated. <br>
-     * If its valid and really a 'payment received' event, then the
-     * code at {@link Order#onPaymentReceived(Consumer)} gest executed.
-     */
-    public void runStripePaymentReceived() {
-
+        }
     }
 
     /**
@@ -566,6 +556,13 @@ public final class PayHook {
                 action.accept(paymentEvent);
             }
         }
+    }
+
+    /**
+     * Executed when a payment (also recurring payment, aka subscription) was cancelled.
+     */
+    public static void onCancelledSubscription(){
+        // TODO BILLING.SUBSCRIPTION.CANCELLED
     }
 
     /**
