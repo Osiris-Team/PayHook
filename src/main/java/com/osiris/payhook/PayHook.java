@@ -367,6 +367,7 @@ public final class PayHook {
                 for (Payment payment :
                         payments) {
                     payment.payUrl = session.getUrl();
+                    payment.stripePaymentIntentId = session.getPaymentIntentObject().getId();
                     database.insertPayment(payment);
                 }
             }
@@ -374,7 +375,7 @@ public final class PayHook {
                     productsRecurring) {
                 int paymentId = database.paymentsId.incrementAndGet();
                 SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
-                        .setMode(SessionCreateParams.Mode.PAYMENT)
+                        .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
                         .setSuccessUrl(successUrl)
                         .setCancelUrl(cancelUrl);
                 paramsBuilder.addLineItem(
@@ -390,6 +391,7 @@ public final class PayHook {
                         p.name, session.getUrl(), null, now,
                         null,
                         null, 0,null);
+                payment.stripeSubscriptionId = session.getSubscriptionObject().getId();
                 payments.add(payment);
                 database.insertPayment(payment);
             }

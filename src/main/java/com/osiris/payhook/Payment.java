@@ -38,7 +38,8 @@ public class Payment {
     public String paypalCaptureId; // TODO
 
     // Stripe specific stuff:
-    // TODO
+    public String stripePaymentIntentId; // TODO add to constructor
+    public String stripeSubscriptionId; // TODO add to constructor
 
     // Information related to the status:
     public Timestamp timestampCreated;

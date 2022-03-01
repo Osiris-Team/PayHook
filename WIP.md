@@ -13,7 +13,8 @@ and as you can see above, creating payments can be done in one line.
 
 ### Features
 - Support for regular products and products with recurring payments (subscriptions).
-- Supported payment processors: PayPal and Stripe.
+- Supported payment processors: [Braintree (supports PayPal, Venmo etc.)](https://www.braintreepayments.com/de/features/payment-methods)
+and [Stripe (supports ApplePay, GooglePay etc.)](https://stripe.com/docs/payments/payment-methods/overview).
 - Easy product/payment creation across multiple payment-processors, through abstraction.
 - Secure, verified payments without duplicates, due to the design being based solely on validated webhook events.
 - Catch all payments. If your application is offline for example 
@@ -27,6 +28,7 @@ since all payments are at one place and not scattered over each payment processo
 - Commandline tool to extract relevant data from the database and modify it.
 
 ### Todo
+- TODO Switch from Paypal to Braintree, due to the mess of PayPals API
 - Functionality to send payments. Currently, it's only possible to receive payments.
 - Add support for real goods. Currently, the focus is on digital goods and services,
 which means that billing addresses are ignored.
