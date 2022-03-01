@@ -14,17 +14,23 @@ and as you can see above, creating payments can be done in one line.
 ### Features
 - Support for regular products and products with recurring payments (subscriptions).
 - Supported payment processors: PayPal and Stripe.
+- Easy product/payment creation across multiple payment-processors, through abstraction.
 - Secure, verified payments without duplicates, due to the design being based solely on validated webhook events.
 - Catch all payments. If your application is offline for example 
 payment processors notice that the webhook event wasn't received 
 and try again later, several times.
-- Actions on missed payments. Cancel the users subscription if the amount due was not paid.
-- Easy product/payment creation across multiple payment-processors, through abstraction.
+- Actions on missed payments. Cancel the users' subscription if the amount due was not paid.
 - Low-level SQL queries to ensure maximum speed.
 - Payments saved to the database. This saves you time when creating summaries or tax reports, 
 since all payments are at one place and not scattered over each payment processor.
-- TODO Live and Sandbox tables in the database, to ensure these are separated strictly.
+- Different database in sandbox mode, to ensure live and sandbox actions are separated strictly.
 - Commandline tool to extract relevant data from the database and modify it.
+
+### Todo
+- Functionality to send payments. Currently, it's only possible to receive payments.
+- Add support for real goods. Currently, the focus is on digital goods and services,
+which means that billing addresses are ignored.
+- Add support for more payment processors.
 
 ### Installation
 

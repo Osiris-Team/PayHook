@@ -14,6 +14,7 @@ import com.osiris.payhook.paypal.PaypalWebhookEvent;
 import com.osiris.payhook.paypal.codec.binary.Base64;
 import com.osiris.payhook.paypal.custom.PayPalREST;
 import com.osiris.payhook.utils.Converter;
+import com.osiris.payhook.utils.UtilsLists;
 import com.paypal.api.payments.Plan;
 import com.paypal.base.rest.APIContext;
 import com.paypal.base.rest.PayPalRESTException;
@@ -60,6 +61,7 @@ public final class PayHook {
     private static PayPalHttpClient paypalV2;
     private static String paypalWebhookId;
     private static List<String> paypalWebhookEventTypes = Arrays.asList("PAYMENT.AUTHORIZATION.CREATED");
+    private static String paypalOrderApproved = "CHECKOUT.ORDER.APPROVED";
 
     /**
      * If {@link #isSandbox} = true then the "payhook_sandbox" database will get created/used, otherwise
@@ -445,6 +447,7 @@ public final class PayHook {
                 for (Payment payment :
                         payments) {
                     payment.payUrl = payUrl;
+                    payment.paypalOrderId = response.result().id();
                     database.insertPayment(payment);
                 }
             }
@@ -517,8 +520,8 @@ public final class PayHook {
                     validator.parseAndGetHeader(header), validator.parseAndGetBody(body));
             if(!paypalREST.isWebhookEventValid(event.getHeader(), body, paypalWebhookId))
                 throw new WebHookValidationException("The provided webhook event is not valid!");
-            if(!event.getEventType().equalsIgnoreCase(paypalWebhookEventTypes))
-                throw new WebHookValidationException("The provided webhook event type '"+event.getEventType()+"' does not match '"+ paypalWebhookEventTypes +"' and thus is not valid!");
+            if(!UtilsLists.containsIgnoreCase(paypalWebhookEventTypes, event.getEventType()))
+                throw new WebHookValidationException("The provided webhook event type '"+event.getEventType()+"' does not match '"+ Arrays.toString(paypalWebhookEventTypes.toArray()) +"' and thus is not valid!");
 
             String captureURL = null;
             JsonArray arrayLinks = event.getBody().getAsJsonObject("resource").getAsJsonArray("links");
@@ -566,7 +569,7 @@ public final class PayHook {
     }
 
     /**
-     * Checks for payments where the {@link Payment#timestampReceived} now is in the past
+     * Checks for payments where the {@link Payment#timestampCompleted} now is in the past
      * and the {@link Payment#isPending} is still true.
      */
     public static void checkForMissedPayments() throws SQLException {

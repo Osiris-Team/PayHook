@@ -35,13 +35,14 @@ public class Payment {
     // PayPal:
     public String paypalOrderId;
     public String paypalSubscriptionId; // TODO
+    public String paypalCaptureId; // TODO
 
     // Stripe specific stuff:
     // TODO
 
-    // Information related to the status of the order:
+    // Information related to the status:
     public Timestamp timestampCreated;
-    public Timestamp timestampReceived;
+    public Timestamp timestampCompleted;
     public Timestamp timestampRefunded;
     /**
      * The amount of money that was refunded, in the smallest currency. Example: 100 = 1€. <br>
@@ -56,7 +57,7 @@ public class Payment {
 
     public Payment(int paymentId, int productId, String userId, int productQuantity, long amount, String currency, String productName,
                    String payUrl, String paypalSubscriptionId,
-                   Timestamp timestampCreated, Timestamp timestampReceived, Timestamp timestampRefunded, long amountRefunded, Timestamp timestampCancelled) {
+                   Timestamp timestampCreated, Timestamp timestampCompleted, Timestamp timestampRefunded, long amountRefunded, Timestamp timestampCancelled) {
         this.paymentId = paymentId;
         this.productId = productId;
         this.userId = userId;
@@ -67,7 +68,7 @@ public class Payment {
         this.payUrl = payUrl;
         this.paypalSubscriptionId = paypalSubscriptionId;
         this.timestampCreated = timestampCreated;
-        this.timestampReceived = timestampReceived;
+        this.timestampCompleted = timestampCompleted;
         this.timestampRefunded = timestampRefunded;
         this.amountRefunded = amountRefunded;
         this.timestampCancelled = timestampCancelled;
@@ -81,10 +82,10 @@ public class Payment {
     }
 
     /**
-     * Returns true when {@link #timestampReceived} is null.
+     * Returns true when {@link #timestampCompleted} is null.
      */
     public boolean isPending(){
-        return timestampReceived == null;
+        return timestampCompleted == null;
     }
 
     /**
