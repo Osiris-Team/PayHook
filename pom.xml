@@ -10,7 +10,7 @@
     <packaging>jar</packaging>
 
     <name>PayHook</name>
-    <description>A Java-API for validating PayPals Webhooks.</description>
+    <description>Make payments via Java easy.</description>
 
     <properties>
         <maven.compiler.source>8</maven.compiler.source>
@@ -40,15 +40,9 @@
         </dependency>
 
         <dependency>
-            <groupId>com.paypal.sdk</groupId>
-            <artifactId>checkout-sdk</artifactId>
-            <version>1.0.5</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.paypal.sdk</groupId>
-            <artifactId>rest-api-sdk</artifactId>
-            <version>1.14.0</version>
+            <groupId>com.braintreepayments.gateway</groupId>
+            <artifactId>braintree-java</artifactId>
+            <version>3.14.0</version>
         </dependency>
 
         <dependency>

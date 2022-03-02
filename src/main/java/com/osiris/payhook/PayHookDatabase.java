@@ -1,7 +1,8 @@
 package com.osiris.payhook;
 
-import java.sql.*;
-import java.util.ArrayList;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -32,6 +33,7 @@ public class PayHookDatabase {
     }
 
     public void insertProduct(Product product) throws SQLException {
+        /* TODO
         try (PreparedStatement stm = databaseConnection.prepareStatement("INSERT INTO products (" +
                 "id, price, currency, name, description," +
                 "billingType, customBillingIntervallInDays)" +
@@ -44,7 +46,7 @@ public class PayHookDatabase {
             stm.setInt(6, product.getBillingType());
             stm.setInt(7, product.getCustomBillingIntervallInDays());
             stm.executeUpdate();
-        }
+        }*/
     }
 
     public void updateProduct(Product product) {
@@ -55,60 +57,66 @@ public class PayHookDatabase {
         return null; //TODO
     }
 
-    public synchronized Order putOrder(Order order) throws SQLException {
+    public synchronized Payment insertPayment(Payment payment) throws SQLException {
+        /*
+        TODO
         try (PreparedStatement stm = databaseConnection.prepareStatement("INSERT INTO orders (" +
                 "price, currency, name, description," +
                 "billingType, customBillingIntervallInDays," +
                 "lastPaymentTimestamp," +
                 "refundTimestamp, cancelTimestamp, payUrl)" +
                 " VALUES (?,?,?,?,?,?,?,?,?,?)")) {
-            stm.setLong(1, order.getPriceInSmallestCurrency());
-            stm.setString(2, order.getCurrency());
-            stm.setString(3, order.getName());
-            stm.setString(4, order.getDescription());
-            stm.setInt(5, order.getBillingType());
-            stm.setInt(6, order.getCustomBillingIntervallInDays());
-            stm.setTimestamp(7, order.getLastPaymentTimestamp());
-            stm.setTimestamp(8, order.getRefundTimestamp());
-            stm.setTimestamp(9, order.getCancelTimestamp());
-            stm.setString(10, order.getPayUrl());
+            stm.setLong(1, payment.getPriceInSmallestCurrency());
+            stm.setString(2, payment.getCurrency());
+            stm.setString(3, payment.getName());
+            stm.setString(4, payment.getDescription());
+            stm.setInt(5, payment.getBillingType());
+            stm.setInt(6, payment.getCustomBillingIntervallInDays());
+            stm.setTimestamp(7, payment.getLastPaymentTimestamp());
+            stm.setTimestamp(8, payment.getRefundTimestamp());
+            stm.setTimestamp(9, payment.getCancelTimestamp());
+            stm.setString(10, payment.getPayUrl());
             stm.executeUpdate();
         }
         try (PreparedStatement stm = databaseConnection.prepareStatement("SELECT LAST_INSERT_ID()")) {
             ResultSet rs = stm.executeQuery();
             rs.next();
-            order.setId(rs.getInt(1));
-        }
+            payment.setId(rs.getInt(1));
+        }*/
+        return payment;
     }
 
-    public void updateOrder(Order order) throws SQLException {
+    public Payment updatePayment(Payment payment) throws SQLException {
+        /* TODO
         try (PreparedStatement stm = databaseConnection.prepareStatement("UPDATE orders" +
                 " SET price=?, currency=?, name=?, description=?," +
                 "billingType=?, customBillingIntervallInDays=?," +
                 "lastPaymentTimestamp=?," +
                 "refundTimestamp=?, cancelTimestamp=?, payUrl=?" +
                 " WHERE id=?")) {
-            stm.setLong(1, order.getPriceInSmallestCurrency());
-            stm.setString(2, order.getCurrency());
-            stm.setString(3, order.getName());
-            stm.setString(4, order.getDescription());
-            stm.setInt(5, order.getBillingType());
-            stm.setInt(6, order.getCustomBillingIntervallInDays());
-            stm.setTimestamp(7, order.getLastPaymentTimestamp());
-            stm.setTimestamp(8, order.getRefundTimestamp());
-            stm.setTimestamp(9, order.getCancelTimestamp());
-            stm.setInt(10, order.getId());
-            stm.setString(11, order.getPayUrl());
+            stm.setLong(1, payment.getPriceInSmallestCurrency());
+            stm.setString(2, payment.getCurrency());
+            stm.setString(3, payment.getName());
+            stm.setString(4, payment.getDescription());
+            stm.setInt(5, payment.getBillingType());
+            stm.setInt(6, payment.getCustomBillingIntervallInDays());
+            stm.setTimestamp(7, payment.getLastPaymentTimestamp());
+            stm.setTimestamp(8, payment.getRefundTimestamp());
+            stm.setTimestamp(9, payment.getCancelTimestamp());
+            stm.setInt(10, payment.getId());
+            stm.setString(11, payment.getPayUrl());
             stm.executeUpdate();
-        }
+        }*/
+        return payment;
     }
 
-    public Order getOrderById(int id){
+    public Payment getPaymentById(int id){
         //TODO
-        return new Order();
+        return null;
     }
 
-    public List<Order> getOrders() throws SQLException {
+    public List<Payment> getPayments() throws SQLException {
+        /* TODO
         List<Order> list = new ArrayList<>();
         try (PreparedStatement stm = databaseConnection.prepareStatement("SELECT " +
                 "id, payUrl, price, currency, name, description," +
@@ -134,7 +142,8 @@ public class PayHookDatabase {
                 list.add(order);
             }
         }
-        return list;
+        return list;*/
+        return null;
     }
 
     public Connection getDatabaseConnection() {
@@ -142,10 +151,6 @@ public class PayHookDatabase {
     }
 
     public void deleteProductById(int id) {
-        //TODO
-    }
-
-    public Payment insertPayment(Payment payment) {
         //TODO
     }
 }

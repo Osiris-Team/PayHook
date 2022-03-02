@@ -51,27 +51,27 @@ public class Product {
     }
 
     public boolean isRecurring() { // For example a subscription
-        return paymentType != 0;
+        return paymentType != PaymentType.ONE_TIME;
     }
 
     public boolean isBillingInterval1Month() {
-        return paymentType == 1;
+        return paymentType == PaymentType.RECURRING;
     }
 
     public boolean isBillingInterval3Months() {
-        return paymentType == 2;
+        return paymentType == PaymentType.RECURRING_3;
     }
 
     public boolean isBillingInterval6Months() {
-        return paymentType == 3;
+        return paymentType == PaymentType.RECURRING_6;
     }
 
     public boolean isBillingInterval12Months() {
-        return paymentType == 4;
+        return paymentType == PaymentType.RECURRING_12;
     }
 
     public boolean isCustomBillingInterval() {
-        return paymentType == 5;
+        return paymentType == PaymentType.RECURRING_CUSTOM;
     }
 
     public String getFormattedPrice() {

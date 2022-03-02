@@ -33,9 +33,9 @@ public class Payment {
     public String payUrl;
 
     // PayPal:
-    public String paypalOrderId;
-    public String paypalSubscriptionId; // TODO
-    public String paypalCaptureId; // TODO
+    public String braintreeOrderId;
+    public String braintreeSubscriptionId; // TODO
+    public String braintreeCaptureId; // TODO
 
     // Stripe specific stuff:
     public String stripePaymentIntentId; // TODO add to constructor
@@ -57,7 +57,7 @@ public class Payment {
 
 
     public Payment(int paymentId, int productId, String userId, int productQuantity, long amount, String currency, String productName,
-                   String payUrl, String paypalSubscriptionId,
+                   String payUrl, String braintreeSubscriptionId,
                    Timestamp timestampCreated, Timestamp timestampCompleted, Timestamp timestampRefunded, long amountRefunded, Timestamp timestampCancelled) {
         this.paymentId = paymentId;
         this.productId = productId;
@@ -67,7 +67,7 @@ public class Payment {
         this.currency = currency;
         this.productName = productName;
         this.payUrl = payUrl;
-        this.paypalSubscriptionId = paypalSubscriptionId;
+        this.braintreeSubscriptionId = braintreeSubscriptionId;
         this.timestampCreated = timestampCreated;
         this.timestampCompleted = timestampCompleted;
         this.timestampRefunded = timestampRefunded;
@@ -77,7 +77,7 @@ public class Payment {
     }
 
     private PaymentProcessor getPaymentProcessor(){
-        if (isPayPalSupported()) return PaymentProcessor.PAYPAL;
+        if (isBraintreeSupported()) return PaymentProcessor.BRAINTREE;
         else if(isStripeSupported()) return PaymentProcessor.STRIPE;
         else return null;
     }
@@ -104,17 +104,24 @@ public class Payment {
     }
 
     /**
-     * Returns true when this product has all the necessary PayPal related information available.
+     * Returns true if a subscription id is provided.
      */
-    public boolean isPayPalSupported(){
-        return paypalSubscriptionId != null;
+    public boolean isRecurring(){
+        return braintreeSubscriptionId != null || stripeSubscriptionId != null;
     }
 
     /**
-     * Returns true when this product has all the necessary Stripe related information available.
+     * Returns true when this has all the necessary Braintree specific information available.
+     */
+    public boolean isBraintreeSupported(){
+        return braintreeSubscriptionId != null; // TODO
+    }
+
+    /**
+     * Returns true when this has all the necessary Stripe specific information available.
      */
     public boolean isStripeSupported(){
-        return stripeProductId != null && stripePriceId != null;
+        return stripePaymentIntentId != null && stripeSubscriptionId != null;
     }
 
     public String getFormattedPrice() {

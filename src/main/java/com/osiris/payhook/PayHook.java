@@ -1,27 +1,12 @@
 package com.osiris.payhook;
 
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.braintreegateway.BraintreeGateway;
+import com.braintreegateway.Environment;
 import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
 import com.osiris.payhook.exceptions.ParseBodyException;
 import com.osiris.payhook.exceptions.ParseHeaderException;
 import com.osiris.payhook.exceptions.WebHookValidationException;
-import com.osiris.payhook.paypal.PayPalWebHookEventValidator;
-import com.osiris.payhook.paypal.PaypalJsonUtils;
-import com.osiris.payhook.paypal.PaypalWebhookEvent;
-import com.osiris.payhook.paypal.codec.binary.Base64;
-import com.osiris.payhook.paypal.custom.PayPalREST;
 import com.osiris.payhook.utils.Converter;
-import com.osiris.payhook.utils.UtilsLists;
-import com.paypal.api.payments.Plan;
-import com.paypal.base.rest.APIContext;
-import com.paypal.base.rest.PayPalRESTException;
-import com.paypal.core.PayPalEnvironment;
-import com.paypal.core.PayPalHttpClient;
-import com.paypal.http.HttpResponse;
-import com.paypal.orders.*;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.WebhookEndpoint;
@@ -49,19 +34,11 @@ public final class PayHook {
     private static final Map<Integer, Consumer<PaymentEvent>> paymentIdsAndActionsOnReceivedPayment = new HashMap<>();
 
     // Stripe specific:
-    private static String stripeSecretKey;
-    private static String stripeWebhookEventType = "PAYMENT.AUTHORIZATION.CREATED"; // TODO
+    public static List<String> stripeWebhookEventTypes = Arrays.asList("PAYMENT.AUTHORIZATION.CREATED"); // TODO
 
     // PayPal specific:
-    private static String paypalClientId;
-    private static String paypalClientSecret;
-    private static String paypalBase64EncodedCredentials;
-    private static PayPalREST paypalREST;
-    private static APIContext paypalV1;
-    private static PayPalHttpClient paypalV2;
-    private static String paypalWebhookId;
-    private static List<String> paypalWebhookEventTypes = Arrays.asList("PAYMENT.AUTHORIZATION.CREATED");
-    private static String paypalOrderApproved = "CHECKOUT.ORDER.APPROVED";
+    public static BraintreeGateway braintreeGateway;
+    public static List<String> braintreeWebhookEventTypes = Arrays.asList(); // TODO
 
     /**
      * If {@link #isSandbox} = true then the "payhook_sandbox" database will get created/used, otherwise
@@ -84,16 +61,6 @@ public final class PayHook {
         if(isSandbox) databaseUrl = databaseUrl.replace("db_name", "payhook_sandbox");
         else databaseUrl = databaseUrl.replace("db_name", "payhook");
         database = new PayHookDatabase(DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword), isSandbox);
-        new Thread(() -> {
-            try {
-                while (true) {
-                    Thread.sleep(600000); // 1h
-                    checkForMissedPayments();
-                }
-            } catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-        }).start();
         isInitialised = true;
     }
 
@@ -134,28 +101,34 @@ public final class PayHook {
     }
 
     /**
-     * Sets the PayPal credentials and initialises its APIs/SDKs. <br>
-     * Also creates the required Webhook if needed. <br>
-     * @param clientId See PayPals' docs <a href="https://developer.paypal.com/api/rest/#link-getcredentials">here</a> for details.
-     * @param clientSecret See PayPals' docs <a href="https://developer.paypal.com/api/rest/#link-getcredentials">here</a> for details.
-     * @param webhookUrl Something like this: "https://my-shop.com/paypal-hook". <p style="color:red;"> Important: </p>Remember that you must
+     * Sets the Braintree credentials and initialises its APIs/SDKs. <br>
+     * <p style="color:red;"> Important: </p>You must create the webhook with the allowed types yourself. See Braintrees' webhook docs
+     * <a href="https://developer.paypal.com/braintree/docs/guides/webhooks/overview">here</a> for details. <br>
+     * @param merchantId See Braintrees' docs <a href="https://developer.paypal.com/braintree/articles/control-panel/important-gateway-credentials">here</a> for details.
+     * @param publicKey See Braintrees' docs <a href="https://developer.paypal.com/braintree/articles/control-panel/important-gateway-credentials">here</a> for details.
+     * @param privateKey See Braintrees' docs <a href="https://developer.paypal.com/braintree/articles/control-panel/important-gateway-credentials">here</a> for details.
+     * @param webhookUrl Something like this: "https://my-shop.com/braintree-hook". <p style="color:red;"> Important: </p>Remember that you must
      *                   run {@link #receiveWebhookEvent(PaymentProcessor, Map, String)} when receiving a webhook notification/event
      *                   on that url.
      */
-    public static void initPayPal(String clientId, String clientSecret, String webhookUrl) throws IOException, HttpErrorException {
-        PayHook.paypalClientId = clientId;
-        PayHook.paypalClientSecret = clientSecret;
-
+    public static void initBraintree(String merchantId, String publicKey, String privateKey, String webhookUrl) throws IOException, HttpErrorException {
         if (isSandbox) {
-            paypalREST = new PayPalREST(clientId, clientSecret, PayPalREST.Mode.SANDBOX);
-            paypalV1 = new APIContext(clientId, clientSecret, "sandbox");
-            paypalV2 = new PayPalHttpClient(new PayPalEnvironment.Sandbox(clientId, clientSecret));
+            PayHook.braintreeGateway = new BraintreeGateway(
+                    Environment.SANDBOX,
+                    merchantId,
+                    publicKey,
+                    privateKey
+            );
         } else {
-            paypalREST = new PayPalREST(clientId, clientSecret, PayPalREST.Mode.LIVE);
-            paypalV1 = new APIContext(clientId, clientSecret, "live");
-            paypalV2 = new PayPalHttpClient(new PayPalEnvironment.Live(clientId, clientSecret));
+            PayHook.braintreeGateway = new BraintreeGateway(
+                    Environment.PRODUCTION,
+                    merchantId,
+                    publicKey,
+                    privateKey
+            );
         }
-        paypalBase64EncodedCredentials = Base64.encodeBase64String((clientId + ":" + clientSecret).getBytes());
+        /*
+        TODO
         boolean containsWebhookUrl = false;
         for (JsonElement e :
                 paypalREST.getWebhooks()) {
@@ -167,11 +140,18 @@ public final class PayHook {
                 break;
             }
         }
-        if(!containsWebhookUrl) paypalREST.createWebhook(webhookUrl, paypalWebhookEventTypes);
+        if(!containsWebhookUrl) paypalREST.createWebhook(webhookUrl, braintreeWebhookEventTypes);*/
     }
 
+    /**
+     * Sets the Stripe credentials and initialises its APIs/SDKs. <br>
+     * Also creates the required webhook if needed. <br>
+     * @param secretKey See Stripes' docs <a href="https://stripe.com/docs/keys">here</a> for details.
+     * @param webhookUrl Something like this: "https://my-shop.com/stripe-hook". <p style="color:red;"> Important: </p>Remember that you must
+     *                   run {@link #receiveWebhookEvent(PaymentProcessor, Map, String)} when receiving a webhook notification/event
+     *                   on that url.
+     */
     public static void initStripe(String secretKey, String webhookUrl) throws StripeException {
-        PayHook.stripeSecretKey = secretKey;
         Stripe.apiKey = secretKey;
         Map<String, Object> params = new HashMap<>();
         params.put("limit", "100");
@@ -186,9 +166,7 @@ public final class PayHook {
         if(!containsWebhookUrl){
             Map<String, Object> params2 = new HashMap<>();
             params2.put("url", webhookUrl);
-            List<String> list = new ArrayList<>(1);
-            list.add(stripeWebhookEventType);
-            params2.put("enabled_events", list);
+            params2.put("enabled_events", stripeWebhookEventTypes);
             WebhookEndpoint.create(params2);
         }
     }
@@ -210,16 +188,17 @@ public final class PayHook {
      */
     public static Product putProduct(int id, long priceInSmallestCurrency,
                               String currency, String name, String description,
-                              PaymentType paymentType, int customBillingIntervallInDays) throws StripeException, SQLException, PayPalRESTException, IOException, HttpErrorException {
+                              PaymentType paymentType, int customBillingIntervallInDays) throws StripeException, SQLException, IOException, HttpErrorException {
+        /* TODO
         Converter converter = new Converter();
-        // TODO also link webhook urls
+
         Product newProduct = new Product(id, priceInSmallestCurrency, currency, name, description, paymentType, customBillingIntervallInDays,
                 null, null);
         Product dbProduct = database.getProductById(id);
         if (dbProduct == null) {
             dbProduct = new Product(id, priceInSmallestCurrency, currency, name, description, paymentType, customBillingIntervallInDays,
                     null, null);
-            if (paypalClientId != null && paypalClientSecret != null) {
+            if (braintreeMerchantId != null && braintreePrivateKey != null) {
                 paypalREST.createProduct(dbProduct);
                 if (dbProduct.isRecurring()) {
                     com.paypal.api.payments.Plan plan = converter.toPayPalPlan(dbProduct);
@@ -242,7 +221,7 @@ public final class PayHook {
         if (compareProducts(newProduct, dbProduct)) {
             database.updateProduct(newProduct);
 
-            if (paypalClientId != null && paypalClientSecret != null && dbProduct.paypalProductId != null) {
+            if (braintreeMerchantId != null && braintreePrivateKey != null && dbProduct.paypalProductId != null) {
                 // Note that PayPal doesn't store products, but only plans, in its databases.
                 // Thus, products don't need to get updated, except plans
                 if (dbProduct.isRecurring()) {
@@ -256,8 +235,8 @@ public final class PayHook {
                 com.stripe.model.Price stripePrice = com.stripe.model.Price.retrieve(dbProduct.stripePriceId);
                 stripePrice.update(converter.toStripePrice(dbProduct));
             }
-        }
-        return newProduct;
+        }*/
+        return null; // TODO
     }
 
     /**
@@ -317,8 +296,8 @@ public final class PayHook {
                 products) {
             if(paymentProcessor.equals(PaymentProcessor.STRIPE) && !p.isStripeSupported())
                 throw new Exception("Product with id '"+p.productId+"' does not support Stripe because of empty fields in the database!");
-            else if(paymentProcessor.equals(PaymentProcessor.PAYPAL) && !p.isPayPalSupported()){
-                throw new Exception("Product with id '"+p.productId+"' does not support PayPal because of empty fields in the database!");
+            else if(paymentProcessor.equals(PaymentProcessor.BRAINTREE) && !p.isPayPalSupported()){
+                throw new Exception("Product with id '"+p.productId+"' does not support Braintree because of empty fields in the database!");
             }
             if (p.isRecurring()) // Sort
                 productsRecurring.add(p);
@@ -395,7 +374,8 @@ public final class PayHook {
                 payments.add(payment);
                 database.insertPayment(payment);
             }
-        } else if(paymentProcessor.equals(PaymentProcessor.PAYPAL)){ // PAYPAL
+        } else if(paymentProcessor.equals(PaymentProcessor.BRAINTREE)){ // BRAINTREE
+            /* TODO
             if(productsNOTrecurring.size() > 0){
                 int paymentId = database.paymentsId.incrementAndGet();
                 OrderRequest orderRequest = new OrderRequest();
@@ -437,7 +417,7 @@ public final class PayHook {
                 request.requestBody(orderRequest);
 
                 HttpResponse<Order> response = paypalV2.execute(request);
-                if (response.statusCode() != 201) throw new PayPalRESTException("Failed to create order! PayPal returned error code '"+response.statusCode()+"'.");
+                if (response.statusCode() != 201) throw new PayPalRESTException("Failed to create order! Braintree returned error code '"+response.statusCode()+"'.");
                 String payUrl = null;
                 for (LinkDescription link : response.result().links()) {
                     if (link.rel().equals("approve")){
@@ -449,7 +429,7 @@ public final class PayHook {
                 for (Payment payment :
                         payments) {
                     payment.payUrl = payUrl;
-                    payment.paypalOrderId = response.result().id();
+                    payment.braintreeOrderId = response.result().id();
                     database.insertPayment(payment);
                 }
             }
@@ -464,7 +444,7 @@ public final class PayHook {
                         null,0, null);
                 payments.add(payment);
                 database.insertPayment(payment);
-            }
+            }*/
         }
         return payments;
     }
@@ -516,14 +496,15 @@ public final class PayHook {
      * @throws WebHookValidationException When the provided webhook event is not valid.
      */
     public static void receiveWebhookEvent(PaymentProcessor paymentProcessor, Map<String, String> header, String body) throws ParseHeaderException, IOException, WebHookValidationException, ParseBodyException {
-        if(paymentProcessor.equals(PaymentProcessor.PAYPAL)){
-            PayPalWebHookEventValidator validator = new PayPalWebHookEventValidator(paypalClientId, paypalClientSecret);
+        if(paymentProcessor.equals(PaymentProcessor.BRAINTREE)){
+            /* TODO
+            PayPalWebHookEventValidator validator = new PayPalWebHookEventValidator(braintreeMerchantId, braintreePrivateKey);
             PaypalWebhookEvent event = new PaypalWebhookEvent(paypalWebhookId, null,
                     validator.parseAndGetHeader(header), validator.parseAndGetBody(body));
             if(!paypalREST.isWebhookEventValid(event.getHeader(), body, paypalWebhookId))
                 throw new WebHookValidationException("The provided webhook event is not valid!");
-            if(!UtilsLists.containsIgnoreCase(paypalWebhookEventTypes, event.getEventType()))
-                throw new WebHookValidationException("The provided webhook event type '"+event.getEventType()+"' does not match '"+ Arrays.toString(paypalWebhookEventTypes.toArray()) +"' and thus is not valid!");
+            if(!UtilsLists.containsIgnoreCase(braintreeWebhookEventTypes, event.getEventType()))
+                throw new WebHookValidationException("The provided webhook event type '"+event.getEventType()+"' does not match '"+ Arrays.toString(braintreeWebhookEventTypes.toArray()) +"' and thus is not valid!");
 
             String captureURL = null;
             JsonArray arrayLinks = event.getBody().getAsJsonObject("resource").getAsJsonArray("links");
@@ -540,7 +521,11 @@ public final class PayHook {
             new PaypalJsonUtils().postJsonAndGetResponse(captureURL,"{}", paypalBase64EncodedCredentials, 201);
             // TODO
             Payment payment = new Payment();
-            database.insertPayment(payment);
+            database.insertPayment(payment);*/
+        } else if(paymentProcessor.equals(PaymentProcessor.STRIPE)){
+            //TODO
+        } else{
+            //TODO
         }
     }
 
@@ -568,42 +553,5 @@ public final class PayHook {
      */
     public static void onCancelledSubscription(){
         // TODO BILLING.SUBSCRIPTION.CANCELLED
-    }
-
-    /**
-     * Checks for payments where the {@link Payment#timestampCompleted} now is in the past
-     * and the {@link Payment#isPending} is still true.
-     */
-    public static void checkForMissedPayments() throws SQLException {
-        List<Order> orders = database.getOrders();
-        long now = System.currentTimeMillis();
-        long extraTime = 86400000L; // Give the user one extra day to pay
-        long month = 2629800000L + extraTime;
-        long month3 = 7889400000L + extraTime;
-        long month6 = 15778800000L + extraTime;
-        long month12 = 31557600000L + extraTime;
-        for (Order o :
-                orders) {
-            if (o.isRecurring()) {
-                if (o.isBillingInterval1Month()) {
-                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month)
-                        executeMissedPayment(new PaymentEvent(o));
-
-                } else if (o.isBillingInterval3Months()) {
-                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month3)
-                        executeMissedPayment(new PaymentEvent(o));
-                } else if (o.isBillingInterval6Months()) {
-                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month6)
-                        executeMissedPayment(new PaymentEvent(o));
-                } else if (o.isBillingInterval12Months()) {
-                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > month12)
-                        executeMissedPayment(new PaymentEvent(o));
-                } else { // Custom payment intervall
-                    long custom = o.getCustomBillingIntervallInDays() * 86400000L; // xdays multiplied with 1 day as millisecond
-                    if ((now - o.getLastPaymentTimestamp().toInstant().toEpochMilli()) > custom)
-                        executeMissedPayment(new PaymentEvent(o));
-                }
-            }
-        }
     }
 }

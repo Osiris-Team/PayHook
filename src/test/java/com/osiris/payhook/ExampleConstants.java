@@ -1,7 +1,6 @@
 package com.osiris.payhook;
 
 import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
-import com.paypal.base.rest.PayPalRESTException;
 import com.stripe.exception.StripeException;
 
 import java.io.IOException;
@@ -22,7 +21,7 @@ public class ExampleConstants {
                     "db_password",
                     true);
 
-            PayHook.initPayPal("client_id", "client_secret", "https://my-shop.com/paypal-hook");
+            PayHook.initBraintree("merchant_id","public_key", "private_key", "https://my-shop.com/braintree-hook");
             PayHook.initStripe("secret_key", "https://my-shop.com/stripe-hook");
 
             pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", PaymentType.ONE_TIME, 0);
@@ -39,14 +38,14 @@ public class ExampleConstants {
             });
         } catch (SQLException e) {
             throw new RuntimeException(e);
-        } catch (StripeException | IOException | PayPalRESTException | HttpErrorException e) {
+        } catch (StripeException | IOException | HttpErrorException e) {
             e.printStackTrace();
         }
     }
 
     void onBuyBtnClick() throws Exception {
         // The code below should be run when the user clicks on a buy button.
-        Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
+        Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.BRAINTREE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
         PayHook.onReceivedPayment(payment.paymentId, event -> {
             // Executed when the payment was received.
         });
