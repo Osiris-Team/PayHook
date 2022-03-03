@@ -11,7 +11,7 @@ import java.util.function.Consumer;
 public class Payment {
     public final int paymentId;
     /**
-     * {@link Product#productId}
+     * {@link Product#id}
      */
     public final int productId;
     /**

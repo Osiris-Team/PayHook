@@ -26,7 +26,7 @@ public class Converter {
             Price.Recurring stripeRecurring = new Price.Recurring();
             if (product.isCustomBillingInterval()){
                 stripeRecurring.setInterval("day");
-                stripeRecurring.setIntervalCount((long) product.customBillingIntervallInDays);
+                stripeRecurring.setIntervalCount((long) product.customPaymentIntervall);
             } else{
                 stripeRecurring.setInterval("month");
                 if (product.isBillingInterval1Month())

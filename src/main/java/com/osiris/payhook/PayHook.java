@@ -57,10 +57,14 @@ public final class PayHook {
         if(isInitialised) return;
         PayHook.brandName = brandName;
         PayHook.isSandbox = isSandbox;
+        String dbName = "payhook";
         if (!databaseUrl.contains("db_name")) throw new SQLException("Your databaseUrl must contain 'db_name' as database name, so it can be replaced later!");
-        if(isSandbox) databaseUrl = databaseUrl.replace("db_name", "payhook_sandbox");
-        else databaseUrl = databaseUrl.replace("db_name", "payhook");
-        database = new PayHookDatabase(DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword), isSandbox);
+        if(isSandbox) {
+            dbName = "payhook_sanbox";
+            databaseUrl = databaseUrl.replace("db_name", dbName);
+        }
+        else databaseUrl = databaseUrl.replace("db_name", dbName);
+        database = new PayHookDatabase(dbName, DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword));
         isInitialised = true;
     }
 
@@ -189,7 +193,6 @@ public final class PayHook {
     public static Product putProduct(int id, long priceInSmallestCurrency,
                               String currency, String name, String description,
                               PaymentType paymentType, int customBillingIntervallInDays) throws StripeException, SQLException, IOException, HttpErrorException {
-        /* TODO
         Converter converter = new Converter();
 
         Product newProduct = new Product(id, priceInSmallestCurrency, currency, name, description, paymentType, customBillingIntervallInDays,
@@ -198,45 +201,43 @@ public final class PayHook {
         if (dbProduct == null) {
             dbProduct = new Product(id, priceInSmallestCurrency, currency, name, description, paymentType, customBillingIntervallInDays,
                     null, null);
-            if (braintreeMerchantId != null && braintreePrivateKey != null) {
-                paypalREST.createProduct(dbProduct);
+            if (braintreeGateway != null) {
+                /*paypalREST.createProduct(dbProduct); // TODO
                 if (dbProduct.isRecurring()) {
                     com.paypal.api.payments.Plan plan = converter.toPayPalPlan(dbProduct);
                     plan.create(paypalV1);
                     dbProduct.paypalPlanId = plan.getId();
-                }
+                }*/
             }
-            if (stripeSecretKey != null) {
+            if (Stripe.apiKey != null) {
                 com.stripe.model.Product stripeProduct = com.stripe.model.Product.create(converter.toStripeProduct(dbProduct, isSandbox));
                 dbProduct.stripeProductId = stripeProduct.getId();
                 com.stripe.model.Price stripePrice = com.stripe.model.Price.create(converter.toStripePrice(dbProduct));
                 dbProduct.stripePriceId = stripePrice.getId();
             }
-            database.insertProduct(dbProduct);
+            database.putProduct(dbProduct);
         }
 
-        newProduct.paypalProductId = dbProduct.paypalProductId;
+        newProduct.braintreeProductId = dbProduct.braintreeProductId;
         newProduct.stripeProductId = dbProduct.stripeProductId;
 
         if (compareProducts(newProduct, dbProduct)) {
             database.updateProduct(newProduct);
 
-            if (braintreeMerchantId != null && braintreePrivateKey != null && dbProduct.paypalProductId != null) {
-                // Note that PayPal doesn't store products, but only plans, in its databases.
-                // Thus, products don't need to get updated, except plans
-                if (dbProduct.isRecurring()) {
+            if (braintreeGateway!=null) {
+                /*if (dbProduct.isRecurring()) {
                     com.paypal.api.payments.Plan plan = Plan.get(paypalV1, dbProduct.paypalProductId);
                     plan.update(paypalV1, converter.toPayPalPlanPatch(dbProduct)); // TODO
-                }
+                }*/
             }
-            if (stripeSecretKey != null && dbProduct.stripeProductId != null) {
+            if (Stripe.apiKey != null) {
                 com.stripe.model.Product stripeProduct = com.stripe.model.Product.retrieve(dbProduct.stripeProductId);
                 stripeProduct.update(converter.toStripeProduct(dbProduct, isSandbox));
                 com.stripe.model.Price stripePrice = com.stripe.model.Price.retrieve(dbProduct.stripePriceId);
                 stripePrice.update(converter.toStripePrice(dbProduct));
             }
-        }*/
-        return null; // TODO
+        }
+        return newProduct;
     }
 
     /**
@@ -295,9 +296,9 @@ public final class PayHook {
         for (Product p :
                 products) {
             if(paymentProcessor.equals(PaymentProcessor.STRIPE) && !p.isStripeSupported())
-                throw new Exception("Product with id '"+p.productId+"' does not support Stripe because of empty fields in the database!");
-            else if(paymentProcessor.equals(PaymentProcessor.BRAINTREE) && !p.isPayPalSupported()){
-                throw new Exception("Product with id '"+p.productId+"' does not support Braintree because of empty fields in the database!");
+                throw new Exception("Product with id '"+p.id +"' does not support Stripe because of empty fields in the database!");
+            else if(paymentProcessor.equals(PaymentProcessor.BRAINTREE) && !p.isBraintreeSupported()){
+                throw new Exception("Product with id '"+p.id +"' does not support Braintree because of empty fields in the database!");
             }
             if (p.isRecurring()) // Sort
                 productsRecurring.add(p);
@@ -336,7 +337,7 @@ public final class PayHook {
                                     .setQuantity((long) quantity)
                                     .setPrice("{{" + p.stripePriceId + "}}")
                                     .build());
-                    payments.add(new Payment(paymentId, p.productId, userId, quantity,
+                    payments.add(new Payment(paymentId, p.id, userId, quantity,
                             (quantity * p.priceInSmallestCurrency), p.currency,
                             p.name, null, null, now,
                             null,
@@ -365,7 +366,7 @@ public final class PayHook {
                                 .setPrice("{{" + p.stripePriceId + "}}")
                                 .build());
                 Session session = Session.create(paramsBuilder.build());
-                Payment payment = new Payment(paymentId, p.productId, userId, 1,
+                Payment payment = new Payment(paymentId, p.id, userId, 1,
                         p.priceInSmallestCurrency, p.currency,
                         p.name, session.getUrl(), null, now,
                         null,
@@ -454,7 +455,7 @@ public final class PayHook {
      * @return true if the provided {@link Product}s have different essential information.
      */
     private static boolean compareProducts(Product p1, Product p2) {
-        if (p1.productId != p2.productId)
+        if (p1.id != p2.id)
             return true;
         if (p1.priceInSmallestCurrency != p2.priceInSmallestCurrency)
             return true;
@@ -466,7 +467,7 @@ public final class PayHook {
             return true;
         if (p1.paymentType != p2.paymentType)
             return true;
-        return p1.customBillingIntervallInDays != p2.customBillingIntervallInDays;
+        return p1.customPaymentIntervall != p2.customPaymentIntervall;
     }
 
     /**

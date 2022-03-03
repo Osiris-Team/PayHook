@@ -14,7 +14,7 @@ import java.io.FileReader;
 public class TestUtils {
     public static SQLTestServer server;
     public static String dbUrl;
-    public static String dbUser = "root";
+    public static String dbUsername = "root";
     public static String dbPassword = "";
     public static String stripeSecretKey = null;
 

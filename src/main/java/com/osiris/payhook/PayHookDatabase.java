@@ -1,52 +1,98 @@
 package com.osiris.payhook;
 
+import com.osiris.ljdb.SQLTable;
+import com.osiris.ljdb.SQLUtils;
+
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class PayHookDatabase {
-    private final Connection databaseConnection;
+    private final Connection con;
     public final AtomicInteger paymentsId = new AtomicInteger();
+    public SQLTable tableProducts;
+    public SQLTable tablePayments;
 
-    public PayHookDatabase(Connection databaseConnection, boolean isSandbox) throws SQLException {
-        this.databaseConnection = databaseConnection;
-
-        try (Statement stm = databaseConnection.createStatement()) {
-            if(isSandbox) stm.executeUpdate("CREATE DATABASE IF NOT EXISTS payhook_sandbox");
-            else stm.executeUpdate("CREATE DATABASE IF NOT EXISTS payhook");
-            stm.executeUpdate("CREATE TABLE IF NOT EXISTS products" +
-                    "(id int NOT NULL PRIMARY KEY, " +
-                    ")"); // TODO price, currency, name, description, billingType, customBillingIntervallInDays, paypalProductId
-            // TODO stripeProductId, stripePriceId,
-            stm.executeUpdate("CREATE TABLE IF NOT EXISTS orders" +
-                    "(id int NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-                    ")"); // TODO price, currency, name, description, billingType, customBillingIntervallInDays,
-            // TODO lastPaymentTimestamp, refundTimestamp, cancelTimestamp, payUrl
-            stm.executeUpdate("CREATE TABLE IF NOT EXISTS payments" +
-                    "(id int NOT NULL AUTO_INCREMENT PRIMARY KEY, " +
-                    ")"); // TODO
+    public PayHookDatabase(String dbName, Connection con) throws SQLException {
+        this.con = con;
+        SQLUtils sql = new SQLUtils();
+        sql.initDatabase(con, dbName,
+                (tableProducts = sql.table("products",
+                        sql.col("id", "INT NOT NULL PRIMARY KEY"),
+                        sql.col("price", "LONG NOT NULL"),
+                        sql.col("currency", "CHAR(3) NOT NULL"),
+                        sql.col("name", "VARCHAR DEFAULT NULL"),
+                        sql.col("description", "VARCHAR DEFAULT NULL"),
+                        sql.col("payment_type", "TINYINT NOT NULL"),
+                        sql.col("payment_intervall", "INT NOT NULL"),
+                        sql.col("braintree_product_id", "VARCHAR DEFAULT NULL"),
+                        sql.col("braintree_plan_id", "VARCHAR DEFAULT NULL"),
+                        sql.col("stripe_product_id", "VARCHAR DEFAULT NULL"),
+                        sql.col("stripe_price_id", "VARCHAR DEFAULT NULL"))),
+                (tablePayments = sql.table("payments",
+                        sql.col("id", "INT NOT NULL AUTO_INCREMENT PRIMARY KEY"),
+                        sql.col("timestamp", "TIMESTAMP NOT NULL"),
+                        sql.col("daily_visits", "LONG NOT NULL"),
+                        sql.col("daily_users", "INT NOT NULL")))
+        );
+        try (PreparedStatement stm = con.prepareStatement("SELECT id FROM "+tablePayments.name
+                + " ORDER BY id DESC LIMIT 1")) {
+            ResultSet rs = stm.executeQuery();
+            if (rs.next()) {
+                paymentsId.set(rs.getInt(1));
+            }
         }
-
-        //paymentsId.set(); // TODO
     }
 
-    public void insertProduct(Product product) throws SQLException {
-        /* TODO
-        try (PreparedStatement stm = databaseConnection.prepareStatement("INSERT INTO products (" +
-                "id, price, currency, name, description," +
-                "billingType, customBillingIntervallInDays)" +
-                " VALUES (?,?,?,?,?,?,?)")) {
-            stm.setInt(1, product.getId());
-            stm.setLong(2, product.getPriceInSmallestCurrency());
-            stm.setString(3, product.getCurrency());
-            stm.setString(4, product.getName());
-            stm.setString(5, product.getDescription());
-            stm.setInt(6, product.getBillingType());
-            stm.setInt(7, product.getCustomBillingIntervallInDays());
-            stm.executeUpdate();
-        }*/
+    /**
+     * Updates the existing product or inserts it.
+     */
+    public void putProduct(Product product) throws SQLException {
+        boolean exists = false;
+        try (PreparedStatement stm = con.prepareStatement("SELECT id FROM "+tablePayments.name
+                + " WHERE id=?")) {
+            stm.setInt(1, product.id);
+            ResultSet rs = stm.executeQuery();
+            exists = rs.next();
+        }
+        // TODO below
+        if(exists)
+            try (PreparedStatement stm = con.prepareStatement(tablePayments.update +
+                    " SET price=?, currency=?, name=?, description=?," +
+                    "paymentType=?, customBillingIntervallInDays=?," +
+                    "lastPaymentTimestamp=?," +
+                    "refundTimestamp=?, cancelTimestamp=?, payUrl=?" +
+                    " WHERE id=?")) {
+                stm.setLong(1, payment.getPriceInSmallestCurrency());
+                stm.setString(2, payment.getCurrency());
+                stm.setString(3, payment.getName());
+                stm.setString(4, payment.getDescription());
+                stm.setInt(5, payment.getpaymentType());
+                stm.setInt(6, payment.getCustomBillingIntervallInDays());
+                stm.setTimestamp(7, payment.getLastPaymentTimestamp());
+                stm.setTimestamp(8, payment.getRefundTimestamp());
+                stm.setTimestamp(9, payment.getCancelTimestamp());
+                stm.setInt(10, payment.getId());
+                stm.setString(11, payment.getPayUrl());
+                stm.executeUpdate();
+            }
+        else
+            try (PreparedStatement stm = con.prepareStatement(tableProducts.insert+"(" +
+                    "id, price, currency, name, description," +
+                    "paymentType, customBillingIntervallInDays)" +
+                    " VALUES (?,?,?,?,?,?,?)")) {
+                stm.setInt(1, product.id);
+                stm.setLong(2, product.priceInSmallestCurrency);
+                stm.setString(3, product.currency);
+                stm.setString(4, product.name);
+                stm.setString(5, product.description);
+                stm.setInt(6, product.paymentType.type);
+                stm.setInt(7, product.customPaymentIntervall);
+                stm.executeUpdate();
+            }
     }
 
     public void updateProduct(Product product) {
@@ -62,7 +108,7 @@ public class PayHookDatabase {
         TODO
         try (PreparedStatement stm = databaseConnection.prepareStatement("INSERT INTO orders (" +
                 "price, currency, name, description," +
-                "billingType, customBillingIntervallInDays," +
+                "paymentType, customBillingIntervallInDays," +
                 "lastPaymentTimestamp," +
                 "refundTimestamp, cancelTimestamp, payUrl)" +
                 " VALUES (?,?,?,?,?,?,?,?,?,?)")) {
@@ -70,7 +116,7 @@ public class PayHookDatabase {
             stm.setString(2, payment.getCurrency());
             stm.setString(3, payment.getName());
             stm.setString(4, payment.getDescription());
-            stm.setInt(5, payment.getBillingType());
+            stm.setInt(5, payment.getpaymentType());
             stm.setInt(6, payment.getCustomBillingIntervallInDays());
             stm.setTimestamp(7, payment.getLastPaymentTimestamp());
             stm.setTimestamp(8, payment.getRefundTimestamp());
@@ -90,7 +136,7 @@ public class PayHookDatabase {
         /* TODO
         try (PreparedStatement stm = databaseConnection.prepareStatement("UPDATE orders" +
                 " SET price=?, currency=?, name=?, description=?," +
-                "billingType=?, customBillingIntervallInDays=?," +
+                "paymentType=?, customBillingIntervallInDays=?," +
                 "lastPaymentTimestamp=?," +
                 "refundTimestamp=?, cancelTimestamp=?, payUrl=?" +
                 " WHERE id=?")) {
@@ -98,7 +144,7 @@ public class PayHookDatabase {
             stm.setString(2, payment.getCurrency());
             stm.setString(3, payment.getName());
             stm.setString(4, payment.getDescription());
-            stm.setInt(5, payment.getBillingType());
+            stm.setInt(5, payment.getpaymentType());
             stm.setInt(6, payment.getCustomBillingIntervallInDays());
             stm.setTimestamp(7, payment.getLastPaymentTimestamp());
             stm.setTimestamp(8, payment.getRefundTimestamp());
@@ -120,7 +166,7 @@ public class PayHookDatabase {
         List<Order> list = new ArrayList<>();
         try (PreparedStatement stm = databaseConnection.prepareStatement("SELECT " +
                 "id, payUrl, price, currency, name, description," +
-                "billingType, customBillingIntervallInDays," +
+                "paymentType, customBillingIntervallInDays," +
                 "lastPaymentTimestamp," +
                 "refundTimestamp, cancelTimestamp)" +
                 " FROM orders")) {
@@ -146,8 +192,8 @@ public class PayHookDatabase {
         return null;
     }
 
-    public Connection getDatabaseConnection() {
-        return databaseConnection;
+    public Connection getCon() {
+        return con;
     }
 
     public void deleteProductById(int id) {
