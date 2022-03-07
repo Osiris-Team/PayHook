@@ -46,14 +46,14 @@ public class ExampleConstants {
     void onBuyBtnClick() throws Exception {
         // The code below should be run when the user clicks on a buy button.
         Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.BRAINTREE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
-        PayHook.onReceivedPayment(payment.paymentId, event -> {
+        PayHook.onReceivedPayment(payment.id, event -> {
             // Executed when the payment was received.
         });
     }
 
     void onAnotherBuyBtnClick() throws Exception {
         Payment payment = PayHook.createPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
-        PayHook.onReceivedPayment(payment.paymentId, event -> {
+        PayHook.onReceivedPayment(payment.id, event -> {
             // Executed when the payment was received.
         });
     }

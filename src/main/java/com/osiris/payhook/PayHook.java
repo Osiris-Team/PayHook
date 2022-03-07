@@ -13,7 +13,8 @@ import com.stripe.model.WebhookEndpoint;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.checkout.SessionCreateParams;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.PrintStream;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -71,34 +72,30 @@ public final class PayHook {
     public static void initCommandLineTool(){
         if(commandLineThread!=null) commandLineThread.interrupt();
         commandLineThread = new Thread(() -> {
-            try(BufferedReader in = new BufferedReader(new InputStreamReader(System.in))){
-                try(PrintWriter out = new PrintWriter(new OutputStreamWriter(System.out))){
-                    out.println("Initialised PayHooks' command line tool. To exit it enter 'exit', for a list of commands enter 'help'.");
-                    boolean exit = false;
-                    String command = null;
-                    while (!exit){
-                        command = in.readLine();
-                        try{
-                            if (command.equals("exit")){
-                                exit = true;
-                            } else if(command.equals("help") || command.equals("h")){
-                                out.println("Available commands:");
-                                out.println("products delete <id> | Removes the product with the given id from the local database.");
-                                // TODO add commands like:
-                                // payments <days> // Prints all received payments from the last <days> (if not provided 30 days is the default)
-                            } else if(command.startsWith("products delete")){
-                                int id = Integer.parseInt(command.replaceFirst("products delete ", "").trim());
-                                database.deleteProductById(id); //TODO delete everywhere
-                            } else{
-                                out.println("Unknown command. Enter 'help' or 'h' for a list of all commands.");
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
+            PrintStream out = System.out;
+            Scanner scanner = new Scanner(System.in);
+            out.println("Initialised PayHooks' command line tool. To exit it enter 'exit', for a list of commands enter 'help'.");
+            boolean exit = false;
+            String command = null;
+            while (!exit){
+                command = scanner.nextLine();
+                try{
+                    if (command.equals("exit")){
+                        exit = true;
+                    } else if(command.equals("help") || command.equals("h")){
+                        out.println("Available commands:");
+                        out.println("products delete <id> | Removes the product with the given id from the local database.");
+                        // TODO add commands like:
+                        // payments <days> // Prints all received payments from the last <days> (if not provided 30 days is the default)
+                    } else if(command.startsWith("products delete")){
+                        int id = Integer.parseInt(command.replaceFirst("products delete ", "").trim());
+                        database.deleteProductById(id); //TODO delete everywhere
+                    } else{
+                        out.println("Unknown command. Enter 'help' or 'h' for a list of all commands.");
                     }
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-            } catch (IOException e) {
-                e.printStackTrace();
             }
         });
         commandLineThread.start();
@@ -244,7 +241,8 @@ public final class PayHook {
      * Updates the {@link Product}s details in your local and in
      * the database of its {@link PaymentProcessor}.
      */
-    public static Product updateProduct(Product product){
+    public static Product updateProduct(Product product) throws SQLException {
+        database.putProduct(product);
         // TODO
         return product;
     }
@@ -275,7 +273,7 @@ public final class PayHook {
 
     /**
      * Creates a new pending {@link Payment} which is due in 3 hours, for each {@link Product}. <br>
-     * Redirect your user to {@link Payment#payUrl} to complete the payment. <br>
+     * Redirect your user to {@link Payment#url} to complete the payment. <br>
      * Note that {@link Product}s WITHOUT recurring payments get grouped together <br>
      * and can be paid over the same url. <br>
      * You can listen for payment completion with {@link #onReceivedPayment(int, Consumer)}. <br>
@@ -327,31 +325,31 @@ public final class PayHook {
                         .setMode(SessionCreateParams.Mode.PAYMENT)
                         .setSuccessUrl(successUrl)
                         .setCancelUrl(cancelUrl);
-                for (Product p :
+                for (Product product :
                         productsAndQuantity.keySet()) {
-                    int quantity = productsAndQuantity.get(p);
+                    int quantity = productsAndQuantity.get(product);
                     paramsBuilder.addLineItem(
                             SessionCreateParams.LineItem.builder()
-                                    .setName(p.name)
-                                    .setDescription(p.description)
+                                    .setName(product.name)
+                                    .setDescription(product.description)
                                     .setQuantity((long) quantity)
-                                    .setPrice("{{" + p.stripePriceId + "}}")
+                                    .setPrice("{{" + product.stripePriceId + "}}")
                                     .build());
-                    payments.add(new Payment(paymentId, p.id, userId, quantity,
-                            (quantity * p.priceInSmallestCurrency), p.currency,
-                            p.name, null, null, now,
-                            null,
-                            null, 0, null));
+                    payments.add(new Payment(paymentId, userId,
+                            (quantity * product.priceInSmallestCurrency), product.currency,
+                            null, now, null,
+                            product.id, product.name, quantity,
+                            null, null));
                 }
                 Session session = Session.create(paramsBuilder.build());
                 for (Payment payment :
                         payments) {
-                    payment.payUrl = session.getUrl();
+                    payment.url = session.getUrl();
                     payment.stripePaymentIntentId = session.getPaymentIntentObject().getId();
                     database.insertPayment(payment);
                 }
             }
-            for (Product p :
+            for (Product product :
                     productsRecurring) {
                 int paymentId = database.paymentsId.incrementAndGet();
                 SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
@@ -360,18 +358,17 @@ public final class PayHook {
                         .setCancelUrl(cancelUrl);
                 paramsBuilder.addLineItem(
                         SessionCreateParams.LineItem.builder()
-                                .setName(p.name)
-                                .setDescription(p.description)
+                                .setName(product.name)
+                                .setDescription(product.description)
                                 .setQuantity((long) 1)
-                                .setPrice("{{" + p.stripePriceId + "}}")
+                                .setPrice("{{" + product.stripePriceId + "}}")
                                 .build());
                 Session session = Session.create(paramsBuilder.build());
-                Payment payment = new Payment(paymentId, p.id, userId, 1,
-                        p.priceInSmallestCurrency, p.currency,
-                        p.name, session.getUrl(), null, now,
-                        null,
-                        null, 0,null);
-                payment.stripeSubscriptionId = session.getSubscriptionObject().getId();
+                Payment payment = new Payment(paymentId, userId,
+                        product.priceInSmallestCurrency, product.currency,
+                        session.getUrl(), now, null,
+                        product.id, product.name, 1,
+                        null, session.getSubscriptionObject().getId());
                 payments.add(payment);
                 database.insertPayment(payment);
             }
@@ -477,7 +474,7 @@ public final class PayHook {
         synchronized (paymentIdsAndActionsOnReceivedPayment) {
             Consumer<PaymentEvent> actualAction = null;
             actualAction = paymentEvent -> {
-                if(paymentEvent.payment.paymentId == paymentId){
+                if(paymentEvent.payment.id == paymentId){
                     action.accept(paymentEvent);
                 }
             };

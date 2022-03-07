@@ -1,5 +1,8 @@
 package com.osiris.payhook;
 
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
+
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
@@ -9,70 +12,72 @@ import java.util.function.Consumer;
  * Represents a received or sent payment. <br>
  */
 public class Payment {
-    public final int paymentId;
-    /**
-     * {@link Product#id}
-     */
-    public final int productId;
+    public final int id;
     /**
      * Unique identifier provided by you, to assign this {@link Payment} to the buying user.
      */
-    public final String userId;
+    @NotNull public final String userId;
     /**
      * The amount of money in the smallest currency. Example: 100 = 1€. <br>
      * Negative amount if the money was sent (for example in a refund), positive when received. <br>
      */
     public long amount;
-    public String currency;
-    public String productName;
+    /**
+     * The <a href="https://de.wikipedia.org/wiki/ISO_4217">ISO_4217</a> currency code.
+     */
+    @NotNull public String currency;
+    /**
+     * Redirect the user to this url, to approve/complete the {@link Payment}.
+     */
+    @Nullable public String url;
+    @Nullable public Timestamp timestampCreated;
+    /**
+     * Gets set once the {@link Payment} was done and received.
+     */
+    @Nullable public Timestamp timestampPaid;
+
+    /**
+     * If this payment was related to a {@link Product} returns its id, otherwise -1.
+     */
+    public final int productId;
+    /**
+     * If this payment was related to a {@link Product} returns its name, otherwise null.
+     */
+    @Nullable public String productName;
     /**
      * The user can buy the same {@link Product} twice for example, then
      * the {@link #productQuantity} would be 2.
      */
     public int productQuantity;
-    public String payUrl;
-
-    // PayPal:
-    public String braintreeOrderId;
-    public String braintreeSubscriptionId; // TODO
-    public String braintreeCaptureId; // TODO
 
     // Stripe specific stuff:
-    public String stripePaymentIntentId; // TODO add to constructor
-    public String stripeSubscriptionId; // TODO add to constructor
+    @Nullable public String stripePaymentIntentId; // TODO add to constructor
+    @Nullable public String stripeSubscriptionId; // TODO add to constructor
 
-    // Information related to the status:
-    public Timestamp timestampCreated;
-    public Timestamp timestampCompleted;
-    public Timestamp timestampRefunded;
-    /**
-     * The amount of money that was refunded, in the smallest currency. Example: 100 = 1€. <br>
-     */
-    public long amountRefunded;
-    public Timestamp timestampCancelled;
+    // Braintree specific stuff:
+    @Nullable public String braintreeOrderId;
+    @Nullable public String braintreeSubscriptionId; // TODO
+    @Nullable public String braintreeCaptureId; // TODO
 
     // Not stored inside the database:
     public PaymentProcessor paymentProcessor;
     private final List<Consumer<PaymentEvent>> actionsOnReceivedPayment = new ArrayList<>();
 
 
-    public Payment(int paymentId, int productId, String userId, int productQuantity, long amount, String currency, String productName,
-                   String payUrl, String braintreeSubscriptionId,
-                   Timestamp timestampCreated, Timestamp timestampCompleted, Timestamp timestampRefunded, long amountRefunded, Timestamp timestampCancelled) {
-        this.paymentId = paymentId;
-        this.productId = productId;
+    public Payment(int id, @NotNull String userId, long amount, @NotNull String currency, @Nullable String url, @Nullable Timestamp timestampCreated, @Nullable Timestamp timestampPaid,
+                   int productId, @Nullable String productName, int productQuantity, @Nullable String stripePaymentIntentId, @Nullable String stripeSubscriptionId) {
+        this.id = id;
         this.userId = userId;
-        this.productQuantity = productQuantity;
         this.amount = amount;
         this.currency = currency;
-        this.productName = productName;
-        this.payUrl = payUrl;
-        this.braintreeSubscriptionId = braintreeSubscriptionId;
+        this.url = url;
         this.timestampCreated = timestampCreated;
-        this.timestampCompleted = timestampCompleted;
-        this.timestampRefunded = timestampRefunded;
-        this.amountRefunded = amountRefunded;
-        this.timestampCancelled = timestampCancelled;
+        this.timestampPaid = timestampPaid;
+        this.productId = productId;
+        this.productName = productName;
+        this.productQuantity = productQuantity;
+        this.stripePaymentIntentId = stripePaymentIntentId;
+        this.stripeSubscriptionId = stripeSubscriptionId;
         this.paymentProcessor = getPaymentProcessor();
     }
 
@@ -83,24 +88,10 @@ public class Payment {
     }
 
     /**
-     * Returns true when {@link #timestampCompleted} is null.
+     * Returns true when {@link #timestampPaid} is null.
      */
     public boolean isPending(){
-        return timestampCompleted == null;
-    }
-
-    /**
-     * Returns true when {@link #timestampRefunded} is not null.
-     */
-    public boolean isRefunded(){
-        return timestampRefunded != null;
-    }
-
-    /**
-     * Returns true when {@link #timestampCancelled} is not null.
-     */
-    public boolean isCancelled(){
-        return timestampCancelled != null;
+        return timestampPaid == null;
     }
 
     /**
@@ -124,7 +115,4 @@ public class Payment {
         return stripePaymentIntentId != null && stripeSubscriptionId != null;
     }
 
-    public String getFormattedPrice() {
-        return amount + " " + currency;
-    }
 }
