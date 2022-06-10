@@ -6,14 +6,14 @@ package com.osiris.payhook;
  */
 public class Product {
     public final int id;
-    public long priceInSmallestCurrency;
+    public long charge;
     /**
      * The <a href="https://de.wikipedia.org/wiki/ISO_4217">ISO_4217</a> currency code.
      */
     public String currency;
     public String name;
     public String description;
-    public PaymentType paymentType; // Returns a value from 0 to 5
+    public Payment.Type paymentType; // Returns a value from 0 to 5
     /**
      * The intervall in days until the next due {@link Payment}. <br>
      * Only relevant when {@link #paymentType} is {@link PaymentType#RECURRING_CUSTOM}. <br>
@@ -21,30 +21,34 @@ public class Product {
     public int customPaymentIntervall;
 
     // PayPal specific stuff:
-    public String braintreeProductId;
-    public String braintreePlanId; // TODO
+    public String paypalProductId;
+    public String paypalPlanId; // TODO
 
     // Stripe specific stuff:
     public String stripeProductId;
     public String stripePriceId;
 
-    public Product(int id, long priceInSmallestCurrency,
+    public Product(int id, long charge,
                    String currency, String name, String description,
-                   PaymentType paymentType, int customPaymentIntervall,
-                   String braintreeProductId, String stripeProductId) {
+                   Payment.Type paymentType, int customPaymentIntervall,
+                   String paypalProductId, String stripeProductId) {
         this.id = id;
-        this.priceInSmallestCurrency = priceInSmallestCurrency;
+        this.charge = charge;
         this.currency = currency;
         this.name = name;
         this.description = description;
         this.paymentType = paymentType;
         this.customPaymentIntervall = customPaymentIntervall;
-        this.braintreeProductId = braintreeProductId;
+        this.paypalProductId = paypalProductId;
         this.stripeProductId = stripeProductId;
     }
 
+    public boolean isPayPalSupported(){
+        return paypalProductId != null;
+    }
+
     public boolean isBraintreeSupported(){
-        return braintreeProductId != null;
+        return false; // TODO
     }
 
     public boolean isStripeSupported(){
@@ -52,30 +56,30 @@ public class Product {
     }
 
     public boolean isRecurring() { // For example a subscription
-        return paymentType != PaymentType.ONE_TIME;
+        return paymentType != Payment.Type.ONE_TIME;
     }
 
     public boolean isBillingInterval1Month() {
-        return paymentType == PaymentType.RECURRING;
+        return paymentType == Payment.Type.RECURRING;
     }
 
     public boolean isBillingInterval3Months() {
-        return paymentType == PaymentType.RECURRING_3;
+        return paymentType == Payment.Type.RECURRING_3;
     }
 
     public boolean isBillingInterval6Months() {
-        return paymentType == PaymentType.RECURRING_6;
+        return paymentType == Payment.Type.RECURRING_6;
     }
 
     public boolean isBillingInterval12Months() {
-        return paymentType == PaymentType.RECURRING_12;
+        return paymentType == Payment.Type.RECURRING_12;
     }
 
     public boolean isCustomBillingInterval() {
-        return paymentType == PaymentType.RECURRING_CUSTOM;
+        return paymentType == Payment.Type.RECURRING_CUSTOM;
     }
 
     public String getFormattedPrice() {
-        return priceInSmallestCurrency + " " + currency;
+        return charge + " " + currency;
     }
 }

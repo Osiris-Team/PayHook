@@ -17,10 +17,10 @@ public class StripeTests {
         String webhookUrl = "https://webhook.site/#!/b59f24a1-36c1-4af3-871d-d411586b82ff"; // TODO change this
         PayHook.initStripe(TestUtils.stripeSecretKey, webhookUrl);
 
-        pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", PaymentType.ONE_TIME, 0);
-        pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", PaymentType.RECURRING, 0);
+        pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Type.ONE_TIME, 0);
+        pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Type.RECURRING, 0);
 
-        PayHook.onMissedPayment(event -> {
+        PayHook.onExpiredPayment(event -> {
             // Executed when the user misses the payment for a subscription (recurring).
             try{
                 Product product = event.product;

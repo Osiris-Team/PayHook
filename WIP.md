@@ -13,9 +13,11 @@ and as you can see above, creating payments can be done in one line.
 
 ### Features
 - Support for regular products and products with recurring payments (subscriptions).
-- Supported payment processors: [Braintree (supports PayPal, Venmo etc.)](https://www.braintreepayments.com/de/features/payment-methods)
+- Currently, works only via Webhooks.
+- Supported payment processors: [PayPal](https://paypal.com)
 and [Stripe (supports ApplePay, GooglePay etc.)](https://stripe.com/docs/payments/payment-methods/overview).
 - Easy product/payment creation across multiple payment-processors, through abstraction.
+- No need to handle JSON or learn the individual REST-APIs of the payment-processors.
 - Secure, verified payments without duplicates, due to the design being based solely on validated webhook events.
 - Catch all payments. If your application is offline for example 
 payment processors notice that the webhook event wasn't received 
@@ -36,14 +38,21 @@ which means that billing addresses are ignored.
 
 ### Installation
 
+You can run PayHook as a standalone command line app (this is in todo),
+or integrate it into your Java app by adding it as a dependency via [Maven/Gradle/Sbt/Leinigen](https://jitpack.io/#Osiris-Team/PayHook/LATEST).
+
 Prerequisites:
-- SQL database like MySQL, MariaDB, etc...
+- SQL database like MySQL, MariaDB, etc... (normally pre-installed on a linux server)
+- PayPal/Stripe business account and API credentials.
 - 5 minutes of free time to set this up.
 
-Setup:
-1. Set database information
-2. Set API credentials of payment processors
-3. Create/Update products
+Important:
+- Do not change product details later via the payment processors dashboards. Only change product details
+in the code.
+- If you have already existing subscriptions and payments use the [PayHook-Database-Helper]() tool,
+  (in todo) to create a `payhook` database with the existing information.
+- Copy, paste and customize (even better read and understand) all the code shown below, to make
+sure everything works as expected.
 
 ```java
 public class ExampleConstants {
