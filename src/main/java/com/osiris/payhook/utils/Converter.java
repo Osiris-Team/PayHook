@@ -3,6 +3,7 @@ package com.osiris.payhook.utils;
 import com.osiris.payhook.Product;
 import com.paypal.api.payments.MerchantPreferences;
 import com.paypal.api.payments.PaymentDefinition;
+import com.paypal.payments.Money;
 import com.stripe.model.Price;
 
 import java.math.BigDecimal;
@@ -12,6 +13,10 @@ import java.util.List;
 import java.util.Map;
 
 public class Converter {
+
+    public Money toPayPalMoney(String currency, long priceInSmallestCurrency){
+        return new Money().currencyCode(currency).value(new BigDecimal(priceInSmallestCurrency).divide(new BigDecimal(100)).toPlainString());
+    }
 
     public com.paypal.api.payments.Currency toPayPalCurrency(String currency, long priceInSmallestCurrency){
         return new com.paypal.api.payments.Currency(currency, new BigDecimal(priceInSmallestCurrency).divide(new BigDecimal(100)).toPlainString());

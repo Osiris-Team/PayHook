@@ -16,6 +16,9 @@ public class PayHookDatabase {
     public SQLTable tableProducts;
     public SQLTable tablePayments;
 
+    // WE LIT
+
+
     public PayHookDatabase(String dbName, Connection con) throws SQLException {
         this.con = con;
         SQLUtils sql = new SQLUtils();
@@ -78,7 +81,7 @@ public class PayHookDatabase {
                 stm.setString(2, product.currency);
                 stm.setString(3, product.name);
                 stm.setString(4, product.description);
-                stm.setInt(5, product.paymentType.type);
+                stm.setInt(5, product.paymentIntervall.type);
                 stm.setInt(6, product.customPaymentIntervall);
                 stm.setString(7, product.paypalProductId);
                 stm.setString(8, product.paypalPlanId);
@@ -98,7 +101,7 @@ public class PayHookDatabase {
                 stm.setString(3, product.currency);
                 stm.setString(4, product.name);
                 stm.setString(5, product.description);
-                stm.setInt(6, product.paymentType.type);
+                stm.setInt(6, product.paymentIntervall.type);
                 stm.setInt(7, product.customPaymentIntervall);
                 stm.setString(8,product.paypalProductId);
                 stm.setString(9,product.paypalPlanId);
@@ -175,6 +178,16 @@ public class PayHookDatabase {
         return null;
     }
 
+    public List<Payment> getPaymentsById(int id){
+        //TODO
+        return null;
+    }
+
+    public List<Payment> getPayments(String field, String value){
+        //TODO
+        return null;
+    }
+
     public List<Payment> getPayments() throws SQLException {
         /* TODO
         List<Order> list = new ArrayList<>();
@@ -214,7 +227,95 @@ public class PayHookDatabase {
         //TODO
     }
 
-    public List<Payment> getPendingPayments() {
-        return null; // TODO check where approved timestamp is null
+
+    /**
+     * List of payments that haven't been authorized or cancelled (or expired) yet and are in the future.
+     * @return list of payments, where {@link Payment#timestampAuthorized} is null, and
+     * {@link Payment#timestampCancelled} is null, and {@link Payment#timestampCreated} is bigger than now.
+     */
+    public List<Payment> getPendingFuturePayments() {
+        //TODO
+        return null;
     }
+
+    /**
+     * @see #getPendingPayments()
+     */
+    public List<Payment> getPendingFuturePayments(String field, String value) {
+        //TODO
+        return null;
+    }
+
+
+    /**
+     * List of payments that haven't been authorized or cancelled (or expired) yet.
+     * @return list of payments, where {@link Payment#timestampAuthorized} is null, and
+     * {@link Payment#timestampCancelled} is null, and {@link Payment#timestampCreated} is smaller than now and {@link Payment#timestampExpires} is bigger than now.
+     */
+    public List<Payment> getPendingPayments() {
+        //TODO
+        return null;
+    }
+
+    /**
+     * @see #getPendingPayments()
+     */
+    public List<Payment> getPendingPayments(String field, String value) {
+        //TODO
+        return null;
+    }
+
+    /**
+     * List of payments that have been authorized/completed/paid.
+     * @return list of payments, where {@link Payment#timestampAuthorized} is not null.
+     * @see PayHook#paymentAuthorizedEvent
+     */
+    public List<Payment> getAuthorizedPayments() {
+        //TODO
+        return null;
+    }
+
+    /**
+     * @see #getAuthorizedPayments()
+     */
+    public List<Payment> getAuthorizedPayments(String field, String value) {
+        //TODO
+        return null;
+    }
+
+    /**
+     * List of payments that have been cancelled (or expired).
+     * @return list of payments, where {@link Payment#timestampCancelled} is not null.
+     * @see PayHook#paymentCancelledEvent
+     */
+    public List<Payment> getCancelledPayments() {
+        //TODO
+        return null;
+    }
+
+    /**
+     * @see #getCancelledPayments()
+     */
+    public List<Payment> getCancelledPayments(String field, String value) {
+        //TODO
+        return null;
+    }
+
+    /**
+     * List of payments that have been refunded.
+     * @return list of payments, where {@link Payment#charge} is smaller than 0.
+     */
+    public List<Payment> getRefundedPayments() {
+        //TODO
+        return null;
+    }
+
+    /**
+     * @see #getRefundedPayments()
+     */
+    public List<Payment> getRefundedPayments(String field, String value) {
+        //TODO
+        return null;
+    }
+
 }

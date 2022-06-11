@@ -44,6 +44,7 @@ or integrate it into your Java app by adding it as a dependency via [Maven/Gradl
 Prerequisites:
 - SQL database like MySQL, MariaDB, etc... (normally pre-installed on a linux server)
 - PayPal/Stripe business account and API credentials.
+- A Java web-app based on [Spring](https://spring.io/web-applications) for example, to listen for webhook events/notifications.
 - 5 minutes of free time to set this up.
 
 Important:
@@ -113,30 +114,75 @@ create links that listen for their webhook events too. For example like:
 `https://example.com/paypal-webhook` or `https://example.com/stripe-webhook`.
 I'm planing on making PayHook-Spring version that handles all that too.
 Here is an example on how to do that with Spring:
+
 ```java
 @RestController
-@RequestMapping(value = "paypal-hook", method = RequestMethod.POST)
 public class PayHookExample {
-    // This listens at https://.../paypal-hook
-    // for PayPal webhook events and returns a "OK" text as response.
-    @GetMapping(produces = "text/plain")
-    public @ResponseBody String receiveAndRespond(HttpServletRequest request) {
-        try{
-            boolean isValid = P.isWebhookEventValid("INSERT_VALID_WEBHOOK_ID", // Get it from here: https://developer.paypal.com/developer/applications/
-                    Arrays.asList("CHECKOUT.ORDER.APPROVED", "PAYMENTS.PAYMENT.CREATED"), // Insert your valid event types/names here. Full list of all event types/names here: https://developer.paypal.com/docs/api-basics/notifications/webhooks/event-names
-                    getHeadersAsMap(request),
-                    getBodyAsString(request));
 
-            if (isValid) 
-                P.executeValidPayPalWebhookEvent(); // Fires P.onValidPayPalWebhookEvent();
-            else
-                P.executeInvalidPayPalWebhookEvent(); // Fires P.onInvalidPayPalWebhookEvent();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            System.out.println("Validation failed: "+e.getMessage());
-        }
-        return "OK"; // Always return status code 200 with an "OK" text no matter what the result to annoy attackers.
+  // This listens at https://.../paypal-hook
+  // for PayPal webhook events and returns a "OK" text as response.
+  @RequestMapping(value = "paypal-hook", method = RequestMethod.POST)
+  @GetMapping(produces = "text/plain")
+  public String receiveAndRespondPayPal(HttpServletRequest request, HttpServletResponse response) {
+    try {
+        response.setStatusCode(HttpStatus.OK); // Directly set status code
+        response.flush();
+        PayHook.receiveWebhookEvent(
+                PaymentProcessor.PAYPAL,
+                getHeadersAsMap(request),
+                getBodyAsString(request));
+    } catch (Exception e) {
+      e.printStackTrace();
+      // TODO handle exception
     }
+    return "OK"; // Always return status code 200 with an "OK" text no matter what the result to annoy attackers.
+  }
+
+  // This listens at https://.../stripe-hook
+  // for Stripe webhook events and returns a "OK" text as response.
+  @RequestMapping(value = "stripe-hook", method = RequestMethod.POST)
+  @GetMapping(produces = "text/plain")
+  public String receiveAndRespondStripe(HttpServletRequest request, HttpServletResponse response) {
+    try {
+      response.setStatusCode(HttpStatus.OK); // Directly set status code
+      response.flush();
+      PayHook.receiveWebhookEvent(
+              PaymentProcessor.STRIPE,
+              getHeadersAsMap(request),
+              getBodyAsString(request));
+    } catch (Exception e) {
+      e.printStackTrace();
+      // TODO handle exception
+    }
+    return "OK"; // Always return status code 200 with an "OK" text no matter what the result to annoy attackers.
+  }
+
+  
+  
+  
+  
+  // Simple helper method to help you extract the headers from HttpServletRequest object.
+  private Map<String, String> getHeadersAsMap(HttpServletRequest request) {
+    Map<String, String> map = new HashMap<String, String>();
+    @SuppressWarnings("rawtypes")
+    Enumeration headerNames = request.getHeaderNames();
+    while (headerNames.hasMoreElements()) {
+      String key = (String) headerNames.nextElement();
+      String value = request.getHeader(key);
+      map.put(key, value);
+    }
+    return map;
+  }
+
+  // Simple helper method to fetch request data as a string from HttpServletRequest object.
+  private String getBodyAsString(HttpServletRequest request) throws IOException {
+    StringBuilder stringBuilder = new StringBuilder();
+    try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))){
+      String line = "";
+      while ((line=reader.readLine())!=null)
+        stringBuilder.append(line);
+    }
+    return stringBuilder.toString();
+  }
 }
 ```

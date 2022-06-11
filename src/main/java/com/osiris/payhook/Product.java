@@ -13,10 +13,10 @@ public class Product {
     public String currency;
     public String name;
     public String description;
-    public Payment.Type paymentType; // Returns a value from 0 to 5
+    public Payment.Intervall paymentIntervall; // Returns a value from 0 to 5
     /**
      * The intervall in days until the next due {@link Payment}. <br>
-     * Only relevant when {@link #paymentType} is {@link PaymentType#RECURRING_CUSTOM}. <br>
+     * Only relevant when {@link #paymentIntervall} is {@link PaymentType#RECURRING_CUSTOM}. <br>
      */
     public int customPaymentIntervall;
 
@@ -30,14 +30,14 @@ public class Product {
 
     public Product(int id, long charge,
                    String currency, String name, String description,
-                   Payment.Type paymentType, int customPaymentIntervall,
+                   Payment.Intervall paymentIntervall, int customPaymentIntervall,
                    String paypalProductId, String stripeProductId) {
         this.id = id;
         this.charge = charge;
         this.currency = currency;
         this.name = name;
         this.description = description;
-        this.paymentType = paymentType;
+        this.paymentIntervall = paymentIntervall;
         this.customPaymentIntervall = customPaymentIntervall;
         this.paypalProductId = paypalProductId;
         this.stripeProductId = stripeProductId;
@@ -56,27 +56,27 @@ public class Product {
     }
 
     public boolean isRecurring() { // For example a subscription
-        return paymentType != Payment.Type.ONE_TIME;
+        return paymentIntervall != Payment.Intervall.NONE;
     }
 
     public boolean isBillingInterval1Month() {
-        return paymentType == Payment.Type.RECURRING;
+        return paymentIntervall == Payment.Intervall.DAYS_30;
     }
 
     public boolean isBillingInterval3Months() {
-        return paymentType == Payment.Type.RECURRING_3;
+        return paymentIntervall == Payment.Intervall.DAYS_90;
     }
 
     public boolean isBillingInterval6Months() {
-        return paymentType == Payment.Type.RECURRING_6;
+        return paymentIntervall == Payment.Intervall.DAYS_180;
     }
 
     public boolean isBillingInterval12Months() {
-        return paymentType == Payment.Type.RECURRING_12;
+        return paymentIntervall == Payment.Intervall.DAYS_360;
     }
 
     public boolean isCustomBillingInterval() {
-        return paymentType == Payment.Type.RECURRING_CUSTOM;
+        return paymentIntervall == Payment.Intervall.DAYS_CUSTOM;
     }
 
     public String getFormattedPrice() {

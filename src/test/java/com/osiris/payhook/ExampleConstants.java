@@ -26,8 +26,8 @@ public class ExampleConstants {
             PayHook.initBraintree("merchant_id","public_key", "private_key", "https://my-shop.com/braintree-hook");
             PayHook.initStripe("secret_key", "https://my-shop.com/stripe-hook");
 
-            pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Type.ONE_TIME, 0);
-            pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Type.RECURRING, 0);
+            pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE, 0);
+            pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Intervall.DAYS_30, 0);
 
             PayHook.paymentAuthorizedEvent.addAction((action, event) -> {
                 // Backend business logic in here. Gets executed every time.
@@ -117,12 +117,5 @@ public class ExampleConstants {
         }, e -> {
             e.printStackTrace();
         }).object = System.currentTimeMillis();
-    }
-
-    /**
-     * Execute something like this at the place you receive a webhook event/notification.
-     */
-    void onWebhookEvent(){
-        PayHook.receiveWebhookEvent(PaymentProcessor.PAYPAL, header, body, );
     }
 }
