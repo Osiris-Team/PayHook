@@ -15,7 +15,7 @@ public class Payment implements Serializable {
     public final int id;
     /**
      * The entity that sends the money for this payment (usually the customer, buying your product). <br>
-     * Unique identifier provided by you, to be able to assign thi payment to an entity/user. <br>
+     * Unique identifier provided by you, to be able to assign this payment to an entity/user. <br>
      */
     @NotNull
     public final String userId;
@@ -87,19 +87,19 @@ public class Payment implements Serializable {
 
     // Stripe specific stuff:
     @Nullable
-    public String stripePaymentIntentId;
+    public String stripePaymentIntentId; // TODO set on webhook event and in constructor
     @Nullable
-    public String stripeSubscriptionId;
+    public String stripeSubscriptionId; // TODO set on webhook event and in constructor
     @Nullable
-    public String stripeChargeId;
+    public String stripeChargeId; // TODO set on webhook event and in constructor
 
     // PayPal specific stuff:
     @Nullable
-    public String paypalOrderId;
+    public String paypalOrderId; // TODO set on webhook event and in constructor
     @Nullable
-    public String paypalSubscriptionId;
+    public String paypalSubscriptionId; // TODO set on webhook event and in constructor
     @Nullable
-    public String paypalCaptureId;
+    public String paypalCaptureId; // TODO set on webhook event and in constructor
 
     // Not stored inside the database:
     public PaymentProcessor paymentProcessor;
@@ -202,7 +202,7 @@ public class Payment implements Serializable {
 
 
     public boolean isPending() {
-        return timestampAuthorized == null;
+        return timestampAuthorized == null && timestampCancelled == null;
     }
 
     public boolean isRecurring() {

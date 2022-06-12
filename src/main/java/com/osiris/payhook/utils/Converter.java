@@ -14,6 +14,14 @@ import java.util.Map;
 
 public class Converter {
 
+    public long toSmallestCurrency(com.paypal.orders.Money amount) {
+        return new BigDecimal(amount.value()).multiply(new BigDecimal(100)).longValue();
+    }
+
+    public long toSmallestCurrency(Money amount) {
+        return new BigDecimal(amount.value()).multiply(new BigDecimal(100)).longValue();
+    }
+
     public Money toPayPalMoney(String currency, long priceInSmallestCurrency){
         return new Money().currencyCode(currency).value(new BigDecimal(priceInSmallestCurrency).divide(new BigDecimal(100)).toPlainString());
     }
@@ -77,5 +85,6 @@ public class Converter {
         patches.add(new com.paypal.api.payments.Patch("replace", "description").setValue(product.description));
         return patches;
     }
+
 
 }

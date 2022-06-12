@@ -1,13 +1,11 @@
 package com.osiris.payhook;
 
-import org.junit.jupiter.api.Test;
-
 public class StripeTests {
     public static Product pCoolCookie;
     public static Product pCoolSubscription;
-    @Test
+    @org.junit.jupiter.api.Test
     void test() throws Exception {
-        TestUtils.fetchCrendentials();
+        TestUtils.init();
         PayHook.init(
                 "Brand-Name",
                 TestUtils.dbUrl,
