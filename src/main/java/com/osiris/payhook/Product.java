@@ -16,7 +16,7 @@ public class Product {
     public Payment.Intervall paymentIntervall; // Returns a value from 0 to 5
     /**
      * The intervall in days until the next due {@link Payment}. <br>
-     * Only relevant when {@link #paymentIntervall} is {@link PaymentType#RECURRING_CUSTOM}. <br>
+     * Only relevant when {@link #paymentIntervall} is {@link Payment.Intervall#DAYS_CUSTOM}. <br>
      */
     public int customPaymentIntervall;
 

@@ -87,29 +87,30 @@ public class Payment implements Serializable {
 
     // Stripe specific stuff:
     @Nullable
-    public String stripePaymentIntentId; // TODO set on webhook event and in constructor
+    public String stripePaymentIntentId;
     @Nullable
-    public String stripeSubscriptionId; // TODO set on webhook event and in constructor
+    public String stripeSubscriptionId;
     @Nullable
-    public String stripeChargeId; // TODO set on webhook event and in constructor
+    public String stripeChargeId;
 
     // PayPal specific stuff:
     @Nullable
-    public String paypalOrderId; // TODO set on webhook event and in constructor
+    public String paypalOrderId;
     @Nullable
-    public String paypalSubscriptionId; // TODO set on webhook event and in constructor
+    public String paypalSubscriptionId;
     @Nullable
-    public String paypalCaptureId; // TODO set on webhook event and in constructor
+    public String paypalCaptureId;
 
     // Not stored inside the database:
     public PaymentProcessor paymentProcessor;
 
-
-
-    public Payment(int id, @NotNull String userId, long charge, @NotNull String currency, @Nullable String url, @Nullable Timestamp timestampCreated,
+    public Payment(int id, @NotNull String userId, long charge, @NotNull String currency, @Nullable String url,
+                   @Nullable Timestamp timestampCreated,
                    @Nullable Timestamp timestampExpires, @Nullable Timestamp timestampAuthorized, @Nullable Timestamp timestampCancelled,
-                   @NotNull Payment.Intervall intervall, int productId, @Nullable String productName, int productQuantity, @Nullable String stripePaymentIntentId,
-                   @Nullable String stripeSubscriptionId, @Nullable String stripeChargeId) {
+                   @NotNull Payment.Intervall intervall, int productId, @Nullable String productName,
+                   int productQuantity, @Nullable String stripePaymentIntentId,
+                   @Nullable String stripeSubscriptionId, @Nullable String stripeChargeId,
+                   @Nullable String paypalOrderId, @Nullable String paypalSubscriptionId, @Nullable String paypalCaptureId) {
         this.id = id;
         this.userId = userId;
         this.charge = charge;
@@ -126,6 +127,10 @@ public class Payment implements Serializable {
         this.stripePaymentIntentId = stripePaymentIntentId;
         this.stripeSubscriptionId = stripeSubscriptionId;
         this.stripeChargeId = stripeChargeId;
+        this.paypalOrderId = paypalOrderId;
+        this.paypalSubscriptionId = paypalSubscriptionId;
+        this.paypalCaptureId = paypalCaptureId;
+
         this.paymentProcessor = getPaymentProcessor();
         this.state = getState();
     }
@@ -229,7 +234,7 @@ public class Payment implements Serializable {
         /**
          * The initial (default) state of a payment directly after creating it.
          *
-         * @see PayHook#createPayment(String, String, Product, PaymentProcessor, String, String)
+         * @see PayHook#createPayment(String, Product, PaymentProcessor, String, String)
          */
         CREATED(0),
         /**

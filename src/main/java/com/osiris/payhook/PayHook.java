@@ -34,7 +34,6 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.*;
-import java.util.function.Consumer;
 
 /**
  * Still work in progress. <br>
@@ -43,7 +42,7 @@ import java.util.function.Consumer;
 public final class PayHook {
     /**
      * Actions for this event are executed, when a payment is created
-     * via {@link PayHook#createPayments(String, String, List, PaymentProcessor, String, String)}.
+     * via {@link PayHook#createPayments(String, List, PaymentProcessor, String, String)}.
      */
     public static final com.osiris.events.Event<PaymentEvent> paymentCreatedEvent = new com.osiris.events.Event<>();
     /**
@@ -73,8 +72,15 @@ public final class PayHook {
     public static PayHookDatabase database;
     public static boolean isInitialised = false;
     public static boolean isSandbox = false;
+
+
     // Stripe specific:
     public static Stripe stripe;
+    /**
+     * Handles receiving payments when no webhook.
+     */
+    private static Thread stripeThread;
+    private static boolean isStripeWebhookActive = false;
     /**
      * payment_intent.succeeded: Occurs whenever payment is authorized/successful. <br>
      * invoice.created: Payment on a subscription created, but not finalized. <br>
@@ -85,16 +91,11 @@ public final class PayHook {
      */
     public static List<String> stripeWebhookEventTypes = Arrays.asList("payment_intent.succeeded", "invoice.created",
             "invoice.paid", "customer.subscription.deleted");
+
+
     // Braintree specific:
     public static BraintreeGateway braintree;
     public static List<String> braintreeWebhookEventTypes = Arrays.asList(); // TODO
-    /**
-     * How long is a PayPal payment url valid? 3 hours. <br>
-     * From the docs: Once redirected, the API caller has 3 hours for the payer to approve the order and either authorize or capture the order.
-     *
-     * @see <a href="https://developer.paypal.com/docs/api/orders/v2/#orders-create-response">PayPal docs</a>
-     */
-    public static long paypalUrlTimeoutMs = 10800000;
     /**
      * Additional time in milliseconds that is given to the user (default 1 day),
      * to pay a recurring payment, to prevent direct expiration of the subscription.
@@ -113,28 +114,32 @@ public final class PayHook {
     /**
      * Handles receiving payments when no webhook.
      */
-    private static Thread stripeThread;
-    private static boolean isStripeWebhookActive = false;
-    /**
-     * Handles receiving payments when no webhook.
-     */
     private static Thread braintreeThread;
+    private static final boolean isBraintreeWebhookActive = false;
+
 
     // PayPal specific:
-    private static final boolean isBraintreeWebhookActive = false;
+    public static MyPayPal myPayPal;
+    public static APIContext paypalV1;
+    public static PayPalHttpClient paypalV2;
     private static String paypalClientId;
     private static String paypalClientSecret;
     private static String paypalBase64EncodedCredentials;
-    private static MyPayPal myPayPal;
-    private static APIContext paypalV1;
-    private static PayPalHttpClient paypalV2;
     private static String paypalWebhookId;
-    private static final List<String> paypalWebhookEventTypes = Arrays.asList("CHECKOUT.ORDER.APPROVED", "PAYMENT.AUTHORIZATION.CREATED");
+    private static final List<String> paypalWebhookEventTypes = Arrays.asList("BILLING.SUBSCRIPTION.CANCELLED", "PAYMENT.SALE.COMPLETED",
+            "CHECKOUT.ORDER.APPROVED");
     /**
      * Handles receiving payments when no webhook.
      */
     private static Thread paypalThread;
     private static boolean isPayPalWebhookActive = false;
+    /**
+     * How long is a PayPal payment url valid? 3 hours. <br>
+     * From the docs: Once redirected, the API caller has 3 hours for the payer to approve the order and either authorize or capture the order.
+     *
+     * @see <a href="https://developer.paypal.com/docs/api/orders/v2/#orders-create-response">PayPal docs</a>
+     */
+    public static long paypalUrlTimeoutMs = 10800000;
 
     /**
      * If {@link #isSandbox} = true then the "payhook_sandbox" database will get created/used, otherwise
@@ -157,7 +162,7 @@ public final class PayHook {
         if (!databaseUrl.contains("db_name"))
             throw new SQLException("Your databaseUrl must contain 'db_name' as database name, so it can be replaced later!");
         if (isSandbox) {
-            dbName = "payhook_sanbox";
+            dbName = "payhook_sandbox";
             databaseUrl = databaseUrl.replace("db_name", dbName);
         } else databaseUrl = databaseUrl.replace("db_name", dbName);
         database = new PayHookDatabase(dbName, DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword));
@@ -197,7 +202,8 @@ public final class PayHook {
                         null, null,
                         product.paymentIntervall,
                         product.id, product.name, 1,
-                        currentPayment.stripePaymentIntentId, currentPayment.stripeSubscriptionId);
+                        currentPayment.stripePaymentIntentId, currentPayment.stripeSubscriptionId, currentPayment.stripeChargeId,
+                        currentPayment.paypalOrderId, currentPayment.paypalSubscriptionId, currentPayment.paypalCaptureId);
                 database.insertPayment(futurePayment);
             }
         }, ex -> {
@@ -248,7 +254,7 @@ public final class PayHook {
      * @param publicKey  See Braintrees' docs <a href="https://developer.paypal.com/braintree/articles/control-panel/important-gateway-credentials">here</a> for details.
      * @param privateKey See Braintrees' docs <a href="https://developer.paypal.com/braintree/articles/control-panel/important-gateway-credentials">here</a> for details.
      * @param webhookUrl Something like this: "https://my-shop.com/braintree-hook". <p style="color:red;"> Important: </p>Remember that you must
-     *                   run {@link #receiveWebhookEvent(PaymentProcessor, Map, String, String)} when receiving a webhook notification/event
+     *                   run {@link #receiveWebhookEvent(PaymentProcessor, Map, String)} when receiving a webhook notification/event
      *                   on that url.
      */
     public static void initBraintree(String merchantId, String publicKey, String privateKey, String webhookUrl) throws IOException, HttpErrorException {
@@ -290,7 +296,7 @@ public final class PayHook {
      * @param secretKey  See Stripes' docs <a href="https://stripe.com/docs/keys">here</a> for details.
      * @param webhookUrl TODO If null, webhooks will not be used, instead regular REST-API requests will be made.
      *                   Something like this: "https://my-shop.com/stripe-hook". <p style="color:red;"> Important: </p>Remember that you must
-     *                   run {@link #receiveWebhookEvent(PaymentProcessor, Map, String, String)} when receiving a webhook notification/event
+     *                   run {@link #receiveWebhookEvent(PaymentProcessor, Map, String)} when receiving a webhook notification/event
      *                   on that url.
      */
     public static void initStripe(String secretKey, String webhookUrl) throws StripeException {
@@ -330,7 +336,7 @@ public final class PayHook {
      * @param clientSecret See PayPals' docs <a href="https://developer.paypal.com/api/rest/#link-getcredentials">here</a> for details.
      * @param webhookUrl   TODO If null, webhooks will not be used, instead regular REST-API requests will be made.
      *                     Something like this: "https://my-shop.com/paypal-hook". <p style="color:red;"> Important: </p>Remember that you must
-     *                     run {@link #receiveWebhookEvent(PaymentProcessor, Map, String, String)} when receiving a webhook notification/event
+     *                     run {@link #receiveWebhookEvent(PaymentProcessor, Map, String)} when receiving a webhook notification/event
      *                     on that url.
      */
     public static void initPayPal(String clientId, String clientSecret, String webhookUrl) throws IOException, HttpErrorException {
@@ -541,11 +547,12 @@ public final class PayHook {
                                     .setPrice("{{" + p.stripePriceId + "}}")
                                     .build());
                     payments.add(new Payment(paymentId, userId,
-                            sellerId, (quantity * p.charge), p.currency,
-                            null, now, null,
+                            (quantity * p.charge), p.currency,
+                            null, now, null, null, null,
                             p.paymentIntervall,
                             p.id, p.name, quantity,
-                            null, null));
+                            null, null, null,
+                            null, null, null));
                 }
                 Session session = Session.create(paramsBuilder.build());
                 for (Payment payment :
@@ -571,11 +578,12 @@ public final class PayHook {
                                 .build());
                 Session session = Session.create(paramsBuilder.build());
                 Payment payment = new Payment(paymentId, userId,
-                        sellerId, product.charge, product.currency,
-                        session.getUrl(), now, null,
+                        product.charge, product.currency,
+                        session.getUrl(), now, null, null, null,
                         product.paymentIntervall,
                         product.id, product.name, 1,
-                        null, session.getSubscriptionObject().getId());
+                        null, session.getSubscriptionObject().getId(), null,
+                        null, null, null);
 
                 // If true, means that this is not the first payment for this subscription
                 // thus the expiry date must be set according to the billing intervall
@@ -609,10 +617,11 @@ public final class PayHook {
                             .unitAmount(new Money().currencyCode(p.currency).value(converter.toPayPalCurrency(p).getValue())).quantity("" + quantity)
                             .category("DIGITAL_GOODS"));
                     payments.add(new Payment(paymentId, userId,
-                            sellerId, (quantity * p.charge), p.currency,
-                            null, now, null,
+                            (quantity * p.charge), p.currency,
+                            null, now, null, null, null,
                             p.paymentIntervall, p.id, p.name, quantity,
-                            null, null));
+                            null, null, null,
+                            null, null, null));
                 }
                 PurchaseUnitRequest purchaseUnitRequest = new PurchaseUnitRequest()
                         .description(brandName).softDescriptor(brandName)
@@ -648,18 +657,13 @@ public final class PayHook {
             for (Product p :
                     productsRecurring) {
                 int paymentId = database.paymentsId.incrementAndGet();
-                int paymentId2 = database.paymentsId.incrementAndGet();
                 String[] arr = myPayPal.createSubscription(brandName, p.paypalPlanId, successUrl, cancelUrl);
                 Payment payment = new Payment(paymentId, userId,
-                        sellerId, p.charge, p.currency,
-                        arr[1], now, null,
+                        p.charge, p.currency,
+                        arr[1], now, null, null, null,
                         p.paymentIntervall, p.id, p.name, 1,
-                        null, arr[0]);
-                Payment nextPayment = new Payment(paymentId, userId,
-                        sellerId, p.charge, p.currency,
-                        arr[1], now, null,
-                        p.paymentIntervall, p.id, p.name, 1,
-                        null, arr[0]);
+                        null, arr[0], null,
+                        null, null, null);
 
                 // If true, means that this is not the first payment for this subscription
                 // thus the expiry date must be set according to the billing intervall
@@ -703,7 +707,8 @@ public final class PayHook {
      * but also logs it in the database before throwing it.
      */
     public static void throwException(int productId, int paymentId, Exception ex) throws Exception {
-        database.insertException(productId, paymentId, ex.getMessage(), ex.getStackTrace());
+        //TODO: database.insertException(productId, paymentId, ex.getMessage(), ex.getStackTrace());
+        // Not sure yet if this is a good idea. Maybe let the user handle exceptions completely?
         throw ex;
     }
 
@@ -734,10 +739,6 @@ public final class PayHook {
      * For example when a POST request happens on the "https://my-shop.com/paypal-hook" url. <br>
      * Note that its recommended returning a 200 status code before executing this method <br>
      * to avoid timeouts and duplicate webhook events. <br>
-     * Supported webhook types for PayPal: <br>
-     * - PAYMENT.AUTHORIZATION.CREATED | {@link #onAuthorizedPayment(int, Consumer)}<br>
-     * - BILLING.SUBSCRIPTION.CANCELLED | {@link #onCancelledSubscription()} <br>
-     *
      * @throws WebHookValidationException When the provided webhook event is not valid.
      */
     public static void receiveWebhookEvent(PaymentProcessor paymentProcessor, Map<String, String> header, String body)
@@ -1051,7 +1052,8 @@ public final class PayHook {
                         now, null,
                         payment.intervall,
                         payment.productId, payment.productName, payment.productQuantity,
-                        payment.stripePaymentIntentId, payment.stripeSubscriptionId);
+                        payment.stripePaymentIntentId, payment.stripeSubscriptionId, payment.stripeChargeId,
+                        payment.paypalOrderId, payment.paypalSubscriptionId, payment.paypalCaptureId);
                 database.insertPayment(refundPayment);
                 Product product = database.getProductById(payment.productId);
                 paymentCreatedEvent.execute(new PaymentEvent(product, payment));

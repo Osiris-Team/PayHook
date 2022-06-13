@@ -41,13 +41,13 @@ which means that billing addresses are ignored.
 You can run PayHook as a standalone command line app (this is in todo),
 or integrate it into your Java app by adding it as a dependency via [Maven/Gradle/Sbt/Leinigen](https://jitpack.io/#Osiris-Team/PayHook/LATEST).
 
-Prerequisites:
+*Prerequisites:*
 - SQL database like MySQL, MariaDB, etc... (normally pre-installed on a linux server)
 - PayPal/Stripe business account and API credentials.
 - A Java web-app based on [Spring](https://spring.io/web-applications) for example, to listen for webhook events/notifications.
 - 5 minutes of free time to set this up.
 
-Important:
+*Important:*
 - Do not change product details later via the payment processors dashboards. Only change product details
 in the code.
 - If you have already existing subscriptions and payments use the [PayHook-Database-Helper]() tool,
@@ -56,58 +56,127 @@ in the code.
 sure everything works as expected.
 
 ```java
+import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
+import com.osiris.payhook.exceptions.InvalidChangeException;
+import com.paypal.base.rest.PayPalRESTException;
+import com.stripe.exception.StripeException;
+
+import java.io.IOException;
+import java.sql.SQLException;
+
 public class ExampleConstants {
-    public static Product pCoolCookie;
-    public static Product pCoolSubscription;
+  public static Product pCoolCookie;
+  public static Product pCoolSubscription;
 
-    // Insert the below somewhere where it gets ran once.
-    // For example in the static constructor of a Constants class of yours, like shown here.
-    static {
-        try {
-            PayHook.init(
-                    "Brand-Name",
-                    "db_url",
-                    "db_username",
-                    "db_password",
-                    true); // Sandbox
+  // Insert the below somewhere where it gets ran once.
+  // For example in the static constructor of a Constants class of yours, like shown here.
+  static {
+    try {
+      PayHook.init(
+              "Brand-Name",
+              "db_url",
+              "db_username",
+              "db_password",
+              true);
 
-            PayHook.initPayPal("client_id", "client_secret", "https://my-shop.com/paypal-hook");
-            PayHook.initStripe("secret_key", "https://my-shop.com/stripe-hook");
+      PayHook.initBraintree("merchant_id","public_key", "private_key", "https://my-shop.com/braintree-hook");
+      PayHook.initStripe("secret_key", "https://my-shop.com/stripe-hook");
 
-            pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", PaymentType.ONE_TIME, 0);
-            pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", PaymentType.RECURRING, 0);
+      pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE, 0);
+      pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Intervall.DAYS_30, 0);
 
-            PayHook.onMissedPayment(event -> {
-                // Executed when the user misses the payment for a subscription (recurring).
-                try{
-                    Product product = event.product;
-                    Payment payment = event.payment;
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            });
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        } 
+      PayHook.paymentAuthorizedEvent.addAction((action, event) -> {
+        // Backend business logic in here. Gets executed every time.
+        Product product = event.product;
+        Payment payment = event.payment;
+      }, e -> {
+        e.printStackTrace();
+      });
+
+      PayHook.paymentCancelledEvent.addAction((action, event) -> {
+        // Backend business logic in here. Gets executed every time.
+        Product product = event.product;
+        Payment payment = event.payment;
+      }, e -> {
+        e.printStackTrace();
+      });
+
+      // The cleaner thread is only needed
+      // to remove the added actions from further below,
+      // since those may not get executed once.
+      // Remove them after 6 hours
+      PayHook.paymentAuthorizedEvent.initCleaner(3600000, obj -> { // Check every hour
+        return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
+      }, Exception::printStackTrace);
+      PayHook.paymentCancelledEvent.initCleaner(3600000, obj -> { // Check every hour
+        return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
+      }, Exception::printStackTrace);
+
+    }  catch (SQLException | StripeException | IOException | HttpErrorException | PayPalRESTException | InvalidChangeException e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    void onBuyBtnClick() throws Exception {
-        // The code below should be run when the user clicks on a buy button.
-        Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
-        PayHook.onPayment(payment.paymentId, event -> {
-            // Executed when the payment was received.
-        });
-    }
+  /**
+   * This can be anywhere in your application.
+   */
+  void onBuyBtnClick() throws Exception {
+    Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.BRAINTREE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
+    // Forward your user to payment.url
+    PayHook.paymentAuthorizedEvent.addAction((action, event) -> {
+      if(event.payment.id == payment.id){
+        action.remove(); // To make sure it only gets executed once, for this payment.
+        Product product = event.product;
+        Payment authorizedPayment = event.payment;
+        // Additional UI code here (make sure to have access to the UI thread).
+      }
+    }, e -> {
+      e.printStackTrace();
+    }).object = System.currentTimeMillis();
 
-    void onAnotherBuyBtnClick() throws Exception {
-        Payment payment = PayHook.createPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
-        PayHook.onPayment(payment.paymentId, event -> {
-            // Executed when the payment was received.
-        });
-    }
+    PayHook.paymentCancelledEvent.addAction((action, event) -> {
+      if(event.payment.id == payment.id){
+        action.remove(); // To make sure it only gets executed once, for this payment.
+        Product product = event.product;
+        Payment cancelledPayment = event.payment;
+        // Additional UI code here (make sure to have access to the UI thread).
+      }
+    }, e -> {
+      e.printStackTrace();
+    }).object = System.currentTimeMillis();
+  }
+
+  /**
+   * This can be anywhere in your application.
+   */
+  void onAnotherBuyBtnClick() throws Exception {
+    Payment payment = PayHook.createPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
+    // Forward your user to payment.url
+    PayHook.paymentAuthorizedEvent.addAction((action, event) -> {
+      if(event.payment.id == payment.id){
+        action.remove(); // To make sure it only gets executed once, for this payment.
+        Product product = event.product;
+        Payment authorizedPayment = event.payment;
+        // Additional UI code here (make sure to have access to the UI thread).
+      }
+    }, e -> {
+      e.printStackTrace();
+    }).object = System.currentTimeMillis();
+
+    PayHook.paymentCancelledEvent.addAction((action, event) -> {
+      if(event.payment.id == payment.id){
+        action.remove(); // To make sure it only gets executed once, for this payment.
+        Product product = event.product;
+        Payment cancelledPayment = event.payment;
+        // Additional UI code here (make sure to have access to the UI thread).
+      }
+    }, e -> {
+      e.printStackTrace();
+    }).object = System.currentTimeMillis();
+  }
 }
 ```
-Webhooks:
+*Webhooks:*
 
 Depending on your initialised payment processors, you have to
 create links that listen for their webhook events too. For example like:
@@ -186,3 +255,14 @@ public class PayHookExample {
   }
 }
 ```
+*Testing:*
+
+You probably want to test this before running it on your production app.
+You can do that easily from your current computer, just follow the steps below.
+
+- Clone this repository and open a terminal in the root directory.
+- Make sure to have business accounts at the payment processors
+and enter the sandbox/test credentials into `test-credentials.txt` (also create an
+[ngrok](ngrok.com) account, which is needed to tunnel/forward the webhook events
+from a public domain/ip to your current computer).
+- Run `TODO` in your commandline to run all tests.
