@@ -26,18 +26,6 @@
         </repository>
     </repositories>
 
-    <dependencyManagement>
-        <dependencies>
-            <dependency>
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-dependencies</artifactId>
-                <version>2.7.2</version>
-                <type>pom</type>
-                <scope>test</scope>
-            </dependency>
-        </dependencies>
-    </dependencyManagement>
-
     <dependencies>
         <dependency>
             <groupId>com.github.Osiris-Team</groupId>
@@ -89,12 +77,6 @@
             <groupId>io.muserver</groupId>
             <artifactId>mu-server</artifactId>
             <version>0.72.15</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-            <version>2.7.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>
