@@ -1,6 +1,7 @@
 package com.osiris.payhook;
 
 import com.github.alexdlaird.ngrok.NgrokClient;
+import com.github.alexdlaird.ngrok.conf.JavaNgrokConfig;
 import com.github.alexdlaird.ngrok.protocol.CreateTunnel;
 import com.github.alexdlaird.ngrok.protocol.Tunnel;
 import com.osiris.dyml.Yaml;
@@ -42,10 +43,10 @@ public class GeneralTest {
 
         // Test credentials check
         System.out.println("Checking config values (credentials)... Note that some values cannot be null.");
-        Objects.requireNonNull(ngrokAuthToken);
-        Objects.requireNonNull(stripeSecretKey);
-        Objects.requireNonNull(paypalClientId);
-        Objects.requireNonNull(paypalClientSecret);
+        Objects.requireNonNull(ngrokAuthToken, "ngrokAuthToken cannot be null!");
+        Objects.requireNonNull(stripeSecretKey, "stripeSecretKey cannot be null!");
+        Objects.requireNonNull(paypalClientId, "paypalClientId cannot be null!");
+        Objects.requireNonNull(paypalClientSecret, "paypalClientSecret cannot be null!");
         System.out.println("OK!");
 
         // Init web-server to listen for webhook events
@@ -62,8 +63,10 @@ public class GeneralTest {
         // Setup ngrok to tunnel traffic from public ip the current locally running service/app
         // Open a HTTP tunnel on the default port 80
         // <Tunnel: "http://<public_sub>.ngrok.io" -> "http://localhost:80">
-        final NgrokClient ngrokClient = new NgrokClient.Builder().build();
-        final Tunnel httpTunnel = ngrokClient.connect(new CreateTunnel.Builder().withAuth(ngrokAuthToken).build());
+        final NgrokClient ngrokClient = new NgrokClient.Builder()
+                .withJavaNgrokConfig(new JavaNgrokConfig.Builder().withAuthToken(ngrokAuthToken).build())
+                .build();
+        final Tunnel httpTunnel = ngrokClient.connect(new CreateTunnel.Builder().build());
         String baseUrl = httpTunnel.getPublicUrl();
         String stripeWebhookUrl = baseUrl+"/stripe-hook";
         String paypalWebhookUrl = baseUrl+"/paypal-hook";
@@ -73,7 +76,7 @@ public class GeneralTest {
         System.out.println("Now forwarding traffic from "+baseUrl+" to "+ server.uri());
 
         // Init test database without password
-        dbServer = SQLTestServer.buildAndRun("testDB");
+        dbServer = SQLTestServer.buildAndRun("db_name");
         dbUrl = dbServer.getUrl();
 
         // Initialise payhook
