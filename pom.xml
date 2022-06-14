@@ -40,7 +40,7 @@
         <dependency>
             <groupId>com.github.Osiris-Team</groupId>
             <artifactId>JDBC-Utils</artifactId>
-            <version>0.1</version>
+            <version>0.4</version>
         </dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId>
@@ -98,9 +98,15 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>com.github.alexdlaird</groupId>
+            <groupId>com.github.Osiris-Team</groupId>
             <artifactId>java-ngrok</artifactId>
-            <version>1.4.5</version> <!-- Java 8 support-->
+            <version>1.6.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>mysql</groupId>
+            <artifactId>mysql-connector-java</artifactId>
+            <version>8.0.24</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

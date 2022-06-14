@@ -28,7 +28,8 @@ public class SQLTestServer {
         running = true;
     }
 
-    public static SQLTestServer buildAndRun(String name) throws ManagedProcessException {
+    public static SQLTestServer buildAndRun() throws ManagedProcessException {
+        final String name = "test"; // MUST BE TEST, see: https://github.com/vorburger/MariaDB4j#how-java
         DBConfigurationBuilder configBuilder = DBConfigurationBuilder.newBuilder();
         configBuilder.setPort(3306); // OR, default: setPort(0); => autom. detect free port
         configBuilder.setDeletingTemporaryBaseAndDataDirsOnShutdown(false);
@@ -41,7 +42,7 @@ public class SQLTestServer {
 
         SQLTestServer server = new SQLTestServer(configBuilder);
         server.setName(name);
-        server.setUrl("jdbc:mysql://localhost/test");
+        server.setUrl("jdbc:mysql://localhost/"+name);// MUST BE TEST, see: https://github.com/vorburger/MariaDB4j#how-java
         return server;
     }
 

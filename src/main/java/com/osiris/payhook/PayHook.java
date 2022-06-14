@@ -147,8 +147,7 @@ public final class PayHook {
      * Remember to set your {@link PaymentProcessor} credentials, before
      * creating/updating any {@link Product}s. <br>
      *
-     * @param databaseUrl      Example: "jdbc:mysql://localhost:3306/db_name?serverTimezone=Europe/Rome". Note that
-     *                         PayHook will replace "db_name" with either "payhook" or "payhook_sandbox".
+     * @param databaseUrl      Example: "jdbc:mysql://localhost:3306/db_name?serverTimezone=Europe/Rome".
      * @param databaseUsername Example: "root".
      * @param databasePassword Example: "".
      * @throws SQLException     When the databaseUrl does not contain "db_name" or another error happens during database initialisation.
@@ -158,14 +157,11 @@ public final class PayHook {
         if (isInitialised) return;
         PayHook.brandName = brandName;
         PayHook.isSandbox = isSandbox;
-        String dbName = "payhook";
-        if (!databaseUrl.contains("db_name"))
-            throw new SQLException("Your databaseUrl must contain 'db_name' as database name, so it can be replaced later!");
-        if (isSandbox) {
-            dbName = "payhook_sandbox";
-            databaseUrl = databaseUrl.replace("db_name", dbName);
-        } else databaseUrl = databaseUrl.replace("db_name", dbName);
-        database = new PayHookDatabase(dbName, DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword));
+        if(!isSandbox  && (databaseUrl.contains("sandbox") || databaseUrl.contains("test")))
+            throw new SQLException("You are NOT running in sandbox mode, thus your database-url/name CANNOT contain 'sandbox' or 'test'!");
+        if (isSandbox && (!databaseUrl.contains("sandbox") && !databaseUrl.contains("test")))
+            throw new SQLException("You are running in sandbox mode, thus your database-url/name must contain 'sandbox' or 'test'!");
+        database = new PayHookDatabase(DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword));
 
         expiredPaymentsCheckerThread = new Thread(() -> {
             try {

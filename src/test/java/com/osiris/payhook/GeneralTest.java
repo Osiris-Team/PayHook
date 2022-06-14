@@ -33,16 +33,18 @@ public class GeneralTest {
 
         // Fetch test credentials
         Yaml yaml = new Yaml(System.getProperty("user.dir")+"/test-credentials.yml");
-        System.out.println("Fetching credentials from "+yaml.file);
+        System.out.println("Fetching credentials...");
+        System.out.println("File: "+yaml.file);
         yaml.load();
         String ngrokAuthToken = yaml.put("ngrok auth token").asString();
         String stripeSecretKey = yaml.put("stripe secret key").asString();
         String paypalClientId = yaml.put("paypal client id").asString();
         String paypalClientSecret = yaml.put("paypal client secret").asString();
         yaml.save();
+        System.out.println("OK!");
 
         // Test credentials check
-        System.out.println("Checking config values (credentials)... Note that some values cannot be null.");
+        System.out.println("Checking config values (credentials cannot be null)... ");
         Objects.requireNonNull(ngrokAuthToken, "ngrokAuthToken cannot be null!");
         Objects.requireNonNull(stripeSecretKey, "stripeSecretKey cannot be null!");
         Objects.requireNonNull(paypalClientId, "paypalClientId cannot be null!");
@@ -50,6 +52,7 @@ public class GeneralTest {
         System.out.println("OK!");
 
         // Init web-server to listen for webhook events
+        System.out.println("Starting web-server...");
         MuServer server = MuServerBuilder.httpServer()
                 .withHttpPort(80)
                 .addHandler(Method.GET, "/", (request, response, pathParams) -> {
@@ -59,10 +62,12 @@ public class GeneralTest {
                 .addHandler(Method.POST, "/stripe-hook", this::doStripeWebhookEvent)
                 .start();
         System.out.println("Started web-server at " + server.uri());
+        System.out.println("OK!");
 
         // Setup ngrok to tunnel traffic from public ip the current locally running service/app
         // Open a HTTP tunnel on the default port 80
         // <Tunnel: "http://<public_sub>.ngrok.io" -> "http://localhost:80">
+        System.out.println("Starting Ngrok-Client...");
         final NgrokClient ngrokClient = new NgrokClient.Builder()
                 .withJavaNgrokConfig(new JavaNgrokConfig.Builder().withAuthToken(ngrokAuthToken).build())
                 .build();
@@ -74,12 +79,17 @@ public class GeneralTest {
         System.out.println("Public stripeWebhookUrl: "+stripeWebhookUrl);
         System.out.println("Public paypalWebhookUrl: "+paypalWebhookUrl);
         System.out.println("Now forwarding traffic from "+baseUrl+" to "+ server.uri());
+        System.out.println("OK!");
 
         // Init test database without password
-        dbServer = SQLTestServer.buildAndRun("db_name");
+        System.out.println("Starting database...");
+        dbServer = SQLTestServer.buildAndRun();
         dbUrl = dbServer.getUrl();
+        System.out.println("Url: "+dbUrl);
+        System.out.println("OK!");
 
         // Initialise payhook
+        System.out.println("Starting PayHook...");
         PayHook.init(
                 "Test-Brand-Name",
                 GeneralTest.dbUrl,
@@ -95,6 +105,7 @@ public class GeneralTest {
         // Create products
         pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE, 0);
         pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Intervall.DAYS_30, 0);
+        System.out.println("OK!");
     }
 
     private void doPayPalWebhookEvent(MuRequest request, MuResponse response, Map<String, String> pathParams) {

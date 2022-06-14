@@ -1,7 +1,7 @@
 package com.osiris.payhook;
 
-import com.osiris.ljdb.SQLTable;
-import com.osiris.ljdb.SQLUtils;
+import com.osiris.sql.SQLTable;
+import com.osiris.sql.SQLUtils;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -16,40 +16,40 @@ public class PayHookDatabase {
     public SQLTable tableProducts;
     public SQLTable tablePayments;
 
-    // WE LIT
-
-
-    public PayHookDatabase(String dbName, Connection con) throws SQLException {
+    public PayHookDatabase(Connection con) throws SQLException {
         this.con = con;
         SQLUtils sql = new SQLUtils();
-        sql.initDatabase(con, dbName,
+        sql.initTables(con,
                 (tableProducts = sql.table("products",
-                        sql.col("id", "INT NOT NULL PRIMARY KEY"),
-                        sql.col("price", "LONG NOT NULL"),
+                        sql.col("charge", "BIGINT NOT NULL"),
                         sql.col("currency", "CHAR(3) NOT NULL"),
-                        sql.col("name", "VARCHAR NOT NULL"),
-                        sql.col("description", "VARCHAR NOT NULL"),
-                        sql.col("payment_type", "TINYINT NOT NULL"),
+                        sql.col("name", "TEXT(65532) NOT NULL"),
+                        sql.col("description", "TEXT(65532) NOT NULL"),
                         sql.col("payment_intervall", "INT NOT NULL"),
-                        sql.col("paypal_product_id", "VARCHAR DEFAULT NULL"),
-                        sql.col("paypal_plan_id", "VARCHAR DEFAULT NULL"),
-                        sql.col("stripe_product_id", "VARCHAR DEFAULT NULL"),
-                        sql.col("stripe_price_id", "VARCHAR DEFAULT NULL"))),
+                        sql.col("paypal_product_id", "TEXT(65532) DEFAULT NULL"),
+                        sql.col("paypal_plan_id", "TEXT(65532) DEFAULT NULL"),
+                        sql.col("stripe_product_id", "TEXT(65532) DEFAULT NULL"),
+                        sql.col("stripe_price_id", "TEXT(65532) DEFAULT NULL"))),
                 (tablePayments = sql.table("payments",
-                        sql.col("id", "INT NOT NULL AUTO_INCREMENT PRIMARY KEY"),
-                        sql.col("payment_sender_id", "VARCHAR NOT NULL"),
-                        sql.col("payment_receiver_id", "VARCHAR NOT NULL"),
-                        sql.col("amount", "LONG NOT NULL"),
+                        sql.col("user_id", "TEXT(65532) NOT NULL"),
+                        sql.col("charge", "BIGINT NOT NULL"),
                         sql.col("currency", "CHAR(3) NOT NULL"),
-                        sql.col("url", "VARCHAR DEFAULT NULL"),
+                        sql.col("intervall", "INT NOT NULL"),
+                        sql.col("url", "TEXT(65532) DEFAULT NULL"),
                         sql.col("product_id", "INT DEFAULT NULL"),
-                        sql.col("product_name", "VARCHAR DEFAULT NULL"),
+                        sql.col("product_name", "TEXT(65532) DEFAULT NULL"),
                         sql.col("product_quantity", "INT DEFAULT NULL"),
-                        sql.col("timestamp_created", "TIMESTAMP DEFAULT NULL"),
-                        sql.col("timestamp_paid", "TIMESTAMP DEFAULT NULL"),
-                        sql.col("stripe_payment_intent_id", "VARCHAR DEFAULT NULL"),
-                        sql.col("stripe_subscription_id", "VARCHAR DEFAULT NULL")))
-        );
+                        sql.col("timestamp_created", "BIGINT DEFAULT NULL"),
+                        sql.col("timestamp_expires", "BIGINT DEFAULT NULL"),
+                        sql.col("timestamp_authorized", "BIGINT DEFAULT NULL"),
+                        sql.col("timestamp_cancelled", "BIGINT DEFAULT NULL"),
+                        sql.col("stripe_payment_intent_id", "TEXT(65532) DEFAULT NULL"),
+                        sql.col("stripe_subscription_id", "TEXT(65532) DEFAULT NULL"),
+                        sql.col("stripe_charge_id", "TEXT(65532) DEFAULT NULL"),
+                        sql.col("paypal_order_id", "TEXT(65532) DEFAULT NULL"),
+                        sql.col("paypal_subscription_id", "TEXT(65532) DEFAULT NULL"),
+                        sql.col("paypal_capture_id", "TEXT(65532) DEFAULT NULL"))
+                ));
         try (PreparedStatement stm = con.prepareStatement("SELECT id FROM "+tablePayments.name
                 + " ORDER BY id DESC LIMIT 1")) {
             ResultSet rs = stm.executeQuery();
@@ -57,6 +57,56 @@ public class PayHookDatabase {
                 paymentsId.set(rs.getInt(1));
             }
         }
+    }
+
+    public PayHookDatabase addProduct(Product product) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement(tableProducts.insert+"(" +
+                "id, price, currency, name, description," +
+                "payment_type, payment_intervall, paypal_product_id, paypal_plan_id," +
+                "stripe_product_id, stripe_price_id)" +
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?")) {
+            ps.setInt(1, product.id);
+            ps.setLong(2, product.charge);
+            ps.setString(3, product.currency);
+            ps.setString(4, product.name);
+            ps.setString(5, product.description);
+            ps.setInt(6, product.paymentIntervall.type);
+            ps.setInt(7, product.customPaymentIntervall);
+            ps.setString(8,product.paypalProductId);
+            ps.setString(9,product.paypalPlanId);
+            ps.setString(10,product.stripeProductId);
+            ps.setString(11,product.stripePriceId);
+            ps.executeUpdate();
+        }
+        return this;
+    }
+
+    public PayHookDatabase updateProduct(Product product) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement(tableProducts.update +
+                " SET price=?, currency=?, name=?, description=?," +
+                "payment_type=?, payment_intervall=?," +
+                "paypal_product_id=?, paypal_plan_id=?," +
+                "stripe_product_id=?, stripe_price_id=?" +
+                " WHERE id=?")) {
+            ps.setLong(1, product.charge);
+            ps.setString(2, product.currency);
+            ps.setString(3, product.name);
+            ps.setString(4, product.description);
+            ps.setInt(5, product.paymentIntervall.type);
+            ps.setInt(6, product.customPaymentIntervall);
+            ps.setString(7, product.paypalProductId);
+            ps.setString(8, product.paypalPlanId);
+            ps.setString(9, product.stripeProductId);
+            ps.setString(10, product.stripePriceId);
+            ps.setInt(11, product.id);
+            ps.executeUpdate();
+        }
+        return this;
+    }
+
+    public List<Product> getProducts(String where){
+
+        return this;
     }
 
     /**
@@ -70,45 +120,8 @@ public class PayHookDatabase {
             ResultSet rs = stm.executeQuery();
             exists = rs.next();
         }
-        if(exists)
-            try (PreparedStatement stm = con.prepareStatement(tableProducts.update +
-                    " SET price=?, currency=?, name=?, description=?," +
-                    "payment_type=?, payment_intervall=?," +
-                    "paypal_product_id=?, paypal_plan_id=?," +
-                    "stripe_product_id=?, stripe_price_id=?" +
-                    " WHERE id=?")) {
-                stm.setLong(1, product.charge);
-                stm.setString(2, product.currency);
-                stm.setString(3, product.name);
-                stm.setString(4, product.description);
-                stm.setInt(5, product.paymentIntervall.type);
-                stm.setInt(6, product.customPaymentIntervall);
-                stm.setString(7, product.paypalProductId);
-                stm.setString(8, product.paypalPlanId);
-                stm.setString(9, product.stripeProductId);
-                stm.setString(10, product.stripePriceId);
-                stm.setInt(11, product.id);
-                stm.executeUpdate();
-            }
-        else
-            try (PreparedStatement stm = con.prepareStatement(tableProducts.insert+"(" +
-                    "id, price, currency, name, description," +
-                    "payment_type, payment_intervall, paypal_product_id, paypal_plan_id," +
-                    "stripe_product_id, stripe_price_id)" +
-                    " VALUES (?,?,?,?,?,?,?,?,?,?,?")) {
-                stm.setInt(1, product.id);
-                stm.setLong(2, product.charge);
-                stm.setString(3, product.currency);
-                stm.setString(4, product.name);
-                stm.setString(5, product.description);
-                stm.setInt(6, product.paymentIntervall.type);
-                stm.setInt(7, product.customPaymentIntervall);
-                stm.setString(8,product.paypalProductId);
-                stm.setString(9,product.paypalPlanId);
-                stm.setString(10,product.stripeProductId);
-                stm.setString(11,product.stripePriceId);
-                stm.executeUpdate();
-            }
+        if(exists) updateProduct(product);
+        else addProduct(product);
     }
 
     public Product getProductById(int id) {
