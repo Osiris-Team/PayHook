@@ -15,7 +15,7 @@ public class ExampleConstants {
                     "db_password",
                     true);
 
-            PayHook.initBraintree("merchant_id","public_key", "private_key", "https://my-shop.com/braintree-hook");
+            PayHook.initBraintree("merchant_id", "public_key", "private_key", "https://my-shop.com/braintree-hook");
             PayHook.initStripe("secret_key", "https://my-shop.com/stripe-hook");
 
             pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE);
@@ -25,7 +25,7 @@ public class ExampleConstants {
                 // Backend business logic in here. Gets executed every time.
                 Product product = event.product;
                 Payment payment = event.payment;
-                }, e -> {
+            }, e -> {
                 e.printStackTrace();
             });
 
@@ -33,7 +33,7 @@ public class ExampleConstants {
                 // Backend business logic in here. Gets executed every time.
                 Product product = event.product;
                 Payment payment = event.payment;
-                }, e -> {
+            }, e -> {
                 e.printStackTrace();
             });
 
@@ -48,7 +48,7 @@ public class ExampleConstants {
                 return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
             }, Exception::printStackTrace);
 
-        }  catch (Exception e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -60,7 +60,7 @@ public class ExampleConstants {
         Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.BRAINTREE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
         // Forward your user to payment.url
         PayHook.paymentAuthorizedEvent.addAction((action, event) -> {
-            if(event.payment.id == payment.id){
+            if (event.payment.id == payment.id) {
                 action.remove(); // To make sure it only gets executed once, for this payment.
                 Product product = event.product;
                 Payment authorizedPayment = event.payment;
@@ -71,7 +71,7 @@ public class ExampleConstants {
         }).object = System.currentTimeMillis();
 
         PayHook.paymentCancelledEvent.addAction((action, event) -> {
-            if(event.payment.id == payment.id){
+            if (event.payment.id == payment.id) {
                 action.remove(); // To make sure it only gets executed once, for this payment.
                 Product product = event.product;
                 Payment cancelledPayment = event.payment;
@@ -89,7 +89,7 @@ public class ExampleConstants {
         Payment payment = PayHook.createPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
         // Forward your user to payment.url
         PayHook.paymentAuthorizedEvent.addAction((action, event) -> {
-            if(event.payment.id == payment.id){
+            if (event.payment.id == payment.id) {
                 action.remove(); // To make sure it only gets executed once, for this payment.
                 Product product = event.product;
                 Payment authorizedPayment = event.payment;
@@ -100,7 +100,7 @@ public class ExampleConstants {
         }).object = System.currentTimeMillis();
 
         PayHook.paymentCancelledEvent.addAction((action, event) -> {
-            if(event.payment.id == payment.id){
+            if (event.payment.id == payment.id) {
                 action.remove(); // To make sure it only gets executed once, for this payment.
                 Product product = event.product;
                 Payment cancelledPayment = event.payment;

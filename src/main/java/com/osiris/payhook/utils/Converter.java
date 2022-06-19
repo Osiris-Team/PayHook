@@ -22,19 +22,19 @@ public class Converter {
         return new BigDecimal(amount.value()).multiply(new BigDecimal(100)).longValue();
     }
 
-    public Money toPayPalMoney(String currency, long priceInSmallestCurrency){
+    public Money toPayPalMoney(String currency, long priceInSmallestCurrency) {
         return new Money().currencyCode(currency).value(new BigDecimal(priceInSmallestCurrency).divide(new BigDecimal(100)).toPlainString());
     }
 
-    public com.paypal.api.payments.Currency toPayPalCurrency(String currency, long priceInSmallestCurrency){
+    public com.paypal.api.payments.Currency toPayPalCurrency(String currency, long priceInSmallestCurrency) {
         return new com.paypal.api.payments.Currency(currency, new BigDecimal(priceInSmallestCurrency).divide(new BigDecimal(100)).toPlainString());
     }
 
-    public com.paypal.api.payments.Currency toPayPalCurrency(Product product){
+    public com.paypal.api.payments.Currency toPayPalCurrency(Product product) {
         return new com.paypal.api.payments.Currency(product.currency, new BigDecimal(product.charge).divide(new BigDecimal(100)).toPlainString());
     }
 
-    public Map<String, Object> toStripeProduct(Product product, boolean isStripeSandbox){
+    public Map<String, Object> toStripeProduct(Product product, boolean isStripeSandbox) {
         Map<String, Object> params = new HashMap<>();
         params.put("name", product.name);
         params.put("description", product.description);
@@ -46,8 +46,9 @@ public class Converter {
         Map<String, Object> paramsPrice = new HashMap<>();
         paramsPrice.put("currency", product.currency);
         paramsPrice.put("product", product.stripeProductId);
-        if (product.isRecurring()){
-            if(product.paymentIntervall == 0) throw new IllegalArgumentException("Payment intervall cannot be 0 if product is meant to have recurring payments!");
+        if (product.isRecurring()) {
+            if (product.paymentIntervall == 0)
+                throw new IllegalArgumentException("Payment intervall cannot be 0 if product is meant to have recurring payments!");
             Price.Recurring stripeRecurring = new Price.Recurring();
             stripeRecurring.setInterval("day");
             stripeRecurring.setIntervalCount((long) product.paymentIntervall);
@@ -63,8 +64,9 @@ public class Converter {
         List<PaymentDefinition> paymentDefinitions = new ArrayList<>(1);
         PaymentDefinition paymentDefinition = new PaymentDefinition().setAmount(toPayPalCurrency(product)).setType("REGULAR");
         paymentDefinition.setFrequency("DAY");
-        if(product.paymentIntervall == 0) throw new IllegalArgumentException("Payment intervall cannot be 0 if product is meant to have recurring payments!");
-        paymentDefinition.setFrequencyInterval(""+product.paypalProductId);
+        if (product.paymentIntervall == 0)
+            throw new IllegalArgumentException("Payment intervall cannot be 0 if product is meant to have recurring payments!");
+        paymentDefinition.setFrequencyInterval("" + product.paypalProductId);
 
         paymentDefinitions.add(paymentDefinition);
         plan.setPaymentDefinitions(paymentDefinitions);

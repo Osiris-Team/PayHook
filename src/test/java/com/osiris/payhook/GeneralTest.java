@@ -32,9 +32,9 @@ public class GeneralTest {
     public void run() throws Exception {
 
         // Fetch test credentials
-        Yaml yaml = new Yaml(System.getProperty("user.dir")+"/test-credentials.yml");
+        Yaml yaml = new Yaml(System.getProperty("user.dir") + "/test-credentials.yml");
         System.out.println("Fetching credentials...");
-        System.out.println("File: "+yaml.file);
+        System.out.println("File: " + yaml.file);
         yaml.load();
         String ngrokAuthToken = yaml.put("ngrok auth token").asString();
         String stripeSecretKey = yaml.put("stripe secret key").asString();
@@ -56,7 +56,7 @@ public class GeneralTest {
         MuServer server = MuServerBuilder.httpServer()
                 .withHttpPort(80)
                 .addHandler(Method.GET, "/", (request, response, pathParams) -> {
-                    response.write("Currently running from "+this);
+                    response.write("Currently running from " + this);
                 })
                 .addHandler(Method.POST, "/paypal-hook", this::doPayPalWebhookEvent)
                 .addHandler(Method.POST, "/stripe-hook", this::doStripeWebhookEvent)
@@ -73,19 +73,19 @@ public class GeneralTest {
                 .build();
         final Tunnel httpTunnel = ngrokClient.connect(new CreateTunnel.Builder().build());
         String baseUrl = httpTunnel.getPublicUrl();
-        String stripeWebhookUrl = baseUrl+"/stripe-hook";
-        String paypalWebhookUrl = baseUrl+"/paypal-hook";
-        System.out.println("Public baseUrl: "+baseUrl);
-        System.out.println("Public stripeWebhookUrl: "+stripeWebhookUrl);
-        System.out.println("Public paypalWebhookUrl: "+paypalWebhookUrl);
-        System.out.println("Now forwarding traffic from "+baseUrl+" to "+ server.uri());
+        String stripeWebhookUrl = baseUrl + "/stripe-hook";
+        String paypalWebhookUrl = baseUrl + "/paypal-hook";
+        System.out.println("Public baseUrl: " + baseUrl);
+        System.out.println("Public stripeWebhookUrl: " + stripeWebhookUrl);
+        System.out.println("Public paypalWebhookUrl: " + paypalWebhookUrl);
+        System.out.println("Now forwarding traffic from " + baseUrl + " to " + server.uri());
         System.out.println("OK!");
 
         // Init test database without password
         System.out.println("Starting database...");
         dbServer = SQLTestServer.buildAndRun();
         dbUrl = dbServer.getUrl();
-        System.out.println("Url: "+dbUrl);
+        System.out.println("Url: " + dbUrl);
         System.out.println("OK!");
 
         // Initialise payhook

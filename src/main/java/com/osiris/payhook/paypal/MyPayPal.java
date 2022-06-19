@@ -47,8 +47,8 @@ public class MyPayPal {
     private final String clientSecret;
     private final Mode mode;
     private String credBase64 = "";
-    private UtilsPayPal utils = new UtilsPayPal();
-    private UtilsPayPalJson utilsJson = new UtilsPayPalJson();
+    private final UtilsPayPal utils = new UtilsPayPal();
+    private final UtilsPayPalJson utilsJson = new UtilsPayPalJson();
 
     public MyPayPal(String clientId, String clientSecret, Mode mode) {
         this.clientId = clientId;
@@ -86,11 +86,12 @@ public class MyPayPal {
             obj.addProperty("type", "SERVICE");
         else
             obj.addProperty("type", "DIGITAL"); // TODO do we really need to differ between digital/physical goods?
-        return utilsJson.postJsonAndGetResponse(BASE_V1_URL +"/catalogs/products", obj, this).getAsJsonObject();
+        return utilsJson.postJsonAndGetResponse(BASE_V1_URL + "/catalogs/products", obj, this).getAsJsonObject();
     }
 
     /**
      * Updates the product at PayPal with the provided {@link Product}s details.
+     *
      * @throws NullPointerException when {@link Product#paypalProductId} is null.
      */
     public MyPayPal updateProduct(Product product) throws IOException, HttpErrorException {
@@ -106,7 +107,7 @@ public class MyPayPal {
         patchDesc.addProperty("path", "/description");
         patchDesc.addProperty("value", product.description);
         arr.add(patchDesc);
-        utilsJson.patchJsonAndGetResponse(BASE_V1_URL +"/catalogs/products/"+product.paypalProductId, arr, this);
+        utilsJson.patchJsonAndGetResponse(BASE_V1_URL + "/catalogs/products/" + product.paypalProductId, arr, this);
         return this;
     }
 
@@ -189,6 +190,7 @@ public class MyPayPal {
     /**
      * Since the subscription id is not directly returned in
      * webhook event (for example when a payment is made on a subscription), this method can be pretty useful.
+     *
      * @return subscription id.
      * @throws Exception if provided transaction id is not from a subscription.
      */
@@ -197,12 +199,13 @@ public class MyPayPal {
         JsonArray arr = getTransactionsLast30Days(transactionId);
         for (JsonElement el : arr) {
             JsonObject transactionInfo = el.getAsJsonObject().getAsJsonObject("transaction_info");
-            if(transactionInfo.get("paypal_reference_id_type") != null && transactionInfo.get("paypal_reference_id_type").getAsString().equals("SUB")){
+            if (transactionInfo.get("paypal_reference_id_type") != null && transactionInfo.get("paypal_reference_id_type").getAsString().equals("SUB")) {
                 subscriptionId = transactionInfo.get("paypal_reference_id").getAsString();
                 break;
             }
         }
-        if(subscriptionId==null) throw new Exception("Failed to find subscriptionId in transactions of last 2 days! Json: "+ new Gson().toJson(arr));
+        if (subscriptionId == null)
+            throw new Exception("Failed to find subscriptionId in transactions of last 2 days! Json: " + new Gson().toJson(arr));
         return subscriptionId;
     }
 
@@ -214,9 +217,9 @@ public class MyPayPal {
         String formattedEndTime = df.format(endTime);
         String formattedStartTime = df.format(startTime);
         return utilsJson.getJsonObject(BASE_V1_URL + "/reporting/transactions" +
-                        "?start_date=" + formattedStartTime+
-                        "&end_date=" + formattedEndTime+
-                        "&transaction_id=" + transactionId+
+                        "?start_date=" + formattedStartTime +
+                        "&end_date=" + formattedEndTime +
+                        "&transaction_id=" + transactionId +
                         "&fields=all" +
                         "&page_size=100" +
                         "&page=1", this)
@@ -267,8 +270,8 @@ public class MyPayPal {
     /**
      * @return the transaction-id, aka capture-id.
      * @throws Exception if something went wrong with the API request, or if the returned
-     * http status code is not 200/201, or if the currency code and paid balance don't
-     * match the expected amount.
+     *                   http status code is not 200/201, or if the currency code and paid balance don't
+     *                   match the expected amount.
      */
     public String captureOrder(PayPalHttpClient paypalV2, String orderId, Currency outstandingBalance) throws Exception {
         Objects.requireNonNull(orderId);
@@ -281,10 +284,10 @@ public class MyPayPal {
 
         String currencyCode = order.purchaseUnits().get(0).payments().captures().get(0).amount().currencyCode();
         String paidBalance = order.purchaseUnits().get(0).payments().captures().get(0).amount().value();
-        if(!currencyCode.equals(outstandingBalance.getCurrency()))
-            throw new Exception("Expected '"+outstandingBalance.getCurrency()+"' currency code, but got '"+currencyCode+"' in the capture!");
-        if(!paidBalance.equals(outstandingBalance.getValue()))
-            throw new Exception("Expected '"+outstandingBalance.getValue()+"' paid balance, but got '"+paidBalance+"' in the capture!");
+        if (!currencyCode.equals(outstandingBalance.getCurrency()))
+            throw new Exception("Expected '" + outstandingBalance.getCurrency() + "' currency code, but got '" + currencyCode + "' in the capture!");
+        if (!paidBalance.equals(outstandingBalance.getValue()))
+            throw new Exception("Expected '" + outstandingBalance.getValue() + "' paid balance, but got '" + paidBalance + "' in the capture!");
 
         return order.purchaseUnits().get(0).payments().captures().get(0).id();
     }
@@ -325,9 +328,10 @@ public class MyPayPal {
                 .getAsJsonObject().getAsJsonArray("webhooks");
     }
 
-    public MyPayPal createWebhook(String webhookUrl, List<String> eventTypes) throws IOException, HttpErrorException{
+    public MyPayPal createWebhook(String webhookUrl, List<String> eventTypes) throws IOException, HttpErrorException {
         return createWebhook(webhookUrl, eventTypes.toArray(new String[0]));
     }
+
     public MyPayPal createWebhook(String webhookUrl, String... eventTypes) throws IOException, HttpErrorException {
         JsonObject obj = new JsonObject();
         obj.addProperty("url", webhookUrl);
@@ -340,7 +344,7 @@ public class MyPayPal {
         }
         obj.add("event_types", arr);
         utilsJson.postJsonAndGetResponse(
-                        BASE_V1_URL + "/notifications/webhooks", obj, this);
+                BASE_V1_URL + "/notifications/webhooks", obj, this);
         return this;
     }
 

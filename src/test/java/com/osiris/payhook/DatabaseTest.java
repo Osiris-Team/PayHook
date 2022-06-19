@@ -13,7 +13,7 @@ public class DatabaseTest {
         Database.url = sqlTestServer.getUrl();
         Database.username = "root";
         Database.password = "";
-        System.out.println("Url: "+Database.url);
+        System.out.println("Url: " + Database.url);
         System.out.println("OK!");
 
 
@@ -27,8 +27,8 @@ public class DatabaseTest {
         testPayment.name = "My first payment.";
         TestPayment.add(testPayment);
 
-        for (TestPayment p: TestPayment.get()) {
-            System.out.println(p.id+" "+p.age+" "+p.name);
+        for (TestPayment p : TestPayment.get()) {
+            System.out.println(p.id + " " + p.age + " " + p.name);
         }
         assertEquals(1, TestPayment.get().size());
         assertEquals(1, TestPayment.get("age = 1").size());

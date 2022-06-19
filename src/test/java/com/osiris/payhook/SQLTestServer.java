@@ -42,7 +42,7 @@ public class SQLTestServer {
 
         SQLTestServer server = new SQLTestServer(configBuilder);
         server.setName(name);
-        server.setUrl("jdbc:mysql://localhost/"+name);// MUST BE TEST, see: https://github.com/vorburger/MariaDB4j#how-java
+        server.setUrl("jdbc:mysql://localhost/" + name);// MUST BE TEST, see: https://github.com/vorburger/MariaDB4j#how-java
         return server;
     }
 

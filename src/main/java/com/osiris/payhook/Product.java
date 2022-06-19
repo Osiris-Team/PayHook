@@ -6,11 +6,12 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Product{
-    private static java.sql.Connection con;
-    private static java.util.concurrent.atomic.AtomicInteger idCounter = new java.util.concurrent.atomic.AtomicInteger(0);
+public class Product {
+    private static final java.sql.Connection con;
+    private static final java.util.concurrent.atomic.AtomicInteger idCounter = new java.util.concurrent.atomic.AtomicInteger(0);
+
     static {
-        try{
+        try {
             con = java.sql.DriverManager.getConnection(Database.url, Database.username, Database.password);
             try (Statement s = con.createStatement()) {
                 s.executeUpdate("CREATE TABLE IF NOT EXISTS `Product` (id INT NOT NULL PRIMARY KEY)");
@@ -39,104 +40,136 @@ public class Product{
                 ResultSet rs = ps.executeQuery();
                 if (rs.next()) idCounter.set(rs.getInt(1));
             }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
-        catch(Exception e){ throw new RuntimeException(e); }
     }
-    private Product(){}
+
     /**
-     Use the static create method instead of this constructor,
-     if you plan to add this object to the database in the future, since
-     that method fetches and sets/reserves the {@link #id}.
-     */
-    public Product (int id, long charge, String currency, String name, String description, int paymentIntervall){
-        this.id = id;this.charge = charge;this.currency = currency;this.name = name;this.description = description;this.paymentIntervall = paymentIntervall;
-    }
-    /**
-     Use the static create method instead of this constructor,
-     if you plan to add this object to the database in the future, since
-     that method fetches and sets/reserves the {@link #id}.
-     */
-    public Product (int id, long charge, String currency, String name, String description, int paymentIntervall, String paypalProductId, String paypalPlanId, String stripeProductId, String stripePriceId){
-        this.id = id;this.charge = charge;this.currency = currency;this.name = name;this.description = description;this.paymentIntervall = paymentIntervall;this.paypalProductId = paypalProductId;this.paypalPlanId = paypalPlanId;this.stripeProductId = stripeProductId;this.stripePriceId = stripePriceId;
-    }
-    /**
-     Database field/value. Not null. <br>
+     * Database field/value. Not null. <br>
      */
     public int id;
     /**
-     Database field/value. Not null. <br>
+     * Database field/value. Not null. <br>
      */
     public long charge;
     /**
-     Database field/value. Not null. <br>
+     * Database field/value. Not null. <br>
      */
     public String currency;
     /**
-     Database field/value. Not null. <br>
+     * Database field/value. Not null. <br>
      */
     public String name;
     /**
-     Database field/value. Not null. <br>
+     * Database field/value. Not null. <br>
      */
     public String description;
     /**
-     Database field/value. Not null. <br>
+     * Database field/value. Not null. <br>
      */
     public int paymentIntervall;
     /**
-     Database field/value. <br>
+     * Database field/value. <br>
      */
     public String paypalProductId;
     /**
-     Database field/value. <br>
+     * Database field/value. <br>
      */
     public String paypalPlanId;
     /**
-     Database field/value. <br>
+     * Database field/value. <br>
      */
     public String stripeProductId;
     /**
-     Database field/value. <br>
+     * Database field/value. <br>
      */
     public String stripePriceId;
+    private Product() {
+    }
     /**
-     Increments the id and sets it for this object (basically reserves a space in the database).
-     @return object with latest id. Should be added to the database next by you.
+     * Use the static create method instead of this constructor,
+     * if you plan to add this object to the database in the future, since
+     * that method fetches and sets/reserves the {@link #id}.
      */
-    public static Product create( long charge, String currency, String name, String description, int paymentIntervall) {
+    public Product(int id, long charge, String currency, String name, String description, int paymentIntervall) {
+        this.id = id;
+        this.charge = charge;
+        this.currency = currency;
+        this.name = name;
+        this.description = description;
+        this.paymentIntervall = paymentIntervall;
+    }
+    /**
+     * Use the static create method instead of this constructor,
+     * if you plan to add this object to the database in the future, since
+     * that method fetches and sets/reserves the {@link #id}.
+     */
+    public Product(int id, long charge, String currency, String name, String description, int paymentIntervall, String paypalProductId, String paypalPlanId, String stripeProductId, String stripePriceId) {
+        this.id = id;
+        this.charge = charge;
+        this.currency = currency;
+        this.name = name;
+        this.description = description;
+        this.paymentIntervall = paymentIntervall;
+        this.paypalProductId = paypalProductId;
+        this.paypalPlanId = paypalPlanId;
+        this.stripeProductId = stripeProductId;
+        this.stripePriceId = stripePriceId;
+    }
+
+    /**
+     * Increments the id and sets it for this object (basically reserves a space in the database).
+     *
+     * @return object with latest id. Should be added to the database next by you.
+     */
+    public static Product create(long charge, String currency, String name, String description, int paymentIntervall) {
         int id = idCounter.incrementAndGet();
         Product obj = new Product(id, charge, currency, name, description, paymentIntervall);
         return obj;
     }
 
-    public static Product create( long charge, String currency, String name, String description, int paymentIntervall, String paypalProductId, String paypalPlanId, String stripeProductId, String stripePriceId) {
+    public static Product create(long charge, String currency, String name, String description, int paymentIntervall, String paypalProductId, String paypalPlanId, String stripeProductId, String stripePriceId) {
         int id = idCounter.incrementAndGet();
         Product obj = new Product();
-        obj.id=id; obj.charge=charge; obj.currency=currency; obj.name=name; obj.description=description; obj.paymentIntervall=paymentIntervall; obj.paypalProductId=paypalProductId; obj.paypalPlanId=paypalPlanId; obj.stripeProductId=stripeProductId; obj.stripePriceId=stripePriceId;
+        obj.id = id;
+        obj.charge = charge;
+        obj.currency = currency;
+        obj.name = name;
+        obj.description = description;
+        obj.paymentIntervall = paymentIntervall;
+        obj.paypalProductId = paypalProductId;
+        obj.paypalPlanId = paypalPlanId;
+        obj.stripeProductId = stripeProductId;
+        obj.stripePriceId = stripePriceId;
         return obj;
     }
 
     /**
-     @return a list containing all objects in this table.
+     * @return a list containing all objects in this table.
      */
-    public static List<Product> get() throws Exception {return get(null);}
+    public static List<Product> get() throws Exception {
+        return get(null);
+    }
+
     /**
-     @return object with the provided id.
-     @throws Exception on SQL issues, or if there is no object with the provided id in this table.
+     * @return object with the provided id.
+     * @throws Exception on SQL issues, or if there is no object with the provided id in this table.
      */
     public static Product get(int id) throws Exception {
-        return get("id = "+id).get(0);
+        return get("id = " + id).get(0);
     }
+
     /**
-     @return a list containing only objects that match the provided SQL WHERE statement.
-     if that statement is null, returns all the contents of this table.
+     * @return a list containing only objects that match the provided SQL WHERE statement.
+     * if that statement is null, returns all the contents of this table.
      */
     public static List<Product> get(String where) throws Exception {
         List<Product> list = new ArrayList<>();
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT id,charge,currency,name,description,paymentIntervall,paypalProductId,paypalPlanId,stripeProductId,stripePriceId" +
                         " FROM `Product`" +
-                        (where != null ? ("WHERE "+where) : ""))) {
+                        (where != null ? ("WHERE " + where) : ""))) {
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 Product obj = new Product();
@@ -157,9 +190,10 @@ public class Product{
     }
 
     /**
-     Searches the provided object in the database (by its id),
-     and updates all its fields.
-     @throws Exception when failed to find by id.
+     * Searches the provided object in the database (by its id),
+     * and updates all its fields.
+     *
+     * @throws Exception when failed to find by id.
      */
     public static void update(Product obj) throws Exception {
         try (PreparedStatement ps = con.prepareStatement(
@@ -179,7 +213,7 @@ public class Product{
     }
 
     /**
-     Adds the provided object to the database (note that the id is not checked for duplicates).
+     * Adds the provided object to the database (note that the id is not checked for duplicates).
      */
     public static void add(Product obj) throws Exception {
         try (PreparedStatement ps = con.prepareStatement(
@@ -199,24 +233,25 @@ public class Product{
     }
 
     /**
-     Deletes the provided object from the database.
+     * Deletes the provided object from the database.
      */
     public static void remove(Product obj) throws Exception {
-        remove("id = "+obj.id);
+        remove("id = " + obj.id);
     }
+
     /**
-     Deletes the objects that are found by the provided SQL WHERE statement, from the database.
+     * Deletes the objects that are found by the provided SQL WHERE statement, from the database.
      */
     public static void remove(String where) throws Exception {
         java.util.Objects.requireNonNull(where);
         try (PreparedStatement ps = con.prepareStatement(
-                "DELETE FROM `Product` WHERE "+where)) {
+                "DELETE FROM `Product` WHERE " + where)) {
             ps.executeUpdate();
         }
     }
 
-    public Product clone(){
-        return new Product(this.id,this.charge,this.currency,this.name,this.description,this.paymentIntervall,this.paypalProductId,this.paypalPlanId,this.stripeProductId,this.stripePriceId);
+    public Product clone() {
+        return new Product(this.id, this.charge, this.currency, this.name, this.description, this.paymentIntervall, this.paypalProductId, this.paypalPlanId, this.stripeProductId, this.stripePriceId);
     }
 
 
@@ -224,15 +259,15 @@ public class Product{
      * ADDITIONAL/CUSTOM CODE:
      */
 
-    public boolean isPayPalSupported(){
+    public boolean isPayPalSupported() {
         return paypalProductId != null;
     }
 
-    public boolean isBraintreeSupported(){
+    public boolean isBraintreeSupported() {
         return false; // TODO
     }
 
-    public boolean isStripeSupported(){
+    public boolean isStripeSupported() {
         return stripeProductId != null && stripePriceId != null;
     }
 

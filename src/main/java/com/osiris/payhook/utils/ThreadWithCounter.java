@@ -2,14 +2,14 @@ package com.osiris.payhook.utils;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class ThreadWithCounter extends Thread{
+public class ThreadWithCounter extends Thread {
     public AtomicInteger counter = new AtomicInteger(0);
     public Runnable runnable = null;
 
     @Override
     public void run() {
         super.run();
-        if(runnable!=null) runnable.run();
+        if (runnable != null) runnable.run();
     }
     /*
     TODO Support this:
