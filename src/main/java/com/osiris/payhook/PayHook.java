@@ -30,9 +30,7 @@ import com.stripe.param.checkout.SessionCreateParams;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Timestamp;
 import java.util.*;
 
 /**
@@ -69,7 +67,6 @@ public final class PayHook {
      */
     public static final long stripeUrlTimeoutMs = 86400000;
     public static String brandName;
-    public static PayHookDatabase database;
     public static boolean isInitialised = false;
     public static boolean isSandbox = false;
 
@@ -161,18 +158,19 @@ public final class PayHook {
             throw new SQLException("You are NOT running in sandbox mode, thus your database-url/name CANNOT contain 'sandbox' or 'test'!");
         if (isSandbox && (!databaseUrl.contains("sandbox") && !databaseUrl.contains("test")))
             throw new SQLException("You are running in sandbox mode, thus your database-url/name must contain 'sandbox' or 'test'!");
-        database = new PayHookDatabase(DriverManager.getConnection(databaseUrl, databaseUsername, databasePassword));
+        Database.url = databaseUrl;
+        Database.username = databaseUsername;
+        Database.password = databasePassword;
 
         expiredPaymentsCheckerThread = new Thread(() -> {
             try {
                 while (true) {
                     long now = System.currentTimeMillis();
-                    for (Payment pendingPayment : database.getPendingPayments()) {
-                        if (pendingPayment.timestampExpires != null && now > pendingPayment.timestampExpires.getTime()) {
-                            pendingPayment.timestampCancelled = new Timestamp(now);
-                            pendingPayment.state = Payment.State.CANCELLED;
-                            database.updatePayment(pendingPayment);
-                            paymentCancelledEvent.execute(new PaymentEvent(database.getProductById(pendingPayment.productId), pendingPayment));
+                    for (Payment pendingPayment : Payment.getPendingPayments()) {
+                        if (now > pendingPayment.timestampExpires) {
+                            pendingPayment.timestampCancelled = now;
+                            Payment.update(pendingPayment);
+                            paymentCancelledEvent.execute(new PaymentEvent(Product.get(pendingPayment.productId), pendingPayment));
                         }
                     }
                     Thread.sleep(3600000); // 1h
@@ -188,19 +186,16 @@ public final class PayHook {
         // catch it in the future.
         paymentAuthorizedEvent.addAction((action, event) -> {
             Payment currentPayment = event.payment;
-            Product product = event.product;
             if (currentPayment.isRecurring() && !currentPayment.isRefund()) {
-                int futurePaymentId = database.paymentsId.incrementAndGet();
-                long futureTime = System.currentTimeMillis() + currentPayment.intervall.toMilliseconds();
-                Payment futurePayment = new Payment(futurePaymentId, currentPayment.userId, product.charge, product.currency,
-                        null, new Timestamp(futureTime),
-                        new Timestamp(futureTime + currentPayment.getUrlTimeoutMs()),
-                        null, null,
-                        product.paymentIntervall,
-                        product.id, product.name, 1,
-                        currentPayment.stripePaymentIntentId, currentPayment.stripeSubscriptionId, currentPayment.stripeChargeId,
-                        currentPayment.paypalOrderId, currentPayment.paypalSubscriptionId, currentPayment.paypalCaptureId);
-                database.insertPayment(futurePayment);
+                long futureTime = System.currentTimeMillis() + Payment.Intervall.toMilliseconds(currentPayment.intervall);
+                Payment futurePayment = currentPayment.clone();
+                futurePayment.id = Payment.create(currentPayment.userId, currentPayment.charge, currentPayment.currency, currentPayment.intervall)
+                        .id;
+                futurePayment.timestampCreated = futureTime;
+                futurePayment.timestampExpires = futureTime + currentPayment.getUrlTimeoutMs();
+                futurePayment.timestampAuthorized = 0;
+                futurePayment.timestampCancelled = 0;
+                Payment.add(futurePayment);
             }
         }, ex -> {
             throw new RuntimeException(ex);
@@ -229,7 +224,7 @@ public final class PayHook {
                         // payments <days> // Prints all received payments from the last <days> (if not provided 30 days is the default)
                     } else if (command.startsWith("products delete")) {
                         int id = Integer.parseInt(command.replaceFirst("products delete ", "").trim());
-                        database.deleteProductById(id); //TODO delete everywhere
+                        Product.remove(Product.get(id)); //TODO delete everywhere
                     } else {
                         out.println("Unknown command. Enter 'help' or 'h' for a list of all commands.");
                     }
@@ -378,74 +373,77 @@ public final class PayHook {
 
     /**
      * Call this method after setting the credentials for your payment processors. <br>
-     * If the provided id doesn't exist in the {@link #database}, the product gets created/inserted. <br>
-     * If the provided id exists in the {@link #database} and the new provided values differ from the values in the {@link #database}, it gets updated. <br>
+     * If the provided id doesn't exist in the database, the product gets created/inserted. <br>
+     * If the provided id exists in the database and the new provided values differ from the values in the database, it gets updated. <br>
      * The above also happens for the {@link Product}s saved on the databases of the payment processors. <br>
      *
      * @param id                           The unique identifier of this product.
-     * @param priceInSmallestCurrency      E.g., 100 cents to charge $1.00 or 100 to charge ¥100, a zero-decimal currency.
+     * @param charge      E.g., 100 cents to charge $1.00 or 100 to charge ¥100, a zero-decimal currency.
      *                                     The amount value supports up to eight digits (e.g., a value of 99999999 for a USD charge of $999,999.99).
      * @param currency                     Three-letter <a href="https://www.iso.org/iso-4217-currency-codes.html">ISO currency code</a>,
      *                                     in lowercase. Must be a <a href="https://stripe.com/docs/currencies">supported currency</a>.
      * @param name                         The name of the product.
      * @param description                  The products' description.
-     * @param customBillingIntervallInDays The custom billing intervall in days. Note that billingType must be set to 5 for this to have affect.
+     * @param paymentIntervall The payment intervall in days. Only relevant for recurring payments. See {@link Payment.Intervall} for useful defaults.
      * @throws InvalidChangeException if you tried to change the payment type of the product.
      */
-    public static Product putProduct(int id, long priceInSmallestCurrency,
+    public static Product putProduct(int id, long charge,
                                      String currency, String name, String description,
-                                     Payment.Intervall paymentIntervall, int customBillingIntervallInDays) throws StripeException, SQLException, IOException, HttpErrorException, PayPalRESTException, InvalidChangeException {
+                                     int paymentIntervall) throws Exception {
         Converter converter = new Converter();
+        Product p = null;
+        try{p = Product.get(id);} catch (Exception ignored) {}
+        if (p == null) { // Product not existing yet
+            p = new Product(id, charge, currency, name, description, paymentIntervall);
 
-        Product newProduct = new Product(id, priceInSmallestCurrency, currency, name, description, paymentIntervall, customBillingIntervallInDays,
-                null, null);
-        Product dbProduct = database.getProductById(id);
-        if (dbProduct == null) {
-            dbProduct = new Product(id, priceInSmallestCurrency, currency, name, description, paymentIntervall, customBillingIntervallInDays,
-                    null, null);
-            if (myPayPal != null) {
-                JsonObject response = myPayPal.createProduct(dbProduct);
-                dbProduct.paypalProductId = response.get("id").getAsString();
-                if (dbProduct.isRecurring()) {
-                    com.paypal.api.payments.Plan plan = converter.toPayPalPlan(dbProduct);
+            if (myPayPal != null) { // Create paypal produt
+                JsonObject response = myPayPal.createProduct(p);
+                p.paypalProductId = response.get("id").getAsString();
+                if (p.isRecurring()) {
+                    com.paypal.api.payments.Plan plan = converter.toPayPalPlan(p);
                     plan.create(paypalV1);
-                    dbProduct.paypalPlanId = plan.getId();
+                    p.paypalPlanId = plan.getId();
                 }
             }
 
             if (braintree != null) ; // TODO
 
-            if (Stripe.apiKey != null) {
-                com.stripe.model.Product stripeProduct = com.stripe.model.Product.create(converter.toStripeProduct(dbProduct, isSandbox));
-                dbProduct.stripeProductId = stripeProduct.getId();
-                com.stripe.model.Price stripePrice = com.stripe.model.Price.create(converter.toStripePrice(dbProduct));
-                dbProduct.stripePriceId = stripePrice.getId();
+            if (Stripe.apiKey != null) { // Create stripe product
+                com.stripe.model.Product stripeProduct = com.stripe.model.Product.create(converter.toStripeProduct(p, isSandbox));
+                p.stripeProductId = stripeProduct.getId();
+                com.stripe.model.Price stripePrice = com.stripe.model.Price.create(converter.toStripePrice(p));
+                p.stripePriceId = stripePrice.getId();
             }
-            database.putProduct(dbProduct);
+
+            Product.add(p);
         }
 
-        newProduct.paypalProductId = dbProduct.paypalProductId;
-        newProduct.stripeProductId = dbProduct.stripeProductId;
-
-        if (isNotEqual(newProduct, dbProduct)) {
-            if (newProduct.paymentIntervall != dbProduct.paymentIntervall)
-                throw new InvalidChangeException("The payment type of a product cannot be changed!");
-            database.putProduct(newProduct);
+        Product newProduct = new Product(id, charge, currency, name, description, paymentIntervall);
+        if (newProduct.id != p.id || newProduct.charge != p.charge || !newProduct.currency.equals(p.currency) ||
+        !newProduct.name.equals(p.name) || !newProduct.description.equals(p.description) || newProduct.paymentIntervall != p.paymentIntervall) {
+            p.id = id;
+            p.charge = charge; // TODO find way of updating payments
+            p.currency = currency; // TODO find way of updating payments
+            p.name = name;
+            p.description = description;
+            p.paymentIntervall = paymentIntervall; // TODO find way of updating payments
 
             if (myPayPal != null) {
-                if (dbProduct.isRecurring()) {
-                    com.paypal.api.payments.Plan plan = com.paypal.api.payments.Plan.get(paypalV1, dbProduct.paypalProductId);
-                    plan.update(paypalV1, converter.toPayPalPlanPatch(dbProduct)); // TODO
+                if (p.isRecurring()) {
+                    com.paypal.api.payments.Plan plan = com.paypal.api.payments.Plan.get(paypalV1, p.paypalProductId);
+                    plan.update(paypalV1, converter.toPayPalPlanPatch(p)); // TODO
                 }
             }
             if (Stripe.apiKey != null) {
-                com.stripe.model.Product stripeProduct = com.stripe.model.Product.retrieve(dbProduct.stripeProductId);
-                stripeProduct.update(converter.toStripeProduct(dbProduct, isSandbox));
-                com.stripe.model.Price stripePrice = com.stripe.model.Price.retrieve(dbProduct.stripePriceId);
-                stripePrice.update(converter.toStripePrice(dbProduct));
+                com.stripe.model.Product stripeProduct = com.stripe.model.Product.retrieve(p.stripeProductId);
+                stripeProduct.update(converter.toStripeProduct(p, isSandbox));
+                com.stripe.model.Price stripePrice = com.stripe.model.Price.retrieve(p.stripePriceId);
+                stripePrice.update(converter.toStripePrice(p));
             }
+
+            Product.update(p);
         }
-        return newProduct;
+        return p;
     }
 
     /**
@@ -522,7 +520,7 @@ public final class PayHook {
             }
         }
 
-        Timestamp now = new Timestamp(System.currentTimeMillis());
+        long now = System.currentTimeMillis();
         List<Payment> payments = new ArrayList<>();
         if (paymentProcessor.equals(PaymentProcessor.STRIPE)) { // STRIPE
             if (productsNOTrecurring.size() > 0) {
@@ -533,7 +531,6 @@ public final class PayHook {
                         .setCancelUrl(cancelUrl);
                 for (Product p :
                         productsNOTrecurring) {
-                    int paymentId = database.paymentsId.incrementAndGet();
                     int quantity = productsAndQuantity.get(p);
                     paramsBuilder.addLineItem(
                             SessionCreateParams.LineItem.builder()
@@ -542,11 +539,11 @@ public final class PayHook {
                                     .setQuantity((long) quantity)
                                     .setPrice("{{" + p.stripePriceId + "}}")
                                     .build());
-                    payments.add(new Payment(paymentId, userId,
+                    payments.add(Payment.create(userId,
                             (quantity * p.charge), p.currency,
-                            null, now, null, null, null,
                             p.paymentIntervall,
-                            p.id, p.name, quantity,
+                            null, p.id, p.name, quantity,
+                            now, now + stripeUrlTimeoutMs, 0, 0,
                             null, null, null,
                             null, null, null));
                 }
@@ -555,12 +552,10 @@ public final class PayHook {
                         payments) {
                     payment.url = session.getUrl();
                     payment.stripePaymentIntentId = session.getPaymentIntentObject().getId();
-                    payment.timestampExpires = new Timestamp(System.currentTimeMillis() + stripeUrlTimeoutMs);
                 }
             }
             for (Product product :
                     productsRecurring) {
-                int paymentId = database.paymentsId.incrementAndGet();
                 SessionCreateParams.Builder paramsBuilder = SessionCreateParams.builder()
                         .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
                         .setSuccessUrl(successUrl)
@@ -573,20 +568,13 @@ public final class PayHook {
                                 .setPrice("{{" + product.stripePriceId + "}}")
                                 .build());
                 Session session = Session.create(paramsBuilder.build());
-                Payment payment = new Payment(paymentId, userId,
+                Payment payment = Payment.create(userId,
                         product.charge, product.currency,
-                        session.getUrl(), now, null, null, null,
                         product.paymentIntervall,
-                        product.id, product.name, 1,
+                        session.getUrl(),
+                        product.id, product.name, 1, now, now + stripeUrlTimeoutMs, 0, 0,
                         null, session.getSubscriptionObject().getId(), null,
                         null, null, null);
-
-                // If true, means that this is not the first payment for this subscription
-                // thus the expiry date must be set according to the billing intervall
-                if (database.getPaymentBy("stripe_subscription_id", payment.stripeSubscriptionId) != null)
-                    payment.timestampExpires = new Timestamp(System.currentTimeMillis() + payment.intervall.toMilliseconds());
-                else
-                    payment.timestampExpires = new Timestamp(System.currentTimeMillis() + stripeUrlTimeoutMs);
                 payments.add(payment);
             }
         } else if (paymentProcessor.equals(PaymentProcessor.PAYPAL)) { // PAYPAL
@@ -605,17 +593,16 @@ public final class PayHook {
                 List<Item> items = new ArrayList<>();
                 for (Product p :
                         productsNOTrecurring) {
-                    int paymentId = database.paymentsId.incrementAndGet();
                     currency = p.currency;
                     int quantity = productsAndQuantity.get(p);
                     priceTotal += p.charge;
                     items.add(new Item().name(p.name).description(p.description)
                             .unitAmount(new Money().currencyCode(p.currency).value(converter.toPayPalCurrency(p).getValue())).quantity("" + quantity)
                             .category("DIGITAL_GOODS"));
-                    payments.add(new Payment(paymentId, userId,
+                    payments.add(Payment.create(userId,
                             (quantity * p.charge), p.currency,
-                            null, now, null, null, null,
-                            p.paymentIntervall, p.id, p.name, quantity,
+                            p.paymentIntervall, null,
+                            p.id, p.name, quantity, now, now + paypalUrlTimeoutMs, 0, 0,
                             null, null, null,
                             null, null, null));
                 }
@@ -647,32 +634,28 @@ public final class PayHook {
                         payments) {
                     payment.url = payUrl;
                     payment.paypalOrderId = response.result().id();
-                    payment.timestampExpires = new Timestamp(System.currentTimeMillis() + paypalUrlTimeoutMs);
                 }
             }
             for (Product p :
                     productsRecurring) {
-                int paymentId = database.paymentsId.incrementAndGet();
                 String[] arr = myPayPal.createSubscription(brandName, p.paypalPlanId, successUrl, cancelUrl);
-                Payment payment = new Payment(paymentId, userId,
-                        p.charge, p.currency,
-                        arr[1], now, null, null, null,
-                        p.paymentIntervall, p.id, p.name, 1,
-                        null, arr[0], null,
-                        null, null, null);
-
-                // If true, means that this is not the first payment for this subscription
-                // thus the expiry date must be set according to the billing intervall
-                if (database.getPaymentBy("paypal_subscription_id", payment.paypalSubscriptionId) != null)
-                    payment.timestampExpires = new Timestamp(System.currentTimeMillis() + payment.intervall.toMilliseconds());
-                else
-                    payment.timestampExpires = new Timestamp(System.currentTimeMillis() + stripeUrlTimeoutMs);
+                Payment payment = Payment.create(userId,
+                        p.charge, p.currency, p.paymentIntervall, arr[1],
+                        p.id, p.name, 1, now, now + paypalUrlTimeoutMs, 0, 0,
+                        null, null, null,
+                        null, arr[0], null);
                 payments.add(payment);
             }
         } else
             throw new UnsupportedOperationException(paymentProcessor.name());
 
+        // Insert payments into the database
+        for (Payment payment : payments) {
+            Payment.add(payment);
+        }
+
         // Execute created payment event actions:
+        // Recurring and not recurring payments are in the same payments list
         int paymentsIndex = 0;
         for (Product product : productsNOTrecurring) {
             paymentCreatedEvent.execute(new PaymentEvent(product, payments.get(paymentsIndex)));
@@ -681,11 +664,6 @@ public final class PayHook {
         for (Product product : productsRecurring) {
             paymentCreatedEvent.execute(new PaymentEvent(product, payments.get(paymentsIndex)));
             paymentsIndex++;
-        }
-
-        // Insert payments into the database
-        for (Payment payment : payments) {
-            database.insertPayment(payment);
         }
         return payments;
     }
@@ -709,27 +687,6 @@ public final class PayHook {
     }
 
     /**
-     * Does not compare payment specific details.
-     *
-     * @return true if the provided {@link Product}s have different essential information.
-     */
-    private static boolean isNotEqual(Product p1, Product p2) {
-        if (p1.id != p2.id)
-            return true;
-        if (p1.charge != p2.charge)
-            return true;
-        if (!p1.currency.equals(p2.currency))
-            return true;
-        if (!p1.name.equals(p2.name))
-            return true;
-        if (!p1.description.equals(p2.description))
-            return true;
-        if (p1.paymentIntervall != p2.paymentIntervall)
-            return true;
-        return p1.customPaymentIntervall != p2.customPaymentIntervall;
-    }
-
-    /**
      * Validates the webhook event and does further type-specific stuff. <br>
      * Execute this method at your webhook endpoint. <br>
      * For example when a POST request happens on the "https://my-shop.com/paypal-hook" url. <br>
@@ -739,6 +696,7 @@ public final class PayHook {
      */
     public static void receiveWebhookEvent(PaymentProcessor paymentProcessor, Map<String, String> header, String body)
             throws Exception {
+        long now = System.currentTimeMillis();
         if (paymentProcessor.equals(PaymentProcessor.PAYPAL)) {
 
             // VALIDATE PAYPAL WEBHOOK NOTIFICATION
@@ -752,26 +710,24 @@ public final class PayHook {
             switch (event.getEventType()) {
                 case "CHECKOUT.ORDER.APPROVED": { // One time payments
                     String orderId = resource.get("id").getAsString();
-                    List<Payment> payments = database.getPayments("paypal_order_id", orderId);
+                    List<Payment> payments = Payment.get("paypalOrderId = "+orderId);
                     if (payments.isEmpty())
                         throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find payment order id '" + orderId + "' in local database).");
                     long totalCharge = 0;
                     for (Payment p : payments) {
                         totalCharge += p.charge;
                     }
-                    Timestamp now = new Timestamp(System.currentTimeMillis());
                     Order capturedOrder = myPayPal.captureOrder(paypalV2, orderId).result();
                     long capturedCharge = new Converter().toSmallestCurrency(capturedOrder.purchaseUnits().get(0).payments().captures().get(0).amount());
                     if (totalCharge != capturedCharge)
                         throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", expected paid amount of '" + totalCharge + "' but got '" + capturedCharge + "').");
                     String captureId = capturedOrder.purchaseUnits().get(0).payments().captures().get(0).id();
                     for (Payment payment : payments) {
-                        if (payment.timestampAuthorized == null) {
+                        if (payment.timestampAuthorized == 0) {
                             payment.timestampAuthorized = now;
-                            payment.state = Payment.State.AUTHORIZED;
                             payment.paypalCaptureId = captureId;
-                            database.updatePayment(payment);
-                            paymentAuthorizedEvent.execute(new PaymentEvent(database.getProductById(payment.productId), payment));
+                            Payment.update(payment);
+                            paymentAuthorizedEvent.execute(new PaymentEvent(Product.get(payment.productId), payment));
                         }
                     }
                     break;
@@ -780,7 +736,7 @@ public final class PayHook {
                     String paymentId = resource.get("id").getAsString();
                     com.paypal.payments.Capture capture = myPayPal.capturePayment(paypalV2, paymentId).result();
                     String subscriptionId = myPayPal.findSubscriptionId(paymentId);
-                    List<Payment> payments = database.getPendingPayments("paypal_subscription_id", subscriptionId);
+                    List<Payment> payments = Payment.getPendingPayments("paypalSubscriptionId = "+subscriptionId);
                     if (payments.isEmpty()) throw new WebHookValidationException(
                             "Received invalid webhook event (" + PaymentProcessor.PAYPAL + ", failed to find pending payments with subscription id '" + subscriptionId + "' in local database).");
                     if (payments.size() > 1) throw new WebHookValidationException(
@@ -789,18 +745,16 @@ public final class PayHook {
                     long capturedCharge = new Converter().toSmallestCurrency(capture.amount());
                     if (payment.charge != capturedCharge)
                         throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.PAYPAL + ", expected paid amount of '" + payment.charge + "' but got '" + capturedCharge + "').");
-                    Timestamp now = new Timestamp(System.currentTimeMillis());
-                    if (payment.timestampAuthorized == null) {
+                    if (payment.timestampAuthorized == 0) {
                         payment.timestampAuthorized = now;
-                        payment.state = Payment.State.AUTHORIZED;
-                        database.updatePayment(payment);
-                        paymentAuthorizedEvent.execute(new PaymentEvent(database.getProductById(payment.productId), payment));
+                        Payment.update(payment);
+                        paymentAuthorizedEvent.execute(new PaymentEvent(Product.get(payment.productId), payment));
                     }
                     break;
                 }
                 case "BILLING.SUBSCRIPTION.CANCELLED": { // Recurring payments
                     String subscriptionId = resource.get("id").getAsString();
-                    List<Payment> payments = database.getPayments("paypal_subscription_id", subscriptionId);
+                    List<Payment> payments = Payment.get("paypalSubscriptionId = "+subscriptionId);
                     if (payments.isEmpty()) throw new WebHookValidationException(
                             "Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find payments with subscription id '" + subscriptionId + "' in local database).");
                     cancelPayments(payments);
@@ -831,7 +785,7 @@ public final class PayHook {
             switch (event.getType()) {
                 case "payment_intent.succeeded": { // One time payments
                     PaymentIntent paymentIntent = (PaymentIntent) stripeObject;
-                    List<Payment> payments = database.getPayments("stripe_payment_intent_id", paymentIntent.getId());
+                    List<Payment> payments = Payment.get("stripePaymentIntentId = "+paymentIntent.getId());
                     if (payments.isEmpty())
                         throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find payment intent id '" + paymentIntent.getId() + "' in local database).");
                     long totalCharge = 0;
@@ -840,15 +794,13 @@ public final class PayHook {
                     }
                     if (totalCharge != paymentIntent.getAmount())
                         throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", expected paid amount of '" + totalCharge + "' but got '" + paymentIntent.getAmount() + "').");
-                    Timestamp now = new Timestamp(System.currentTimeMillis());
                     paymentIntent.capture();
                     for (Payment payment : payments) {
-                        if (payment.timestampAuthorized == null) {
+                        if (payment.timestampAuthorized == 0) {
                             payment.timestampAuthorized = now;
-                            payment.state = Payment.State.AUTHORIZED;
                             payment.stripeChargeId = paymentIntent.getInvoiceObject().getCharge();
-                            database.updatePayment(payment);
-                            paymentAuthorizedEvent.execute(new PaymentEvent(database.getProductById(payment.productId), payment));
+                            Payment.update(payment);
+                            paymentAuthorizedEvent.execute(new PaymentEvent(Product.get(payment.productId), payment));
                         }
                     }
                     break;
@@ -859,7 +811,7 @@ public final class PayHook {
                 case "invoice.paid": { // Recurring payments
                     Invoice invoice = (Invoice) stripeObject;
                     Subscription subscription = invoice.getSubscriptionObject();
-                    List<Payment> payments = database.getPendingPayments("stripe_subscription_id", subscription.getId());
+                    List<Payment> payments = Payment.getPendingPayments("stripeSubscriptionId = "+subscription.getId());
                     if (payments.isEmpty()) throw new WebHookValidationException(
                             "Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find pending payments with stripe_subscription_id '" + subscription.getId() + "' in local database).");
                     if (payments.size() > 1) throw new WebHookValidationException(
@@ -867,19 +819,17 @@ public final class PayHook {
                     Payment payment = payments.get(0);
                     if (payment.charge != invoice.getChargeObject().getAmount())
                         throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", expected paid amount of '" + payment.charge + "' but got '" + invoice.getChargeObject().getAmount() + "').");
-                    Timestamp now = new Timestamp(System.currentTimeMillis());
-                    if (payment.timestampAuthorized == null) {
+                    if (payment.timestampAuthorized == 0) {
                         payment.timestampAuthorized = now;
-                        payment.state = Payment.State.AUTHORIZED;
                         payment.stripeChargeId = invoice.getCharge();
-                        database.updatePayment(payment);
-                        paymentAuthorizedEvent.execute(new PaymentEvent(database.getProductById(payment.productId), payment));
+                        Payment.update(payment);
+                        paymentAuthorizedEvent.execute(new PaymentEvent(Product.get(payment.productId), payment));
                     }
                     break;
                 }
                 case "customer.subscription.deleted": { // Recurring payments
                     Subscription subscription = (Subscription) stripeObject; // TODO check if this actually works
-                    List<Payment> payments = database.getPayments("stripe_subscription_id", subscription.getId());
+                    List<Payment> payments = Payment.get("stripeSubscriptionId = "+subscription.getId());
                     if (payments.isEmpty()) throw new WebHookValidationException(
                             "Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find payments with stripe_subscription_id '" + subscription.getId() + "' in local database).");
                     cancelPayments(payments);
@@ -910,7 +860,7 @@ public final class PayHook {
     }
 
     /**
-     * Sets {@link Payment#timestampCancelled} to now, {@link Payment#state} to cancelled and
+     * Sets {@link Payment#timestampCancelled} to now and
      * executes the {@link PayHook#paymentCancelledEvent}, for all the provided payments. <br>
      * If the payment is a subscription does an API-request to cancel it also at the {@link PaymentProcessor}.
      * @param payments must contain only payments that have the same {@link PaymentProcessor}, and the same {@link Payment#url}.
@@ -919,12 +869,12 @@ public final class PayHook {
      * @see PayHook#paymentCancelledEvent
      */
     public static void cancelPayments(List<Payment> payments) throws Exception {
-        Timestamp now = new Timestamp(System.currentTimeMillis());
+        long now = System.currentTimeMillis();
         Payment firstPayment = payments.get(0);
-        PaymentProcessor processor = firstPayment.paymentProcessor;
+        PaymentProcessor processor = firstPayment.getPaymentProcessor();
         for (Payment p : payments) {
-            if (p.paymentProcessor != processor)
-                throw new Exception("All provided payments must have the same payment processor! " + processor + "!=" + p.paymentProcessor);
+            if (p.getPaymentProcessor() != processor)
+                throw new Exception("All provided payments must have the same payment processor! " + processor + "!=" + p.getPaymentProcessor());
         }
         for (Payment payment : payments) { // Execute payment cancel events
             if (!payment.isCancelled()){
@@ -943,12 +893,11 @@ public final class PayHook {
                                 Objects.requireNonNull(firstPayment.stripeSubscriptionId))
                                 .cancel();
                     }
-                    else throw new IllegalArgumentException("Unknown payment processor: " + payment.paymentProcessor);
+                    else throw new IllegalArgumentException("Unknown payment processor: " + payment.getPaymentProcessor());
                     // TODO ADD NEW PAYMENT PROCESSOR
                 }
                 payment.timestampCancelled = now;
-                payment.state = Payment.State.CANCELLED;
-                paymentCancelledEvent.execute(new PaymentEvent(database.getProductById(payment.productId), payment));
+                paymentCancelledEvent.execute(new PaymentEvent(Product.get(payment.productId), payment));
             }
         }
     }
@@ -984,12 +933,12 @@ public final class PayHook {
      * {@link Payment#url}.
      */
     public static void refundPayments(List<Payment> payments) throws Exception {
-        Timestamp now = new Timestamp(System.currentTimeMillis());
+        long now = System.currentTimeMillis();
         Payment firstPayment = payments.get(0);
-        PaymentProcessor processor = firstPayment.paymentProcessor;
+        PaymentProcessor processor = firstPayment.getPaymentProcessor();
         for (Payment p : payments) {
-            if (p.paymentProcessor != processor)
-                throw new Exception("All provided payments must have the same payment processor! " + processor + "!=" + p.paymentProcessor);
+            if (p.getPaymentProcessor() != processor)
+                throw new Exception("All provided payments must have the same payment processor! " + processor + "!=" + p.getPaymentProcessor());
         }
         if (firstPayment.isRecurring()) { // SUBSCRIPTIONS
             if (firstPayment.isPayPalSupported()) {
@@ -1009,7 +958,7 @@ public final class PayHook {
                             .setPaymentIntent(firstPayment.stripePaymentIntentId)
                             .build());
                 }
-            } else throw new IllegalArgumentException("Unknown payment processor: " + firstPayment.paymentProcessor);
+            } else throw new IllegalArgumentException("Unknown payment processor: " + firstPayment.getPaymentProcessor());
             // TODO ADD NEW PAYMENT PROCESSOR
 
         } else { // ONE TIME PAYMENT AKA AN ORDER OF ONE OR MULTIPLE PRODUCTS
@@ -1037,21 +986,20 @@ public final class PayHook {
                         .setPaymentIntent(firstPayment.stripePaymentIntentId)
                         .build());
 
-            } else throw new IllegalArgumentException("Unknown payment processor: " + firstPayment.paymentProcessor);
+            } else throw new IllegalArgumentException("Unknown payment processor: " + firstPayment.getPaymentProcessor());
             // TODO ADD NEW PAYMENT PROCESSOR
 
-            for (Payment payment : payments) { // Execute payment created events for refunds
-                Payment refundPayment = new Payment(database.paymentsId.incrementAndGet(), payment.userId,
-                        Long.parseLong("-"+payment.charge), payment.currency,
-                        null, now,
-                        new Timestamp(now.getTime() + 3600000), // 1h
-                        now, null,
-                        payment.intervall,
-                        payment.productId, payment.productName, payment.productQuantity,
-                        payment.stripePaymentIntentId, payment.stripeSubscriptionId, payment.stripeChargeId,
-                        payment.paypalOrderId, payment.paypalSubscriptionId, payment.paypalCaptureId);
-                database.insertPayment(refundPayment);
-                Product product = database.getProductById(payment.productId);
+            for (Payment payment : payments) { // Create refund payments
+                Payment refundPayment = payment.clone();
+                refundPayment.id = Payment.create(payment.userId, payment.charge, payment.currency, payment.intervall)
+                        .id;
+                refundPayment.charge = Long.parseLong("-"+payment.charge);
+                refundPayment.timestampCreated = now;
+                refundPayment.timestampExpires = now + 3600000; // 1h
+                refundPayment.timestampAuthorized = now;
+                refundPayment.timestampCancelled = 0;
+                Payment.add(refundPayment);
+                Product product = Product.get(payment.productId);
                 paymentCreatedEvent.execute(new PaymentEvent(product, payment));
                 paymentAuthorizedEvent.execute(new PaymentEvent(product, payment));
             }

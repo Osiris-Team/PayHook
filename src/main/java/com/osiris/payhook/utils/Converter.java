@@ -47,14 +47,10 @@ public class Converter {
         paramsPrice.put("currency", product.currency);
         paramsPrice.put("product", product.stripeProductId);
         if (product.isRecurring()){
+            if(product.paymentIntervall == 0) throw new IllegalArgumentException("Payment intervall cannot be 0 if product is meant to have recurring payments!");
             Price.Recurring stripeRecurring = new Price.Recurring();
             stripeRecurring.setInterval("day");
-            if (product.isCustomBillingInterval()) stripeRecurring.setIntervalCount((long) product.customPaymentIntervall);
-            else if (product.isBillingInterval1Month()) stripeRecurring.setIntervalCount(30L);
-            else if (product.isBillingInterval3Months()) stripeRecurring.setIntervalCount(90L);
-            else if (product.isBillingInterval6Months()) stripeRecurring.setIntervalCount(180L);
-            else if (product.isBillingInterval12Months()) stripeRecurring.setIntervalCount(360L);
-            else throw new IllegalArgumentException("Unknown/Null billing intervall!");
+            stripeRecurring.setIntervalCount((long) product.paymentIntervall);
             paramsPrice.put("recurring", stripeRecurring);
         }
         return paramsPrice;
@@ -67,12 +63,8 @@ public class Converter {
         List<PaymentDefinition> paymentDefinitions = new ArrayList<>(1);
         PaymentDefinition paymentDefinition = new PaymentDefinition().setAmount(toPayPalCurrency(product)).setType("REGULAR");
         paymentDefinition.setFrequency("DAY");
-        if (product.isCustomBillingInterval()) paymentDefinition.setFrequencyInterval(""+product.customPaymentIntervall);
-        else if (product.isBillingInterval1Month()) paymentDefinition.setFrequencyInterval("30");
-        else if (product.isBillingInterval3Months()) paymentDefinition.setFrequencyInterval("90");
-        else if (product.isBillingInterval6Months()) paymentDefinition.setFrequencyInterval("180");
-        else if (product.isBillingInterval12Months()) paymentDefinition.setFrequencyInterval("360");
-        else throw new IllegalArgumentException("Unknown/Null billing intervall!");
+        if(product.paymentIntervall == 0) throw new IllegalArgumentException("Payment intervall cannot be 0 if product is meant to have recurring payments!");
+        paymentDefinition.setFrequencyInterval(""+product.paypalProductId);
 
         paymentDefinitions.add(paymentDefinition);
         plan.setPaymentDefinitions(paymentDefinitions);

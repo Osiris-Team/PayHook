@@ -1,148 +1,403 @@
 package com.osiris.payhook;
 
-import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
-
-import java.io.Serializable;
-import java.sql.Timestamp;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Represents a received or sent payment. <br>
- */
-public class Payment implements Serializable {
-    public final int id;
+public class Payment{
+    private static java.sql.Connection con;
+    private static java.util.concurrent.atomic.AtomicInteger idCounter = new java.util.concurrent.atomic.AtomicInteger(0);
+    static {
+        try{
+            con = java.sql.DriverManager.getConnection(Database.url, Database.username, Database.password);
+            try (Statement s = con.createStatement()) {
+                s.executeUpdate("CREATE TABLE IF NOT EXISTS `Payment` (id INT NOT NULL PRIMARY KEY)");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS id INT NOT NULL PRIMARY KEY");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS id INT NOT NULL PRIMARY KEY");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS userId TEXT(65532) NOT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS userId TEXT(65532) NOT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS charge BIGINT NOT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS charge BIGINT NOT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS currency CHAR(3) NOT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS currency CHAR(3) NOT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS intervall INT NOT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS intervall INT NOT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS url TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS url TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS productId INT DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS productId INT DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS productName TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS productName TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS productQuantity INT DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS productQuantity INT DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS timestampCreated BIGINT DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS timestampCreated BIGINT DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS timestampExpires BIGINT DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS timestampExpires BIGINT DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS timestampAuthorized BIGINT DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS timestampAuthorized BIGINT DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS timestampCancelled BIGINT DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS timestampCancelled BIGINT DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS stripePaymentIntentId TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS stripePaymentIntentId TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS stripeSubscriptionId TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS stripeSubscriptionId TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS stripeChargeId TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS stripeChargeId TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS paypalOrderId TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS paypalOrderId TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS paypalSubscriptionId TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS paypalSubscriptionId TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN IF NOT EXISTS paypalCaptureId TEXT(65532) DEFAULT NULL");
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY IF EXISTS paypalCaptureId TEXT(65532) DEFAULT NULL");
+            }
+            try (PreparedStatement ps = con.prepareStatement("SELECT id FROM `Payment` ORDER BY id DESC LIMIT 1")) {
+                ResultSet rs = ps.executeQuery();
+                if (rs.next()) idCounter.set(rs.getInt(1));
+            }
+        }
+        catch(Exception e){ throw new RuntimeException(e); }
+    }
+    private Payment(){}
     /**
-     * The entity that sends the money for this payment (usually the customer, buying your product). <br>
-     * Unique identifier provided by you, to be able to assign this payment to an entity/user. <br>
+     Use the static create method instead of this constructor,
+     if you plan to add this object to the database in the future, since
+     that method fetches and sets/reserves the {@link #id}.
      */
-    @NotNull
-    public final String userId;
+    public Payment (int id, String userId, long charge, String currency, int intervall){
+        this.id = id;this.userId = userId;this.charge = charge;this.currency = currency;this.intervall = intervall;
+    }
     /**
-     * If this payment was related to a {@link Product} returns its id, otherwise -1.
+     Use the static create method instead of this constructor,
+     if you plan to add this object to the database in the future, since
+     that method fetches and sets/reserves the {@link #id}.
      */
-    public final int productId;
+    public Payment (int id, String userId, long charge, String currency, int intervall, String url, int productId, String productName, int productQuantity, long timestampCreated, long timestampExpires, long timestampAuthorized, long timestampCancelled, String stripePaymentIntentId, String stripeSubscriptionId, String stripeChargeId, String paypalOrderId, String paypalSubscriptionId, String paypalCaptureId){
+        this.id = id;this.userId = userId;this.charge = charge;this.currency = currency;this.intervall = intervall;this.url = url;this.productId = productId;this.productName = productName;this.productQuantity = productQuantity;this.timestampCreated = timestampCreated;this.timestampExpires = timestampExpires;this.timestampAuthorized = timestampAuthorized;this.timestampCancelled = timestampCancelled;this.stripePaymentIntentId = stripePaymentIntentId;this.stripeSubscriptionId = stripeSubscriptionId;this.stripeChargeId = stripeChargeId;this.paypalOrderId = paypalOrderId;this.paypalSubscriptionId = paypalSubscriptionId;this.paypalCaptureId = paypalCaptureId;
+    }
     /**
-     * The amount of money in the smallest currency. Example: 100 = 1€. <br>
-     * Negative amount if the money was sent (for example in a refund), positive when received. <br>
+     Database field/value. Not null. <br>
+     */
+    public int id;
+    /**
+     Database field/value. Not null. <br>
+     */
+    public String userId;
+    /**
+     Database field/value. Not null. <br>
      */
     public long charge;
     /**
-     * The <a href="https://de.wikipedia.org/wiki/ISO_4217">ISO_4217</a> currency code.
+     Database field/value. Not null. <br>
      */
-    @NotNull
     public String currency;
     /**
-     * Redirect the user to this url, to authorize/complete the {@link Payment}.
+     Database field/value. Not null. <br>
      */
-    @Nullable
+    public int intervall;
+    /**
+     Database field/value. <br>
+     */
     public String url;
-    @NotNull
-    public Payment.Intervall intervall;
-    @NotNull
-    public State state;
     /**
-     * Gets set at {@link Payment} creation.
-     *
-     * @see PayHook#paymentCreatedEvent
+     Database field/value. <br>
      */
-    @Nullable
-    public Timestamp timestampCreated;
+    public int productId;
     /**
-     * Gets set at {@link Payment} creation or at authorization.
-     * The {@link Payment#url} is only valid for a certain time period, which
-     * can be different for each {@link PaymentProcessor}.
-     * This timestamp is calculated by adding that maximum time period to the current time. <br>
-     * If this is a recurring payment and not the first payment, the timestamp is calculated by adding the {@link Intervall} time
-     * to the {@link #timestampAuthorized} time.
-     * TODO how to know if this is the first payment? By checking if there is a payment with the same subscription id already in the db.
+     Database field/value. <br>
      */
-    @Nullable
-    public Timestamp timestampExpires;
-    /**
-     * Gets set once this {@link Payment} was completed/authorized.
-     *
-     * @see PayHook#paymentAuthorizedEvent
-     */
-    @Nullable
-    public Timestamp timestampAuthorized;
-    /**
-     * Gets set once this {@link Payment} was cancelled.
-     *
-     * @see PayHook#paymentCancelledEvent
-     */
-    @Nullable
-    public Timestamp timestampCancelled;
-    /**
-     * If this payment was related to a {@link Product} returns its name, otherwise null.
-     */
-    @Nullable
     public String productName;
     /**
-     * The user can buy the same {@link Product} twice for example, then
-     * the {@link #productQuantity} would be 2.
+     Database field/value. <br>
      */
     public int productQuantity;
-
-    // Stripe specific stuff:
-    @Nullable
+    /**
+     Database field/value. <br>
+     */
+    public long timestampCreated;
+    /**
+     Database field/value. <br>
+     */
+    public long timestampExpires;
+    /**
+     Database field/value. <br>
+     */
+    public long timestampAuthorized;
+    /**
+     Database field/value. <br>
+     */
+    public long timestampCancelled;
+    /**
+     Database field/value. <br>
+     */
     public String stripePaymentIntentId;
-    @Nullable
+    /**
+     Database field/value. <br>
+     */
     public String stripeSubscriptionId;
-    @Nullable
+    /**
+     Database field/value. <br>
+     */
     public String stripeChargeId;
-
-    // PayPal specific stuff:
-    @Nullable
+    /**
+     Database field/value. <br>
+     */
     public String paypalOrderId;
-    @Nullable
+    /**
+     Database field/value. <br>
+     */
     public String paypalSubscriptionId;
-    @Nullable
+    /**
+     Database field/value. <br>
+     */
     public String paypalCaptureId;
-
-    // Not stored inside the database:
-    public PaymentProcessor paymentProcessor;
-
-    public Payment(int id, @NotNull String userId, long charge, @NotNull String currency, @Nullable String url,
-                   @Nullable Timestamp timestampCreated,
-                   @Nullable Timestamp timestampExpires, @Nullable Timestamp timestampAuthorized, @Nullable Timestamp timestampCancelled,
-                   @NotNull Payment.Intervall intervall, int productId, @Nullable String productName,
-                   int productQuantity, @Nullable String stripePaymentIntentId,
-                   @Nullable String stripeSubscriptionId, @Nullable String stripeChargeId,
-                   @Nullable String paypalOrderId, @Nullable String paypalSubscriptionId, @Nullable String paypalCaptureId) {
-        this.id = id;
-        this.userId = userId;
-        this.charge = charge;
-        this.currency = currency;
-        this.url = url;
-        this.timestampCreated = timestampCreated;
-        this.timestampExpires = timestampExpires;
-        this.timestampAuthorized = timestampAuthorized;
-        this.timestampCancelled = timestampCancelled;
-        this.intervall = intervall;
-        this.productId = productId;
-        this.productName = productName;
-        this.productQuantity = productQuantity;
-        this.stripePaymentIntentId = stripePaymentIntentId;
-        this.stripeSubscriptionId = stripeSubscriptionId;
-        this.stripeChargeId = stripeChargeId;
-        this.paypalOrderId = paypalOrderId;
-        this.paypalSubscriptionId = paypalSubscriptionId;
-        this.paypalCaptureId = paypalCaptureId;
-
-        this.paymentProcessor = getPaymentProcessor();
-        this.state = getState();
+    /**
+     Increments the id and sets it for this object (basically reserves a space in the database).
+     @return object with latest id. Should be added to the database next by you.
+     */
+    public static Payment create( String userId, long charge, String currency, int intervall) {
+        int id = idCounter.incrementAndGet();
+        Payment obj = new Payment(id, userId, charge, currency, intervall);
+        return obj;
     }
 
-    private State getState() {
-        State state = State.CREATED;
-        if (timestampAuthorized != null) state = State.AUTHORIZED;
-        if (timestampCancelled != null) state = State.CANCELLED;
-        return state;
+    public static Payment create( String userId, long charge, String currency, int intervall, String url, int productId, String productName, int productQuantity, long timestampCreated, long timestampExpires, long timestampAuthorized, long timestampCancelled, String stripePaymentIntentId, String stripeSubscriptionId, String stripeChargeId, String paypalOrderId, String paypalSubscriptionId, String paypalCaptureId) {
+        int id = idCounter.incrementAndGet();
+        Payment obj = new Payment();
+        obj.id=id; obj.userId=userId; obj.charge=charge; obj.currency=currency; obj.intervall=intervall; obj.url=url; obj.productId=productId; obj.productName=productName; obj.productQuantity=productQuantity; obj.timestampCreated=timestampCreated; obj.timestampExpires=timestampExpires; obj.timestampAuthorized=timestampAuthorized; obj.timestampCancelled=timestampCancelled; obj.stripePaymentIntentId=stripePaymentIntentId; obj.stripeSubscriptionId=stripeSubscriptionId; obj.stripeChargeId=stripeChargeId; obj.paypalOrderId=paypalOrderId; obj.paypalSubscriptionId=paypalSubscriptionId; obj.paypalCaptureId=paypalCaptureId;
+        return obj;
     }
 
-    private PaymentProcessor getPaymentProcessor() {
+    /**
+     @return a list containing all objects in this table.
+     */
+    public static List<Payment> get() throws Exception {return get(null);}
+    /**
+     @return object with the provided id.
+     @throws Exception on SQL issues, or if there is no object with the provided id in this table.
+     */
+    public static Payment get(int id) throws Exception {
+        return get("id = "+id).get(0);
+    }
+    /**
+     @return a list containing only objects that match the provided SQL WHERE statement.
+     if that statement is null, returns all the contents of this table.
+     */
+    public static List<Payment> get(String where) throws Exception {
+        List<Payment> list = new ArrayList<>();
+        try (PreparedStatement ps = con.prepareStatement(
+                "SELECT id,userId,charge,currency,intervall,url,productId,productName,productQuantity,timestampCreated,timestampExpires,timestampAuthorized,timestampCancelled,stripePaymentIntentId,stripeSubscriptionId,stripeChargeId,paypalOrderId,paypalSubscriptionId,paypalCaptureId" +
+                        " FROM `Payment`" +
+                        (where != null ? ("WHERE "+where) : ""))) {
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                Payment obj = new Payment();
+                list.add(obj);
+                obj.id = rs.getInt(1);
+                obj.userId = rs.getString(2);
+                obj.charge = rs.getLong(3);
+                obj.currency = rs.getString(4);
+                obj.intervall = rs.getInt(5);
+                obj.url = rs.getString(6);
+                obj.productId = rs.getInt(7);
+                obj.productName = rs.getString(8);
+                obj.productQuantity = rs.getInt(9);
+                obj.timestampCreated = rs.getLong(10);
+                obj.timestampExpires = rs.getLong(11);
+                obj.timestampAuthorized = rs.getLong(12);
+                obj.timestampCancelled = rs.getLong(13);
+                obj.stripePaymentIntentId = rs.getString(14);
+                obj.stripeSubscriptionId = rs.getString(15);
+                obj.stripeChargeId = rs.getString(16);
+                obj.paypalOrderId = rs.getString(17);
+                obj.paypalSubscriptionId = rs.getString(18);
+                obj.paypalCaptureId = rs.getString(19);
+            }
+        }
+        return list;
+    }
+
+    /**
+     Searches the provided object in the database (by its id),
+     and updates all its fields.
+     @throws Exception when failed to find by id.
+     */
+    public static void update(Payment obj) throws Exception {
+        try (PreparedStatement ps = con.prepareStatement(
+                "UPDATE `Payment` SET id=?,userId=?,charge=?,currency=?,intervall=?,url=?,productId=?,productName=?,productQuantity=?,timestampCreated=?,timestampExpires=?,timestampAuthorized=?,timestampCancelled=?,stripePaymentIntentId=?,stripeSubscriptionId=?,stripeChargeId=?,paypalOrderId=?,paypalSubscriptionId=?,paypalCaptureId=?")) {
+            ps.setInt(1, obj.id);
+            ps.setString(2, obj.userId);
+            ps.setLong(3, obj.charge);
+            ps.setString(4, obj.currency);
+            ps.setInt(5, obj.intervall);
+            ps.setString(6, obj.url);
+            ps.setInt(7, obj.productId);
+            ps.setString(8, obj.productName);
+            ps.setInt(9, obj.productQuantity);
+            ps.setLong(10, obj.timestampCreated);
+            ps.setLong(11, obj.timestampExpires);
+            ps.setLong(12, obj.timestampAuthorized);
+            ps.setLong(13, obj.timestampCancelled);
+            ps.setString(14, obj.stripePaymentIntentId);
+            ps.setString(15, obj.stripeSubscriptionId);
+            ps.setString(16, obj.stripeChargeId);
+            ps.setString(17, obj.paypalOrderId);
+            ps.setString(18, obj.paypalSubscriptionId);
+            ps.setString(19, obj.paypalCaptureId);
+            ps.executeUpdate();
+        }
+    }
+
+    /**
+     Adds the provided object to the database (note that the id is not checked for duplicates).
+     */
+    public static void add(Payment obj) throws Exception {
+        try (PreparedStatement ps = con.prepareStatement(
+                "INSERT INTO `Payment` (id,userId,charge,currency,intervall,url,productId,productName,productQuantity,timestampCreated,timestampExpires,timestampAuthorized,timestampCancelled,stripePaymentIntentId,stripeSubscriptionId,stripeChargeId,paypalOrderId,paypalSubscriptionId,paypalCaptureId) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")) {
+            ps.setInt(1, obj.id);
+            ps.setString(2, obj.userId);
+            ps.setLong(3, obj.charge);
+            ps.setString(4, obj.currency);
+            ps.setInt(5, obj.intervall);
+            ps.setString(6, obj.url);
+            ps.setInt(7, obj.productId);
+            ps.setString(8, obj.productName);
+            ps.setInt(9, obj.productQuantity);
+            ps.setLong(10, obj.timestampCreated);
+            ps.setLong(11, obj.timestampExpires);
+            ps.setLong(12, obj.timestampAuthorized);
+            ps.setLong(13, obj.timestampCancelled);
+            ps.setString(14, obj.stripePaymentIntentId);
+            ps.setString(15, obj.stripeSubscriptionId);
+            ps.setString(16, obj.stripeChargeId);
+            ps.setString(17, obj.paypalOrderId);
+            ps.setString(18, obj.paypalSubscriptionId);
+            ps.setString(19, obj.paypalCaptureId);
+            ps.executeUpdate();
+        }
+    }
+
+    /**
+     Deletes the provided object from the database.
+     */
+    public static void remove(Payment obj) throws Exception {
+        remove("id = "+obj.id);
+    }
+    /**
+     Deletes the objects that are found by the provided SQL WHERE statement, from the database.
+     */
+    public static void remove(String where) throws Exception {
+        java.util.Objects.requireNonNull(where);
+        try (PreparedStatement ps = con.prepareStatement(
+                "DELETE FROM `Payment` WHERE "+where)) {
+            ps.executeUpdate();
+        }
+    }
+
+    public Payment clone(){
+        return new Payment(this.id,this.userId,this.charge,this.currency,this.intervall,this.url,this.productId,this.productName,this.productQuantity,this.timestampCreated,this.timestampExpires,this.timestampAuthorized,this.timestampCancelled,this.stripePaymentIntentId,this.stripeSubscriptionId,this.stripeChargeId,this.paypalOrderId,this.paypalSubscriptionId,this.paypalCaptureId);
+    }
+
+    /*
+    ADDITIONAL CODE:
+     */
+
+    /**
+     * List of payments that haven't been authorized or cancelled (or expired) yet and are in the future.
+     * @return list of payments, where {@link Payment#timestampAuthorized} is null, and
+     * {@link Payment#timestampCancelled} is null, and {@link Payment#timestampCreated} is bigger than now.
+     */
+    public static List<Payment> getPendingFuturePayments() throws Exception {
+        return getPendingFuturePayments(null);
+    }
+
+    /**
+     * List of payments that haven't been authorized or cancelled (or expired) yet and are in the future.
+     * @return list of payments, where {@link Payment#timestampAuthorized} is null, and
+     * {@link Payment#timestampCancelled} is null, and {@link Payment#timestampCreated} is bigger than now.
+     */
+    public static List<Payment> getPendingFuturePayments(String where) throws Exception {
+        return get("timestampAuthorized = 0 AND timestampCancelled = 0 AND timestampCreated > "+System.currentTimeMillis()+
+                (where != null ? " AND "+where : ""));
+    }
+
+
+    /**
+     * List of payments that haven't been authorized or cancelled (or expired) yet.
+     * @return list of payments, where {@link Payment#timestampAuthorized} is null, and
+     * {@link Payment#timestampCancelled} is null, and {@link Payment#timestampCreated} is smaller than now and {@link Payment#timestampExpires} is bigger than now.
+     */
+    public static List<Payment> getPendingPayments() throws Exception {
+        return getPendingPayments(null);
+    }
+
+    /**
+     * List of payments that haven't been authorized or cancelled (or expired) yet.
+     * @return list of payments, where {@link Payment#timestampAuthorized} is null, and
+     * {@link Payment#timestampCancelled} is null, and {@link Payment#timestampCreated} is smaller than now and {@link Payment#timestampExpires} is bigger than now.
+     */
+    public static List<Payment> getPendingPayments(String where) throws Exception {
+        long now = System.currentTimeMillis();
+        return get("timestampAuthorized = 0 AND timestampCancelled = 0 AND timestampCreated < "+now
+                +" AND timestampCreated > "+ now + (where != null ? " AND "+where : ""));
+    }
+
+    /**
+     * List of payments that have been authorized/completed/paid.
+     * @return list of payments, where {@link Payment#timestampAuthorized} is not null.
+     * @see PayHook#paymentAuthorizedEvent
+     */
+    public static List<Payment> getAuthorizedPayments() throws Exception {
+        return getAuthorizedPayments(null);
+    }
+
+    /**
+     * List of payments that have been authorized/completed/paid.
+     * @return list of payments, where {@link Payment#timestampAuthorized} is not null.
+     * @see PayHook#paymentAuthorizedEvent
+     */
+    public static List<Payment> getAuthorizedPayments(String where) throws Exception {
+        return get("timestampAuthorized != 0"+(where != null ? " AND "+where : ""));
+    }
+
+    /**
+     * List of payments that have been cancelled (or expired).
+     * @return list of payments, where {@link Payment#timestampCancelled} is not null.
+     * @see PayHook#paymentCancelledEvent
+     */
+    public static List<Payment> getCancelledPayments() throws Exception {
+        return getCancelledPayments(null);
+    }
+
+    /**
+     * List of payments that have been cancelled (or expired).
+     * @return list of payments, where {@link Payment#timestampCancelled} is not null.
+     * @see PayHook#paymentCancelledEvent
+     */
+    public static List<Payment> getCancelledPayments(String where) throws Exception {
+        return get("timestampCancelled != 0"+(where != null ? " AND "+where : ""));
+    }
+
+    /**
+     * List of payments that have been refunded.
+     * @return list of payments, where {@link Payment#charge} is smaller than 0.
+     */
+    public static List<Payment> getRefundedPayments() throws Exception {
+        return getRefundedPayments(null);
+    }
+
+    /**
+     * List of payments that have been refunded.
+     * @return list of payments, where {@link Payment#charge} is smaller than 0.
+     */
+    public static List<Payment> getRefundedPayments(String where) throws Exception {
+        return get("charge < 0"+(where != null ? " AND "+where : ""));
+    }
+
+    public PaymentProcessor getPaymentProcessor() {
         if (isPayPalSupported()) return PaymentProcessor.PAYPAL;
         else if (isStripeSupported()) return PaymentProcessor.STRIPE;
         else return null;
@@ -158,11 +413,10 @@ public class Payment implements Serializable {
                 ", currency='" + currency + '\'' +
                 ", url='" + url + '\'' +
                 ", intervall=" + intervall +
-                ", state=" + state +
                 ", productId=" + productId +
                 ", productName='" + productName + '\'' +
                 ", productQuantity=" + productQuantity +
-                ", paymentProcessor=" + paymentProcessor +
+                ", paymentProcessor=" + getPaymentProcessor() +
                 '}';
     }
 
@@ -175,6 +429,7 @@ public class Payment implements Serializable {
     }
 
     public long getUrlTimeoutMs() {
+        PaymentProcessor paymentProcessor = getPaymentProcessor();
         if (paymentProcessor == PaymentProcessor.PAYPAL) return PayHook.paypalUrlTimeoutMs;
         else if (paymentProcessor == PaymentProcessor.STRIPE) return PayHook.stripeUrlTimeoutMs;
         else throw new IllegalArgumentException("Unknown/Invalid payment processor: " + paymentProcessor);
@@ -191,35 +446,35 @@ public class Payment implements Serializable {
      * that the subscription was cancelled.
      * @throws NullPointerException when the future {@link Payment#timestampCreated} is null.
      */
-    public long getTimeLeftMs() {
+    public long getMsLeftUntilNextPayment() throws Exception {
         if (!isRecurring()) return -1;
-        long msNow = System.currentTimeMillis();
-        List<Payment> payments;
+        long now = System.currentTimeMillis();
+        List<Payment> futurePayments;
         if (isPayPalSupported())
-            payments = PayHook.database.getPendingFuturePayments("paypal_subscription_id", paypalSubscriptionId);
+            futurePayments = Payment.getPendingFuturePayments("paypalSubscriptionId = "+paypalSubscriptionId);
         else if (isStripeSupported())
-            payments = PayHook.database.getPendingFuturePayments("stripe_subscription_id", stripeSubscriptionId);
-        else throw new IllegalArgumentException("Unknown/Invalid payment processor: " + paymentProcessor);
+            futurePayments = Payment.getPendingFuturePayments("stripeSubscriptionId = "+stripeSubscriptionId);
+        else throw new IllegalArgumentException("Unknown/Invalid payment processor: " + getPaymentProcessor());
         // TODO ADD NEW PROCESSORS
-        if (payments.isEmpty()) return -1;
-        return Objects.requireNonNull(payments.get(0).timestampCreated).getTime() - msNow;
+        if (futurePayments.isEmpty()) return -1;
+        return Objects.requireNonNull(futurePayments.get(0)).timestampCreated - now;
     }
 
 
     public boolean isPending() {
-        return timestampAuthorized == null && timestampCancelled == null;
+        return timestampAuthorized == 0 && timestampCancelled == 0;
     }
 
     public boolean isRecurring() {
-        return intervall != Intervall.NONE;
+        return intervall != 0;
     }
 
     public boolean isCancelled() {
-        return timestampCancelled != null;
+        return timestampCancelled != 0;
     }
 
     public boolean isAuthorized(){
-        return timestampAuthorized != null;
+        return timestampAuthorized != 0;
     }
 
     public boolean isRefund(){
@@ -230,81 +485,37 @@ public class Payment implements Serializable {
         return charge == 0;
     }
 
-    public enum State {
-        /**
-         * The initial (default) state of a payment directly after creating it.
-         *
-         * @see PayHook#createPayment(String, Product, PaymentProcessor, String, String)
-         */
-        CREATED(0),
-        /**
-         * When the user visited the {@link Payment#url}
-         * and authorized/completed the payment.
-         *
-         * @see PayHook#paymentAuthorizedEvent
-         */
-        AUTHORIZED(1),
-        /**
-         * When a payment was created/expected, but
-         * the user didn't complete/authorize it in time.
-         *
-         * @see PayHook#paymentCancelledEvent
-         */
-        CANCELLED(2);
-
-        public final int state;
-
-        State(int state) {
-            this.state = state;
-        }
-    }
-
-    public enum Intervall {
+    /**
+     * Helper class to set the payments billing intervall in days.
+     */
+    public static class Intervall {
         /**
          * One time payment. Type 0.
          */
-        NONE(0),
+        public static final int NONE = 0;
         /**
          * Recurring payment every month (exactly 30 days). Type 1.
          */
-        DAYS_30(1),
+        public static final int MONTHLY = 30;
         /**
          * Recurring payment every 3 months (exactly 90 days). Type 2.
          */
-        DAYS_90(2),
+        public static final int TRI_MONTHLY = 90;
         /**
          * Recurring payment every 6 months (exactly 180 days). Type 3.
          */
-        DAYS_180(3),
+        public static final int HALF_YEARLY = 180;
         /**
          * Recurring payment every 12 months (exactly 360 days). Type 4.
          */
-        DAYS_360(4),
-        /**
-         * Recurring payment with a custom intervall. Type 5.
-         */
-        DAYS_CUSTOM(5);
+        public static final int YEARLY = 360;
 
-        public final int type;
-
-        Intervall(int type) {
-            this.type = type;
+        public static long toHours(long days) {
+            return days * 24;
         }
 
-        public long toDays() {
-            if (type == 1) return 30;
-            else if (type == 2) return 90;
-            else if (type == 3) return 180;
-            else if (type == 4) return 360;
-            return 0;
-        }
-
-        public long toHours() {
-            return toDays() * 24;
-        }
-
-        public long toMilliseconds() {
-            return toHours() * 3600000;
+        public static long toMilliseconds(long days) {
+            return toHours(days) * 3600000;
         }
     }
 }

@@ -27,7 +27,6 @@ import com.paypal.orders.OrdersCaptureRequest;
 import com.paypal.payments.*;
 
 import java.io.IOException;
-import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -158,7 +157,7 @@ public class MyPayPal {
     /**
      * Can only be done in the first 14 days, thus the first transaction is fetched and a refund for that is tried.
      */
-    public MyPayPal refundSubscription(PayPalHttpClient client, String subscriptionId, Timestamp subscriptionStart,
+    public MyPayPal refundSubscription(PayPalHttpClient client, String subscriptionId, long subscriptionStart,
                                        Money amount, String note) throws IOException, HttpErrorException {
         JsonArray transactions = getSubscriptionTransactions(subscriptionId, subscriptionStart);
         refundPayment(client, transactions.get(0).getAsJsonObject().get("id").getAsString(), // transactionId
@@ -297,9 +296,9 @@ public class MyPayPal {
         return response;
     }
 
-    public JsonArray getSubscriptionTransactions(String subscriptionId, Timestamp subscriptionStart) throws IOException, HttpErrorException {
+    public JsonArray getSubscriptionTransactions(String subscriptionId, long subscriptionStart) throws IOException, HttpErrorException {
         Date endTime = new Date(System.currentTimeMillis());
-        Date startTime = new Date(subscriptionStart.getTime() - (24 * 3600000)); // Minus 24h to make sure there is no UTC local time interfering
+        Date startTime = new Date(subscriptionStart - (24 * 3600000)); // Minus 24h to make sure there is no UTC local time interfering
         String pattern = "yyyy-MM-dd'T'HH:mm:ss'.000Z'";
         DateFormat df = new SimpleDateFormat(pattern);
         String formattedEndTime = df.format(endTime);

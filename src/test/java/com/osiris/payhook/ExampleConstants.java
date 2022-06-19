@@ -1,13 +1,5 @@
 package com.osiris.payhook;
 
-import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
-import com.osiris.payhook.exceptions.InvalidChangeException;
-import com.paypal.base.rest.PayPalRESTException;
-import com.stripe.exception.StripeException;
-
-import java.io.IOException;
-import java.sql.SQLException;
-
 public class ExampleConstants {
     public static Product pCoolCookie;
     public static Product pCoolSubscription;
@@ -26,8 +18,8 @@ public class ExampleConstants {
             PayHook.initBraintree("merchant_id","public_key", "private_key", "https://my-shop.com/braintree-hook");
             PayHook.initStripe("secret_key", "https://my-shop.com/stripe-hook");
 
-            pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE, 0);
-            pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Intervall.DAYS_30, 0);
+            pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE);
+            pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Intervall.MONTHLY);
 
             PayHook.paymentAuthorizedEvent.addAction((action, event) -> {
                 // Backend business logic in here. Gets executed every time.
@@ -56,7 +48,7 @@ public class ExampleConstants {
                 return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
             }, Exception::printStackTrace);
 
-        }  catch (SQLException | StripeException | IOException | HttpErrorException | PayPalRESTException | InvalidChangeException e) {
+        }  catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
