@@ -3,7 +3,7 @@
 Working with payments in Java is painful. If you want to expand to other
 third-party payment processors it's hell, that's why PayHook exists.
 ```java
-Payment payment = payHook.createPayment("user_id", product, PaymentProcessor.PAYPAL, "success_url", "cancel_url");
+Payment payment = PayHook.createPayment("user_id", product, PaymentProcessor.PAYPAL, "success_url", "cancel_url");
 payHook.onPayment(payment.paymentId, event -> {
     // Executed when the payment was received.
 });
@@ -30,11 +30,12 @@ since all payments are at one place and not scattered over each payment processo
 - Commandline tool to extract relevant data from the database and modify it.
 
 ### Todo
-- TODO Switch from Paypal to Braintree, due to the mess of PayPals API
-- Functionality to send payments. Currently, it's only possible to receive payments.
+- Make webhook requirement optional by doing periodic checks.
+- Functionality to send payments. Currently, it's only possible to receive payments from customers.
 - Add support for real goods. Currently, the focus is on digital goods and services,
 which means that billing addresses are ignored.
 - Add support for more payment processors.
+- Run as server (payments-server) since currently this software is only meant for Java developers to integrate into their existing projects.
 
 ### Installation
 
@@ -180,7 +181,7 @@ public class ExampleConstants {
 
 Depending on your initialised payment processors, you have to
 create links that listen for their webhook events too. For example like:
-`https://example.com/paypal-webhook` or `https://example.com/stripe-webhook`.
+`https://your-store.com/paypal-hook` or `https://your-store.com/stripe-hook`.
 I'm planing on making PayHook-Spring version that handles all that too.
 Here is an example on how to do that with Spring:
 
