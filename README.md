@@ -1,7 +1,7 @@
 # PayHook [![](https://jitpack.io/v/Osiris-Team/PayHook.svg)](https://jitpack.io/#Osiris-Team/PayHook)
 A Java-API for validating PayPals Webhook events/notifications.
 
-## Major changes coming soon
+## Major changes coming soon! Stripe & PayPal unified Java-API.
 I am rewriting this Java lib from the ground up (for a while now).
 My aim is to create a library that handles checkouts/payments/subscriptions for multiple payment processors (PayPal & Stripe for now)
 and the storage of the payment related data arising from it, in SQL databases.

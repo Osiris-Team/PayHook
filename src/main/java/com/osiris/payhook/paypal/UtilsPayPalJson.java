@@ -27,7 +27,7 @@ public class UtilsPayPalJson {
             con = (HttpURLConnection) new URL(url).openConnection();
             con.addRequestProperty("User-Agent", "PayHook");
             con.addRequestProperty("Content-Type", "application/json");
-            con.addRequestProperty("Authorization", "Basic "+ myPayPal.getCredBase64());
+            con.addRequestProperty("Authorization", "Basic " + myPayPal.getCredBase64());
             con.addRequestProperty("return", "representation");
             con.setConnectTimeout(1000);
             con.setRequestMethod(requestMethod);
@@ -35,7 +35,7 @@ public class UtilsPayPalJson {
             con.setDoInput(true);
             con.connect();
 
-            if(elementToSend != null){
+            if (elementToSend != null) {
                 OutputStream out = con.getOutputStream();
                 try (OutputStreamWriter outWrt = new OutputStreamWriter(out)) {
                     try (BufferedReader inr = new BufferedReader(new StringReader(new Gson().toJson(elementToSend)))) {
@@ -61,7 +61,7 @@ public class UtilsPayPalJson {
                     try (InputStreamReader inr = new InputStreamReader(in)) {
                         response = JsonParser.parseReader(inr);
                     }
-                throw new HttpErrorException(code, null, "\nurl: "+url+" \nmessage: "+con.getResponseMessage() + "\njson: \n"  + new GsonBuilder().setPrettyPrinting().create().toJson(response));
+                throw new HttpErrorException(code, null, "\nurl: " + url + " \nmessage: " + con.getResponseMessage() + "\njson: \n" + new GsonBuilder().setPrettyPrinting().create().toJson(response));
             }
         } catch (IOException | HttpErrorException e) {
             if (con != null) con.disconnect();

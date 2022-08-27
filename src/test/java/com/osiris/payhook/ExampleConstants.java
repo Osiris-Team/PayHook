@@ -5,7 +5,7 @@ public class ExampleConstants {
     public static Product pCoolSubscription;
 
     // Insert the below somewhere where it gets ran once.
-    // For example in the static constructor of a Constants class of yours, like shown here.
+    // For example in the static constructor of a Constants class of yours, like shown here, or in your main method.
     static {
         try {
             PayHook.init(
@@ -21,30 +21,29 @@ public class ExampleConstants {
             pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE);
             pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Intervall.MONTHLY);
 
-            PayHook.paymentAuthorizedEvent.addAction((action, event) -> {
-                // Backend business logic in here. Gets executed every time.
+            PayHook.onPaymentAuthorized.addAction(event -> {
+                // Additional backend business logic for all payments in here.
+                // Gets executed every time a payment is authorized/completed.
+                // If something goes wrong in here a RuntimeException is thrown.
                 Product product = event.product;
                 Payment payment = event.payment;
-            }, e -> {
-                e.printStackTrace();
             });
 
-            PayHook.paymentCancelledEvent.addAction((action, event) -> {
-                // Backend business logic in here. Gets executed every time.
+            PayHook.onPaymentCancelled.addAction(event -> {
+                // Additional backend business logic for all payments in here.
+                // Gets executed every time a payment was cancelled.
+                // If something goes wrong in here a RuntimeException is thrown.
                 Product product = event.product;
                 Payment payment = event.payment;
-            }, e -> {
-                e.printStackTrace();
             });
 
             // The cleaner thread is only needed
-            // to remove the added actions from further below,
-            // since those may not get executed once.
-            // Remove them after 6 hours
-            PayHook.paymentAuthorizedEvent.initCleaner(3600000, obj -> { // Check every hour
+            // to remove the added actions from further below, since those may not get executed once.
+            // Remove them after 6-7 hours.
+            PayHook.onPaymentAuthorized.initCleaner(3600000, obj -> { // Check every hour
                 return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
             }, Exception::printStackTrace);
-            PayHook.paymentCancelledEvent.initCleaner(3600000, obj -> { // Check every hour
+            PayHook.onPaymentCancelled.initCleaner(3600000, obj -> { // Check every hour
                 return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
             }, Exception::printStackTrace);
 
@@ -57,9 +56,10 @@ public class ExampleConstants {
      * This can be anywhere in your application.
      */
     void onBuyBtnClick() throws Exception {
-        Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.BRAINTREE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
+        Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
         // Forward your user to payment.url
-        PayHook.paymentAuthorizedEvent.addAction((action, event) -> {
+        // to complete/authorize the payment here...
+        PayHook.onPaymentAuthorized.addAction((action, event) -> {
             if (event.payment.id == payment.id) {
                 action.remove(); // To make sure it only gets executed once, for this payment.
                 Product product = event.product;
@@ -70,7 +70,7 @@ public class ExampleConstants {
             e.printStackTrace();
         }).object = System.currentTimeMillis();
 
-        PayHook.paymentCancelledEvent.addAction((action, event) -> {
+        PayHook.onPaymentCancelled.addAction((action, event) -> {
             if (event.payment.id == payment.id) {
                 action.remove(); // To make sure it only gets executed once, for this payment.
                 Product product = event.product;
@@ -88,7 +88,7 @@ public class ExampleConstants {
     void onAnotherBuyBtnClick() throws Exception {
         Payment payment = PayHook.createPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
         // Forward your user to payment.url
-        PayHook.paymentAuthorizedEvent.addAction((action, event) -> {
+        PayHook.onPaymentAuthorized.addAction((action, event) -> {
             if (event.payment.id == payment.id) {
                 action.remove(); // To make sure it only gets executed once, for this payment.
                 Product product = event.product;
@@ -99,7 +99,7 @@ public class ExampleConstants {
             e.printStackTrace();
         }).object = System.currentTimeMillis();
 
-        PayHook.paymentCancelledEvent.addAction((action, event) -> {
+        PayHook.onPaymentCancelled.addAction((action, event) -> {
             if (event.payment.id == payment.id) {
                 action.remove(); // To make sure it only gets executed once, for this payment.
                 Product product = event.product;

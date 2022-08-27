@@ -50,7 +50,7 @@ public final class PayHook {
      * This happens for example when the user goes to {@link Payment#url} and completes the steps, <br>
      * or when an automatic payment happens on an already running subscription.
      */
-    public static final com.osiris.events.Event<PaymentEvent> paymentAuthorizedEvent = new com.osiris.events.Event<>();
+    public static final com.osiris.events.Event<PaymentEvent> onPaymentAuthorized = new com.osiris.events.Event<>();
     /**
      * Actions for this event are executed,
      * when a payment was created, but never actually paid (authorized)
@@ -58,7 +58,7 @@ public final class PayHook {
      * a webhook notification was received that states a missed payment on an already running subscription,
      * or that the subscription was cancelled/refunded, or that a product was refunded. <br>
      */
-    public static final com.osiris.events.Event<PaymentEvent> paymentCancelledEvent = new com.osiris.events.Event<>();
+    public static final com.osiris.events.Event<PaymentEvent> onPaymentCancelled = new com.osiris.events.Event<>();
     /**
      * How long is a stripe payment url valid?
      * It is valid as long as the stripe session is valid.
@@ -110,7 +110,7 @@ public final class PayHook {
      * Additional time in milliseconds that is given to the user (default 1 day),
      * to pay a recurring payment, to prevent direct expiration of the subscription.
      * Example: Subscription runs for 30 days and would expire directly at the end of that day
-     * resulting in a {@link #paymentCancelledEvent}, if the payment processor takes a little longer
+     * resulting in a {@link #onPaymentCancelled}, if the payment processor takes a little longer
      * to send the payment for the next 30 days. Thus, 1 additional day (default) is given to receive the payment
      * for the next 30 days.
      */
@@ -167,7 +167,7 @@ public final class PayHook {
                         if (now > pendingPayment.timestampExpires) {
                             pendingPayment.timestampCancelled = now;
                             Payment.update(pendingPayment);
-                            paymentCancelledEvent.execute(new PaymentEvent(Product.get(pendingPayment.productId), pendingPayment));
+                            onPaymentCancelled.execute(new PaymentEvent(Product.get(pendingPayment.productId), pendingPayment));
                         }
                     }
                     Thread.sleep(3600000); // 1h
@@ -181,7 +181,7 @@ public final class PayHook {
         // Since we received an authorized payment for a subscription
         // we create the future/next payment already to be able to
         // catch it in the future.
-        paymentAuthorizedEvent.addAction((action, event) -> {
+        onPaymentAuthorized.addAction((action, event) -> {
             Payment currentPayment = event.payment;
             if (currentPayment.isRecurring() && !currentPayment.isRefund()) {
                 long futureTime = System.currentTimeMillis() + Payment.Intervall.toMilliseconds(currentPayment.intervall);
@@ -474,11 +474,11 @@ public final class PayHook {
 
     /**
      * Creates a new pending {@link Payment} for each provided {@link Product}, which expires in a {@link PaymentProcessor} specific time
-     * (see {@link #paymentCancelledEvent}).
+     * (see {@link #onPaymentCancelled}).
      * Redirect your user to {@link Payment#url} to complete the payment.
      * Note that {@link Product}s WITHOUT recurring payments get grouped together
      * and can be paid over the same url.
-     * You can listen for payment authorization/completion at {@link #paymentAuthorizedEvent}.
+     * You can listen for payment authorization/completion at {@link #onPaymentAuthorized}.
      *
      * @param userId           {@link Payment#userId}
      * @param products         List of {@link Product}s the user wants to buy.
@@ -730,7 +730,7 @@ public final class PayHook {
                             payment.timestampAuthorized = now;
                             payment.paypalCaptureId = captureId;
                             Payment.update(payment);
-                            paymentAuthorizedEvent.execute(new PaymentEvent(Product.get(payment.productId), payment));
+                            onPaymentAuthorized.execute(new PaymentEvent(Product.get(payment.productId), payment));
                         }
                     }
                     break;
@@ -751,7 +751,7 @@ public final class PayHook {
                     if (payment.timestampAuthorized == 0) {
                         payment.timestampAuthorized = now;
                         Payment.update(payment);
-                        paymentAuthorizedEvent.execute(new PaymentEvent(Product.get(payment.productId), payment));
+                        onPaymentAuthorized.execute(new PaymentEvent(Product.get(payment.productId), payment));
                     }
                     break;
                 }
@@ -803,7 +803,7 @@ public final class PayHook {
                             payment.timestampAuthorized = now;
                             payment.stripeChargeId = paymentIntent.getInvoiceObject().getCharge();
                             Payment.update(payment);
-                            paymentAuthorizedEvent.execute(new PaymentEvent(Product.get(payment.productId), payment));
+                            onPaymentAuthorized.execute(new PaymentEvent(Product.get(payment.productId), payment));
                         }
                     }
                     break;
@@ -826,7 +826,7 @@ public final class PayHook {
                         payment.timestampAuthorized = now;
                         payment.stripeChargeId = invoice.getCharge();
                         Payment.update(payment);
-                        paymentAuthorizedEvent.execute(new PaymentEvent(Product.get(payment.productId), payment));
+                        onPaymentAuthorized.execute(new PaymentEvent(Product.get(payment.productId), payment));
                     }
                     break;
                 }
@@ -864,13 +864,13 @@ public final class PayHook {
 
     /**
      * Sets {@link Payment#timestampCancelled} to now and
-     * executes the {@link PayHook#paymentCancelledEvent}, for all the provided payments. <br>
+     * executes the {@link PayHook#onPaymentCancelled}, for all the provided payments. <br>
      * If the payment is a subscription does an API-request to cancel it also at the {@link PaymentProcessor}.
      *
      * @param payments must contain only payments that have the same {@link PaymentProcessor}, and the same {@link Payment#url}.
      * @throws Exception if the provided payments list has one or more payments with different {@link PaymentProcessor}s or
      *                   {@link Payment#url}.
-     * @see PayHook#paymentCancelledEvent
+     * @see PayHook#onPaymentCancelled
      */
     public static void cancelPayments(List<Payment> payments) throws Exception {
         long now = System.currentTimeMillis();
@@ -898,7 +898,7 @@ public final class PayHook {
                     // TODO ADD NEW PAYMENT PROCESSOR
                 }
                 payment.timestampCancelled = now;
-                paymentCancelledEvent.execute(new PaymentEvent(Product.get(payment.productId), payment));
+                onPaymentCancelled.execute(new PaymentEvent(Product.get(payment.productId), payment));
             }
         }
     }
@@ -924,7 +924,7 @@ public final class PayHook {
      * If you want to have one refund API-request per payment, use {@link #refundPayment(Payment)} on each
      * payment manually instead of this method. <br>
      * This method creates new refund payments (and directly authorizes them, which causes
-     * {@link #paymentCreatedEvent} and {@link #paymentAuthorizedEvent} to be executed)
+     * {@link #paymentCreatedEvent} and {@link #onPaymentAuthorized} to be executed)
      * for each of the provided payments, with the {@link Payment#charge}
      * negated.
      * Note that this method will NOT cancel your payments. If you want to cancel them,
@@ -1005,7 +1005,7 @@ public final class PayHook {
                 Payment.add(refundPayment);
                 Product product = Product.get(payment.productId);
                 paymentCreatedEvent.execute(new PaymentEvent(product, payment));
-                paymentAuthorizedEvent.execute(new PaymentEvent(product, payment));
+                onPaymentAuthorized.execute(new PaymentEvent(product, payment));
             }
         }
     }

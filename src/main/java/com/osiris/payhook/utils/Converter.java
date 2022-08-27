@@ -45,6 +45,7 @@ public class Converter {
         Map<String, Object> paramsPrice = new HashMap<>();
         paramsPrice.put("currency", product.currency);
         paramsPrice.put("product", product.stripeProductId);
+        paramsPrice.put("unit_amount", product.charge);
         if (product.isRecurring()) {
             if (product.paymentIntervall == 0)
                 throw new IllegalArgumentException("Payment intervall cannot be 0 if product is meant to have recurring payments!");

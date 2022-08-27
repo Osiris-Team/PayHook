@@ -3,10 +3,25 @@
 Working with payments in Java is painful. If you want to expand to other
 third-party payment processors it's hell, that's why PayHook exists.
 ```java
-Payment payment = PayHook.createPayment("user_id", product, PaymentProcessor.PAYPAL, "success_url", "cancel_url");
-payHook.onPayment(payment.paymentId, event -> {
-    // Executed when the payment was received.
-});
+  /**
+   * This can be anywhere in your application.
+   */
+  void onBuyBtnClick() throws Exception {
+    Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
+    // Forward your user to payment.url
+    PayHook.onPaymentAuthorized.addAction((action, event) -> {
+      if (event.payment.id == payment.id) {
+        action.remove(); // To make sure it only gets executed once, for this payment.
+        Product product = event.product;
+        Payment authorizedPayment = event.payment;
+        // Additional UI code here (make sure to have access to the UI thread).
+      }
+    }, e -> {
+      e.printStackTrace(); // Handle exception
+    }).object = System.currentTimeMillis();
+
+    //PayHook.onPaymentCancelled.addAction((action, event) -> {...}
+  }
 ```
 PayHooks' main goal is simplicity, thus there are only 3 important Java objects (**PayHook** | **Product** | **Payment**)
 and as you can see above, creating payments can be done in one line.
@@ -57,13 +72,7 @@ in the code.
 sure everything works as expected.
 
 ```java
-import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
-import com.osiris.payhook.exceptions.InvalidChangeException;
-import com.paypal.base.rest.PayPalRESTException;
-import com.stripe.exception.StripeException;
-
-import java.io.IOException;
-import java.sql.SQLException;
+package com.osiris.payhook;
 
 public class ExampleConstants {
   public static Product pCoolCookie;
@@ -80,40 +89,39 @@ public class ExampleConstants {
               "db_password",
               true);
 
-      PayHook.initBraintree("merchant_id","public_key", "private_key", "https://my-shop.com/braintree-hook");
+      PayHook.initBraintree("merchant_id", "public_key", "private_key", "https://my-shop.com/braintree-hook");
       PayHook.initStripe("secret_key", "https://my-shop.com/stripe-hook");
 
-      pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE, 0);
-      pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Intervall.DAYS_30, 0);
+      pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE);
+      pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Intervall.MONTHLY);
 
-      PayHook.paymentAuthorizedEvent.addAction((action, event) -> {
-        // Backend business logic in here. Gets executed every time.
+      PayHook.onPaymentAuthorized.addAction(event -> {
+        // Additional backend business logic for all payments in here.
+        // Gets executed every time a payment is authorized/completed.
+        // If something goes wrong in here a RuntimeException is thrown.
         Product product = event.product;
         Payment payment = event.payment;
-      }, e -> {
-        e.printStackTrace();
       });
 
-      PayHook.paymentCancelledEvent.addAction((action, event) -> {
-        // Backend business logic in here. Gets executed every time.
+      PayHook.onPaymentCancelled.addAction(event -> {
+        // Additional backend business logic for all payments in here.
+        // Gets executed every time a payment was cancelled.
+        // If something goes wrong in here a RuntimeException is thrown.
         Product product = event.product;
         Payment payment = event.payment;
-      }, e -> {
-        e.printStackTrace();
       });
 
       // The cleaner thread is only needed
-      // to remove the added actions from further below,
-      // since those may not get executed once.
-      // Remove them after 6 hours
-      PayHook.paymentAuthorizedEvent.initCleaner(3600000, obj -> { // Check every hour
+      // to remove the added actions from further below, since those may not get executed once.
+      // Remove them after 6-7 hours.
+      PayHook.onPaymentAuthorized.initCleaner(3600000, obj -> { // Check every hour
         return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
       }, Exception::printStackTrace);
-      PayHook.paymentCancelledEvent.initCleaner(3600000, obj -> { // Check every hour
+      PayHook.onPaymentCancelled.initCleaner(3600000, obj -> { // Check every hour
         return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
       }, Exception::printStackTrace);
 
-    }  catch (SQLException | StripeException | IOException | HttpErrorException | PayPalRESTException | InvalidChangeException e) {
+    } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
@@ -122,10 +130,10 @@ public class ExampleConstants {
    * This can be anywhere in your application.
    */
   void onBuyBtnClick() throws Exception {
-    Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.BRAINTREE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
+    Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
     // Forward your user to payment.url
-    PayHook.paymentAuthorizedEvent.addAction((action, event) -> {
-      if(event.payment.id == payment.id){
+    PayHook.onPaymentAuthorized.addAction((action, event) -> {
+      if (event.payment.id == payment.id) {
         action.remove(); // To make sure it only gets executed once, for this payment.
         Product product = event.product;
         Payment authorizedPayment = event.payment;
@@ -135,8 +143,8 @@ public class ExampleConstants {
       e.printStackTrace();
     }).object = System.currentTimeMillis();
 
-    PayHook.paymentCancelledEvent.addAction((action, event) -> {
-      if(event.payment.id == payment.id){
+    PayHook.onPaymentCancelled.addAction((action, event) -> {
+      if (event.payment.id == payment.id) {
         action.remove(); // To make sure it only gets executed once, for this payment.
         Product product = event.product;
         Payment cancelledPayment = event.payment;
@@ -153,8 +161,8 @@ public class ExampleConstants {
   void onAnotherBuyBtnClick() throws Exception {
     Payment payment = PayHook.createPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
     // Forward your user to payment.url
-    PayHook.paymentAuthorizedEvent.addAction((action, event) -> {
-      if(event.payment.id == payment.id){
+    PayHook.onPaymentAuthorized.addAction((action, event) -> {
+      if (event.payment.id == payment.id) {
         action.remove(); // To make sure it only gets executed once, for this payment.
         Product product = event.product;
         Payment authorizedPayment = event.payment;
@@ -164,8 +172,8 @@ public class ExampleConstants {
       e.printStackTrace();
     }).object = System.currentTimeMillis();
 
-    PayHook.paymentCancelledEvent.addAction((action, event) -> {
-      if(event.payment.id == payment.id){
+    PayHook.onPaymentCancelled.addAction((action, event) -> {
+      if (event.payment.id == payment.id) {
         action.remove(); // To make sure it only gets executed once, for this payment.
         Product product = event.product;
         Payment cancelledPayment = event.payment;

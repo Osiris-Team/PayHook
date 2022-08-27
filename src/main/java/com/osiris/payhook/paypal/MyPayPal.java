@@ -46,19 +46,18 @@ public class MyPayPal {
     private final String clientId;
     private final String clientSecret;
     private final Mode mode;
-    private String credBase64 = "";
     private final UtilsPayPal utils = new UtilsPayPal();
     private final UtilsPayPalJson utilsJson = new UtilsPayPalJson();
+    private String credBase64 = "";
 
     public MyPayPal(String clientId, String clientSecret, Mode mode) {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
         credBase64 = Base64.encodeBase64String((clientId + ":" + clientSecret).getBytes());
         this.mode = mode;
-        if (mode == Mode.LIVE){
+        if (mode == Mode.LIVE) {
             BASE_V1_URL = LIVE_V1_LIVE_BASE_URL;
-        }
-        else{
+        } else {
             BASE_V1_URL = LIVE_V1_SANDBOX_BASE_URL;
         }
     }
@@ -352,11 +351,11 @@ public class MyPayPal {
 
     public JsonObject getBalances() throws IOException, HttpErrorException, WrongJsonTypeException {
         return utilsJson.getJsonObject(
-                        BASE_V1_URL + "/reporting/balances", this);
+                BASE_V1_URL + "/reporting/balances", this);
     }
 
     public void deleteWebhook(String webhookId) throws IOException, HttpErrorException {
-        utilsJson.deleteAndGetResponse(BASE_V1_URL + "/notifications/webhooks/"+webhookId, this);
+        utilsJson.deleteAndGetResponse(BASE_V1_URL + "/notifications/webhooks/" + webhookId, this);
     }
 
     public enum Mode {
