@@ -70,7 +70,7 @@ public class ExampleConstants {
   public static Product pCoolSubscription;
 
   // Insert the below somewhere where it gets ran once.
-  // For example in the static constructor of a Constants class of yours, like shown here.
+  // For example in the static constructor of a Constants class of yours, like shown here, or in your main method.
   static {
     try {
       PayHook.init(
