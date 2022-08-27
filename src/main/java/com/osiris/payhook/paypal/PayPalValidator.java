@@ -27,7 +27,7 @@ import java.util.Objects;
  * WebHook events/notifications and some
  * utility methods.
  */
-public class PayPalWebHookEventValidator {
+public class PayPalValidator {
     private final PaypalWebhookEventValidationType validationType;
     private final String clientId;
     private final String clientSecret;
@@ -36,10 +36,10 @@ public class PayPalWebHookEventValidator {
     private String encodedCredentials;
 
     /**
-     * Creates a new {@link PayPalWebHookEventValidator} object with {@link PaypalWebhookEventValidationType#ONLINE}. <br>
-     * See {@link #PayPalWebHookEventValidator(PaypalWebhookEventValidationType, String, String)} for details.
+     * Creates a new {@link PayPalValidator} object with {@link PaypalWebhookEventValidationType#ONLINE}. <br>
+     * See {@link #PayPalValidator(PaypalWebhookEventValidationType, String, String)} for details.
      */
-    public PayPalWebHookEventValidator(String clientId, String clientSecret) {
+    public PayPalValidator(String clientId, String clientSecret) {
         this(PaypalWebhookEventValidationType.ONLINE, clientId, clientSecret);
     }
 
@@ -50,7 +50,7 @@ public class PayPalWebHookEventValidator {
      * @param clientId       the PayPal client id. Only needed when {@link PaypalWebhookEventValidationType#ONLINE} is selected, otherwise can be null.
      * @param clientSecret   the PayPal client secret. Only needed when {@link PaypalWebhookEventValidationType#ONLINE} is selected, otherwise can be null.
      */
-    public PayPalWebHookEventValidator(PaypalWebhookEventValidationType validationType, String clientId, String clientSecret) {
+    public PayPalValidator(PaypalWebhookEventValidationType validationType, String clientId, String clientSecret) {
         this.validationType = validationType;
         this.clientId = clientId;
         this.clientSecret = clientSecret;
@@ -261,7 +261,7 @@ public class PayPalWebHookEventValidator {
             String clientCertificateLocation = event.getHeader().getCertUrl();
             String trustCertificateLocation = Constants.PAYPAL_TRUST_DEFAULT_CERT;
             Collection<X509Certificate> clientCerts = SSLUtil.getCertificateFromStream(new BufferedInputStream(new URL(clientCertificateLocation).openStream()));
-            Collection<X509Certificate> trustCerts = SSLUtil.getCertificateFromStream(PayPalWebHookEventValidator.class.getClassLoader().getResourceAsStream(trustCertificateLocation));
+            Collection<X509Certificate> trustCerts = SSLUtil.getCertificateFromStream(PayPalValidator.class.getClassLoader().getResourceAsStream(trustCertificateLocation));
 
             // Check the chain
             SSLUtil.validateCertificateChain(clientCerts, trustCerts, "RSA");
@@ -338,7 +338,7 @@ public class PayPalWebHookEventValidator {
     }
 
     /**
-     * See {@link PayPalWebHookEventValidator#setSandboxMode(boolean)} for details.
+     * See {@link PayPalValidator#setSandboxMode(boolean)} for details.
      */
     public boolean isSandboxMode() {
         return isSandboxMode;
@@ -349,14 +349,14 @@ public class PayPalWebHookEventValidator {
      * Disabled by default. <br>
      * If enabled some validation checks, which only succeed for
      * live applications, wont be done. <br>
-     * See {@link PayPalWebHookEventValidator#validateWebhookEvent(PaypalWebhookEvent)} for details.
+     * See {@link PayPalValidator#validateWebhookEvent(PaypalWebhookEvent)} for details.
      */
     public void setSandboxMode(boolean sandboxMode) {
         isSandboxMode = sandboxMode;
     }
 
     /**
-     * See {@link PayPalWebHookEventValidator#setWarnIfSandboxModeIsEnabled(boolean)} for details.
+     * See {@link PayPalValidator#setWarnIfSandboxModeIsEnabled(boolean)} for details.
      */
     public boolean isWarnIfSandboxModeIsEnabled() {
         return isWarnIfSandboxModeIsEnabled;

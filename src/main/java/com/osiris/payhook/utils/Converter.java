@@ -34,11 +34,10 @@ public class Converter {
         return new com.paypal.api.payments.Currency(product.currency, new BigDecimal(product.charge).divide(new BigDecimal(100)).toPlainString());
     }
 
-    public Map<String, Object> toStripeProduct(Product product, boolean isStripeSandbox) {
+    public Map<String, Object> toStripeProduct(Product product) {
         Map<String, Object> params = new HashMap<>();
         params.put("name", product.name);
         params.put("description", product.description);
-        params.put("livemode", isStripeSandbox);
         return params;
     }
 

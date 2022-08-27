@@ -5,10 +5,11 @@ import com.braintreegateway.Environment;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
+import com.osiris.autoplug.core.json.exceptions.WrongJsonTypeException;
 import com.osiris.payhook.exceptions.InvalidChangeException;
 import com.osiris.payhook.exceptions.WebHookValidationException;
 import com.osiris.payhook.paypal.MyPayPal;
-import com.osiris.payhook.paypal.PayPalWebHookEventValidator;
+import com.osiris.payhook.paypal.PayPalValidator;
 import com.osiris.payhook.paypal.PaypalWebhookEvent;
 import com.osiris.payhook.paypal.codec.binary.Base64;
 import com.osiris.payhook.stripe.UtilsStripe;
@@ -326,7 +327,7 @@ public final class PayHook {
      *                     run {@link #receiveWebhookEvent(PaymentProcessor, Map, String)} when receiving a webhook notification/event
      *                     on that url.
      */
-    public static void initPayPal(String clientId, String clientSecret, String webhookUrl) throws IOException, HttpErrorException {
+    public static void initPayPal(String clientId, String clientSecret, String webhookUrl) throws IOException, HttpErrorException, WrongJsonTypeException {
         Objects.requireNonNull(clientId);
         Objects.requireNonNull(clientSecret);
         Objects.requireNonNull(webhookUrl);
@@ -408,7 +409,7 @@ public final class PayHook {
             if (braintree != null) ; // TODO
 
             if (Stripe.apiKey != null) { // Create stripe product
-                com.stripe.model.Product stripeProduct = com.stripe.model.Product.create(converter.toStripeProduct(p, isSandbox));
+                com.stripe.model.Product stripeProduct = com.stripe.model.Product.create(converter.toStripeProduct(p));
                 p.stripeProductId = stripeProduct.getId();
                 com.stripe.model.Price stripePrice = com.stripe.model.Price.create(converter.toStripePrice(p));
                 p.stripePriceId = stripePrice.getId();
@@ -435,7 +436,7 @@ public final class PayHook {
             }
             if (Stripe.apiKey != null) {
                 com.stripe.model.Product stripeProduct = com.stripe.model.Product.retrieve(p.stripeProductId);
-                stripeProduct.update(converter.toStripeProduct(p, isSandbox));
+                stripeProduct.update(converter.toStripeProduct(p));
                 com.stripe.model.Price stripePrice = com.stripe.model.Price.retrieve(p.stripePriceId);
                 stripePrice.update(converter.toStripePrice(p));
             }
@@ -702,7 +703,7 @@ public final class PayHook {
         if (paymentProcessor.equals(PaymentProcessor.PAYPAL)) {
 
             // VALIDATE PAYPAL WEBHOOK NOTIFICATION
-            PayPalWebHookEventValidator validator = new PayPalWebHookEventValidator(paypalClientId, paypalClientSecret);
+            PayPalValidator validator = new PayPalValidator(paypalClientId, paypalClientSecret);
             PaypalWebhookEvent event = new PaypalWebhookEvent(paypalWebhookId, paypalWebhookEventTypes,
                     validator.parseAndGetHeader(header), validator.parseAndGetBody(body));
             validator.validateWebhookEvent(event);

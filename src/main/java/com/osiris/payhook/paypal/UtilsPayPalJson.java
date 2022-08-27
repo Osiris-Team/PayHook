@@ -21,33 +21,32 @@ import java.util.List;
 
 public class UtilsPayPalJson {
 
-    public JsonElement postJsonAndGetResponse(String input_url, JsonElement element, MyPayPal context) throws IOException, HttpErrorException {
-        return postJsonAndGetResponse(input_url, element, context, (Integer[]) null);
-    }
-
-    public JsonElement postJsonAndGetResponse(String input_url, JsonElement element, MyPayPal context, Integer... successCodes) throws IOException, HttpErrorException {
+    public JsonElement jsonFromUrl(String requestMethod, String url, JsonElement elementToSend, MyPayPal myPayPal, Integer... successCodes) throws IOException, HttpErrorException {
         HttpURLConnection con = null;
         try {
-            con = (HttpURLConnection) new URL(input_url).openConnection();
+            con = (HttpURLConnection) new URL(url).openConnection();
             con.addRequestProperty("User-Agent", "PayHook");
             con.addRequestProperty("Content-Type", "application/json");
-            con.addRequestProperty("Authorization", "Basic " + context.getCredBase64());
+            con.addRequestProperty("Authorization", "Basic "+ myPayPal.getCredBase64());
             con.addRequestProperty("return", "representation");
             con.setConnectTimeout(1000);
-            con.setRequestMethod("POST");
+            con.setRequestMethod(requestMethod);
             con.setDoOutput(true);
             con.setDoInput(true);
             con.connect();
-            OutputStream out = con.getOutputStream();
 
-            try (OutputStreamWriter outWrt = new OutputStreamWriter(out)) {
-                try (BufferedReader inr = new BufferedReader(new StringReader(new Gson().toJson(element)))) {
-                    String l = null;
-                    while ((l = inr.readLine()) != null) {
-                        outWrt.write(l);
+            if(elementToSend != null){
+                OutputStream out = con.getOutputStream();
+                try (OutputStreamWriter outWrt = new OutputStreamWriter(out)) {
+                    try (BufferedReader inr = new BufferedReader(new StringReader(new Gson().toJson(elementToSend)))) {
+                        String l = null;
+                        while ((l = inr.readLine()) != null) {
+                            outWrt.write(l);
+                        }
                     }
                 }
             } // After POST finishes get RESPONSE:
+
             int code = con.getResponseCode();
             if (code == 200 || (successCodes != null && Arrays.asList(successCodes).contains(code))) {
                 InputStream in = con.getInputStream();
@@ -62,7 +61,7 @@ public class UtilsPayPalJson {
                     try (InputStreamReader inr = new InputStreamReader(in)) {
                         response = JsonParser.parseReader(inr);
                     }
-                throw new HttpErrorException(code, null, con.getResponseMessage() + " JSON: " + new GsonBuilder().setPrettyPrinting().create().toJson(response));
+                throw new HttpErrorException(code, null, "\nurl: "+url+" \nmessage: "+con.getResponseMessage() + "\njson: \n"  + new GsonBuilder().setPrettyPrinting().create().toJson(response));
             }
         } catch (IOException | HttpErrorException e) {
             if (con != null) con.disconnect();
@@ -73,56 +72,28 @@ public class UtilsPayPalJson {
         return null;
     }
 
-    public JsonElement patchJsonAndGetResponse(String input_url, JsonElement element, MyPayPal context) throws IOException, HttpErrorException {
-        return postJsonAndGetResponse(input_url, element, context, (Integer[]) null);
+    public JsonElement postJsonAndGetResponse(String url, JsonElement element, MyPayPal context) throws IOException, HttpErrorException {
+        return jsonFromUrl("POST", url, element, context, (Integer[]) null);
     }
 
-    public JsonElement patchJsonAndGetResponse(String input_url, JsonElement element, MyPayPal context, Integer... successCodes) throws IOException, HttpErrorException {
-        HttpURLConnection con = null;
-        try {
-            con = (HttpURLConnection) new URL(input_url).openConnection();
-            con.addRequestProperty("User-Agent", "PayHook");
-            con.addRequestProperty("Content-Type", "application/json");
-            con.addRequestProperty("Authorization", "Basic " + context.getCredBase64());
-            con.addRequestProperty("return", "representation");
-            con.setConnectTimeout(1000);
-            con.setRequestMethod("PATCH");
-            con.setDoOutput(true);
-            con.setDoInput(true);
-            con.connect();
-            OutputStream out = con.getOutputStream();
+    public JsonElement postJsonAndGetResponse(String url, JsonElement element, MyPayPal context, Integer... successCodes) throws IOException, HttpErrorException {
+        return jsonFromUrl("POST", url, element, context, successCodes);
+    }
 
-            try (OutputStreamWriter outWrt = new OutputStreamWriter(out)) {
-                try (BufferedReader inr = new BufferedReader(new StringReader(new Gson().toJson(element)))) {
-                    String l = null;
-                    while ((l = inr.readLine()) != null) {
-                        outWrt.write(l);
-                    }
-                }
-            } // After POST finishes get RESPONSE:
-            int code = con.getResponseCode();
-            if (code == 200 || (successCodes != null && Arrays.asList(successCodes).contains(code))) {
-                InputStream in = con.getInputStream();
-                if (in != null)
-                    try (InputStreamReader inr = new InputStreamReader(in)) {
-                        return JsonParser.parseReader(inr);
-                    }
-            } else {
-                JsonElement response = null;
-                InputStream in = con.getErrorStream();
-                if (in != null)
-                    try (InputStreamReader inr = new InputStreamReader(in)) {
-                        response = JsonParser.parseReader(inr);
-                    }
-                throw new HttpErrorException(code, null, con.getResponseMessage() + " JSON: " + new GsonBuilder().setPrettyPrinting().create().toJson(response));
-            }
-        } catch (IOException | HttpErrorException e) {
-            if (con != null) con.disconnect();
-            throw e;
-        } finally {
-            if (con != null) con.disconnect();
-        }
-        return null;
+    public JsonElement patchJsonAndGetResponse(String url, JsonElement element, MyPayPal context) throws IOException, HttpErrorException {
+        return jsonFromUrl("PATCH", url, element, context, (Integer[]) null);
+    }
+
+    public JsonElement patchJsonAndGetResponse(String url, JsonElement element, MyPayPal context, Integer... successCodes) throws IOException, HttpErrorException {
+        return jsonFromUrl("PATCH", url, element, context, successCodes);
+    }
+
+    public JsonElement deleteAndGetResponse(String url, MyPayPal context) throws IOException, HttpErrorException {
+        return jsonFromUrl("DELETE", url, null, context, 204);
+    }
+
+    public JsonElement deleteAndGetResponse(String url, MyPayPal context, Integer... successCodes) throws IOException, HttpErrorException {
+        return jsonFromUrl("DELETE", url, null, context, successCodes);
     }
 
     /**
@@ -133,31 +104,7 @@ public class UtilsPayPalJson {
      * @throws Exception When status code other than 200.
      */
     public JsonElement getJsonElement(String input_url, MyPayPal context) throws IOException, HttpErrorException {
-        HttpURLConnection con = null;
-        JsonElement element = null;
-        try {
-            con = (HttpURLConnection) new URL(input_url).openConnection();
-            con.addRequestProperty("User-Agent", "PayHook");
-            con.addRequestProperty("Content-Type", "application/json");
-            con.addRequestProperty("Authorization", "Basic " + context.getCredBase64());
-            con.setConnectTimeout(1000);
-            con.setRequestMethod("GET");
-            con.connect();
-            int code = con.getResponseCode();
-            if (code == 200) {
-                try (InputStreamReader inr = new InputStreamReader(con.getInputStream())) {
-                    element = JsonParser.parseReader(inr);
-                }
-            } else {
-                throw new HttpErrorException(code, null, con.getResponseMessage());
-            }
-        } catch (IOException | HttpErrorException e) {
-            if (con != null) con.disconnect();
-            throw e;
-        } finally {
-            if (con != null) con.disconnect();
-        }
-        return element;
+        return jsonFromUrl("GET", input_url, null, context, (Integer[]) null);
     }
 
     public JsonArray getJsonArray(String url, MyPayPal context) throws IOException, HttpErrorException, WrongJsonTypeException {

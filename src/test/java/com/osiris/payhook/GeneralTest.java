@@ -4,7 +4,10 @@ import com.github.alexdlaird.ngrok.NgrokClient;
 import com.github.alexdlaird.ngrok.conf.JavaNgrokConfig;
 import com.github.alexdlaird.ngrok.protocol.CreateTunnel;
 import com.github.alexdlaird.ngrok.protocol.Tunnel;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import com.osiris.dyml.Yaml;
+import com.stripe.model.WebhookEndpoint;
 import io.muserver.*;
 import org.junit.jupiter.api.Test;
 
@@ -71,7 +74,7 @@ public class GeneralTest {
         final NgrokClient ngrokClient = new NgrokClient.Builder()
                 .withJavaNgrokConfig(new JavaNgrokConfig.Builder().withAuthToken(ngrokAuthToken).build())
                 .build();
-        final Tunnel httpTunnel = ngrokClient.connect(new CreateTunnel.Builder().build());
+        final Tunnel httpTunnel = ngrokClient.connect(new CreateTunnel.Builder().withBindTls(true).build());
         String baseUrl = httpTunnel.getPublicUrl();
         String stripeWebhookUrl = baseUrl + "/stripe-hook";
         String paypalWebhookUrl = baseUrl + "/paypal-hook";
@@ -85,6 +88,7 @@ public class GeneralTest {
         System.out.println("Starting database...");
         dbServer = SQLTestServer.buildAndRun();
         dbUrl = dbServer.getUrl();
+        Database.create();
         System.out.println("Url: " + dbUrl);
         System.out.println("OK!");
 
@@ -100,7 +104,28 @@ public class GeneralTest {
         // Init processors
         PayHook.initStripe(stripeSecretKey, stripeWebhookUrl);
         PayHook.initPayPal(paypalClientId, paypalClientSecret, paypalWebhookUrl);
+
+        // Delete old webhook endpoints that have ngrok.io in their url
+        Map<String, Object> params = new HashMap<>();
+        params.put("limit", "100");
+        for (WebhookEndpoint webhook :
+                WebhookEndpoint.list(params).getData()) {
+            if (!webhook.getUrl().equals(stripeWebhookUrl) && webhook.getUrl().contains("ngrok.io")) {
+                webhook.delete();
+            }
+        }
+
+        // Delete old webhook endpoints that have ngrok.io in their url
+        for (JsonElement el : PayHook.myPayPal.getWebhooks()) {
+            JsonObject webhook = el.getAsJsonObject();
+            String url = webhook.get("url").getAsString();
+            if(!url.equals(paypalWebhookUrl) && url.contains("ngrok.io")){
+                String id = webhook.get("id").getAsString();
+                PayHook.myPayPal.deleteWebhook(id);
+            }
+        }
         System.out.println("Payment processors initialised with webhooks above.");
+
 
         // Create products
         pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE);

@@ -55,10 +55,12 @@ public class MyPayPal {
         this.clientSecret = clientSecret;
         credBase64 = Base64.encodeBase64String((clientId + ":" + clientSecret).getBytes());
         this.mode = mode;
-        if (mode == Mode.LIVE)
+        if (mode == Mode.LIVE){
             BASE_V1_URL = LIVE_V1_LIVE_BASE_URL;
-        else
+        }
+        else{
             BASE_V1_URL = LIVE_V1_SANDBOX_BASE_URL;
+        }
     }
 
     public PayPalPlan getPlanById(String planId) throws WrongJsonTypeException, IOException, HttpErrorException {
@@ -86,7 +88,7 @@ public class MyPayPal {
             obj.addProperty("type", "SERVICE");
         else
             obj.addProperty("type", "DIGITAL"); // TODO do we really need to differ between digital/physical goods?
-        return utilsJson.postJsonAndGetResponse(BASE_V1_URL + "/catalogs/products", obj, this).getAsJsonObject();
+        return utilsJson.postJsonAndGetResponse(BASE_V1_URL + "/catalogs/products", obj, this, 201).getAsJsonObject();
     }
 
     /**
@@ -312,9 +314,9 @@ public class MyPayPal {
         return response.getAsJsonObject().get("transactions").getAsJsonArray();
     }
 
-    public Date getLastPaymentDate(String subscriptionId) throws IOException, HttpErrorException, ParseException {
-        JsonObject obj = new UtilsPayPalJson().postJsonAndGetResponse(
-                        BASE_V1_URL + "/billing/subscriptions/" + subscriptionId, null, this)
+    public Date getLastPaymentDate(String subscriptionId) throws IOException, HttpErrorException, ParseException, WrongJsonTypeException {
+        JsonObject obj = new UtilsPayPalJson().getJsonObject(
+                        BASE_V1_URL + "/billing/subscriptions/" + subscriptionId, this)
                 .getAsJsonObject();
         String timestamp = obj.getAsJsonObject("billing_info").getAsJsonObject("last_payment").get("time").getAsString();
         SimpleDateFormat sf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
@@ -322,9 +324,9 @@ public class MyPayPal {
         return sf.parse(timestamp);
     }
 
-    public JsonArray getWebhooks() throws IOException, HttpErrorException {
-        return utilsJson.postJsonAndGetResponse(
-                        BASE_V1_URL + "/notifications/webhooks", null, this)
+    public JsonArray getWebhooks() throws IOException, HttpErrorException, WrongJsonTypeException {
+        return utilsJson.getJsonObject(
+                        BASE_V1_URL + "/notifications/webhooks", this)
                 .getAsJsonObject().getAsJsonArray("webhooks");
     }
 
@@ -344,8 +346,17 @@ public class MyPayPal {
         }
         obj.add("event_types", arr);
         utilsJson.postJsonAndGetResponse(
-                BASE_V1_URL + "/notifications/webhooks", obj, this);
+                BASE_V1_URL + "/notifications/webhooks", obj, this, 201);
         return this;
+    }
+
+    public JsonObject getBalances() throws IOException, HttpErrorException, WrongJsonTypeException {
+        return utilsJson.getJsonObject(
+                        BASE_V1_URL + "/reporting/balances", this);
+    }
+
+    public void deleteWebhook(String webhookId) throws IOException, HttpErrorException {
+        utilsJson.deleteAndGetResponse(BASE_V1_URL + "/notifications/webhooks/"+webhookId, this);
     }
 
     public enum Mode {
