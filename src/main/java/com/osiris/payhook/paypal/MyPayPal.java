@@ -16,8 +16,8 @@ import com.google.gson.JsonObject;
 import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
 import com.osiris.autoplug.core.json.exceptions.WrongJsonTypeException;
 import com.osiris.payhook.Product;
-import com.osiris.payhook.paypal.codec.binary.Base64;
 import com.paypal.api.payments.Currency;
+import com.paypal.base.codec.binary.Base64;
 import com.paypal.base.rest.PayPalRESTException;
 import com.paypal.core.PayPalHttpClient;
 import com.paypal.http.HttpResponse;
@@ -356,6 +356,25 @@ public class MyPayPal {
 
     public void deleteWebhook(String webhookId) throws IOException, HttpErrorException {
         utilsJson.deleteAndGetResponse(BASE_V1_URL + "/notifications/webhooks/" + webhookId, this);
+    }
+
+    /**
+     * Checks if the provided webhook event is valid via the PayPal-REST-API. <br>
+     * Also sets {@link PaypalWebhookEvent#isValid()} accordingly.
+     */
+    public boolean isWebhookEventValid(PaypalWebhookEvent event) throws IOException, HttpErrorException {
+        PaypalWebhookEventHeader header = event.getHeader();
+        JsonObject json = new JsonObject();
+        json.addProperty("transmission_id", header.getTransmissionId());
+        json.addProperty("transmission_time", header.getTimestamp());
+        json.addProperty("cert_url", header.getCertUrl());
+        json.addProperty("auth_algo", header.getAuthAlgorithm());
+        json.addProperty("transmission_sig", header.getTransmissionSignature());
+        json.addProperty("webhook_id", header.getWebhookId());
+        json.add("webhook_event", event.getBody());
+        event.setValid(utilsJson.postJsonAndGetResponse(BASE_V1_URL+"/notifications/verify-webhook-signature", json, this)
+                .getAsJsonObject().get("verification_status").getAsString().equalsIgnoreCase("SUCCESS"));
+        return event.isValid();
     }
 
     public enum Mode {

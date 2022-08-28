@@ -1,12 +1,5 @@
 package com.osiris.payhook.paypal;
 
-import java.util.Map;
-
-/**
- * Contains the {@link PaypalWebhookEvent}s headers
- * essential information for its validation. <br>
- * Can be created thorough {@link PayPalValidator#parseAndGetHeader(Map)}.
- */
 public class PaypalWebhookEventHeader {
     private final String transmissionId;
     private final String timestamp;
@@ -14,21 +7,15 @@ public class PaypalWebhookEventHeader {
     private final String authAlgorithm;
     private final String certUrl;
     private String webhookId;
-    private String crc32;
 
-    /**
-     * Contains the {@link PaypalWebhookEvent}s headers
-     * essential information for its validation.
-     * Can be created thorough {@link PayPalValidator#parseAndGetHeader(Map)}.
-     */
-    public PaypalWebhookEventHeader(String transmissionId, String timestamp, String transmissionSignature, String authAlgorithm, String certUrl) {
+    public PaypalWebhookEventHeader(String transmissionId, String timestamp, String transmissionSignature, String authAlgorithm, String certUrl,
+                                    String webhookId) {
         this.transmissionId = transmissionId;
         this.timestamp = timestamp;
-        this.webhookId = null; // Gets set once validation was run
-        this.crc32 = null; // Gets set once validation was run
         this.transmissionSignature = transmissionSignature;
         this.authAlgorithm = authAlgorithm;
         this.certUrl = certUrl;
+        this.webhookId = webhookId;
     }
 
     /**
@@ -47,13 +34,7 @@ public class PaypalWebhookEventHeader {
         return timestamp;
     }
 
-    /**
-     * The ID of the webhook resource for the destination URL to which PayPal delivers the event notification. <br>
-     * NOTE 1: SINCE THE WEBHOOK-ID IS INSIDE THE ENCODED TRANSMISSION-SIGNATURE, THIS RETURNS NULL
-     * UNLESS YOU SUCCESSFULLY EXECUTED {@link PayPalValidator#validateWebhookEvent(PaypalWebhookEvent)} ONCE BEFORE! <br>
-     * NOTE 2: IF YOU HAVE SANDBOX-MODE ENABLED THIS WILL ALWAYS RETURN NULL, EVEN IF YOU ALREADY
-     * EXECUTED {@link PayPalValidator#validateWebhookEvent(PaypalWebhookEvent)} ONCE BEFORE.
-     */
+
     public String getWebhookId() {
         return webhookId;
     }
@@ -63,24 +44,6 @@ public class PaypalWebhookEventHeader {
      */
     public void setWebhookId(String webhookId) {
         this.webhookId = webhookId;
-    }
-
-    /**
-     * The Cyclic Redundancy Check (CRC32) checksum for the body of the HTTP payload. <br>
-     * NOTE 1: SINCE THE CRC32 IS INSIDE THE ENCODED TRANSMISSION-SIGNATURE, THIS RETURNS NULL
-     * UNLESS YOU SUCCESSFULLY EXECUTED {@link PayPalValidator#validateWebhookEvent(PaypalWebhookEvent)} ONCE BEFORE! <br>
-     * NOTE 2: IF YOU HAVE SANDBOX-MODE ENABLED THIS WILL ALWAYS RETURN NULL, EVEN IF YOU ALREADY
-     * EXECUTED {@link PayPalValidator#validateWebhookEvent(PaypalWebhookEvent)} ONCE BEFORE. <br>
-     */
-    public String getCrc32() {
-        return crc32;
-    }
-
-    /**
-     * See {@link PaypalWebhookEventHeader#getCrc32()} for details.
-     */
-    public void setCrc32(String crc32) {
-        this.crc32 = crc32;
     }
 
     /**

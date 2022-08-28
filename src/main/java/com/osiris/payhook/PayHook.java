@@ -9,11 +9,10 @@ import com.osiris.autoplug.core.json.exceptions.WrongJsonTypeException;
 import com.osiris.payhook.exceptions.InvalidChangeException;
 import com.osiris.payhook.exceptions.WebHookValidationException;
 import com.osiris.payhook.paypal.MyPayPal;
-import com.osiris.payhook.paypal.PayPalValidator;
 import com.osiris.payhook.paypal.PaypalWebhookEvent;
-import com.osiris.payhook.paypal.codec.binary.Base64;
 import com.osiris.payhook.stripe.UtilsStripe;
 import com.osiris.payhook.utils.Converter;
+import com.paypal.base.codec.binary.Base64;
 import com.paypal.base.rest.APIContext;
 import com.paypal.base.rest.PayPalRESTException;
 import com.paypal.core.PayPalEnvironment;
@@ -41,7 +40,7 @@ import java.util.*;
 public final class PayHook {
     /**
      * Actions for this event are executed, when a payment is created
-     * via {@link PayHook#createPayments(String, List, PaymentProcessor, String, String)}.
+     * via {@link PayHook#createPayments(String, List, PaymentProcessor)}.
      */
     public static final com.osiris.events.Event<PaymentEvent> paymentCreatedEvent = new com.osiris.events.Event<>();
     /**
@@ -386,8 +385,20 @@ public final class PayHook {
                     break;
                 }
             }
-            if (!containsWebhookUrl) myPayPal.createWebhook(webhookUrl, paypalWebhookEventTypes);
+            if (!containsWebhookUrl) {
+                myPayPal.createWebhook(webhookUrl, paypalWebhookEventTypes);
+                for (JsonElement e :
+                        myPayPal.getWebhooks()) {
+                    JsonObject webhook = e.getAsJsonObject();
+                    String url = webhook.get("url").getAsString();
+                    if (url.equals(webhookUrl)) {
+                        paypalWebhookId = webhook.get("id").getAsString();
+                        break;
+                    }
+                }
+            }
         }
+        Objects.requireNonNull(paypalWebhookId);
     }
 
     /**
@@ -725,10 +736,11 @@ public final class PayHook {
         if (paymentProcessor.equals(PaymentProcessor.PAYPAL)) {
 
             // VALIDATE PAYPAL WEBHOOK NOTIFICATION
-            PayPalValidator validator = new PayPalValidator(paypalClientId, paypalClientSecret);
-            PaypalWebhookEvent event = new PaypalWebhookEvent(paypalWebhookId, paypalWebhookEventTypes,
-                    validator.parseAndGetHeader(header), validator.parseAndGetBody(body));
-            validator.validateWebhookEvent(event);
+            PaypalWebhookEvent event = new PaypalWebhookEvent(paypalWebhookId, paypalWebhookEventTypes, header, body);
+            if(!myPayPal.isWebhookEventValid(event)){
+                System.err.println("Received invalid PayPal webhook event.");
+                return;
+            }
             JsonObject resource = event.getBody().getAsJsonObject("resource");
 
             // EXECUTE ACTION FOR EVENT
@@ -737,7 +749,7 @@ public final class PayHook {
                     String orderId = resource.get("id").getAsString();
                     List<Payment> payments = Payment.get("paypalOrderId = " + orderId);
                     if (payments.isEmpty())
-                        throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find payment order id '" + orderId + "' in local database).");
+                        throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.PAYPAL + ", failed to find payment order id '" + orderId + "' in local database).");
                     long totalCharge = 0;
                     for (Payment p : payments) {
                         totalCharge += p.charge;
@@ -745,7 +757,7 @@ public final class PayHook {
                     Order capturedOrder = myPayPal.captureOrder(paypalV2, orderId).result();
                     long capturedCharge = new Converter().toSmallestCurrency(capturedOrder.purchaseUnits().get(0).payments().captures().get(0).amount());
                     if (totalCharge != capturedCharge)
-                        throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", expected paid amount of '" + totalCharge + "' but got '" + capturedCharge + "').");
+                        throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.PAYPAL + ", expected paid amount of '" + totalCharge + "' but got '" + capturedCharge + "').");
                     String captureId = capturedOrder.purchaseUnits().get(0).payments().captures().get(0).id();
                     for (Payment payment : payments) {
                         if (payment.timestampAuthorized == 0) {

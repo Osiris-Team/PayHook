@@ -1,5 +1,7 @@
 **/target/
 **/test-credentials.yml
+/db
+/headless-browser
 
 # IDEA
 .idea/

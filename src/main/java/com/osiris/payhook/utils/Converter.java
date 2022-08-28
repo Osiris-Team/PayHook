@@ -1,6 +1,7 @@
 package com.osiris.payhook.utils;
 
 import com.osiris.payhook.Product;
+import com.paypal.api.payments.Currency;
 import com.paypal.api.payments.MerchantPreferences;
 import com.paypal.api.payments.PaymentDefinition;
 import com.paypal.payments.Money;
@@ -31,6 +32,11 @@ public class Converter {
 
     public com.paypal.api.payments.Currency toPayPalCurrency(Product product) {
         return new com.paypal.api.payments.Currency(product.currency, new BigDecimal(product.charge).divide(new BigDecimal(100)).toPlainString());
+    }
+
+    public String toMoneyString(Product product){
+        Currency currency = toPayPalCurrency(product);
+        return currency.getValue()+" "+currency.getCurrency();
     }
 
     public Map<String, Object> toStripeProduct(Product product) {

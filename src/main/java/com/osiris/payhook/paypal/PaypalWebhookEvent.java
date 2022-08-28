@@ -2,14 +2,13 @@ package com.osiris.payhook.paypal;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+import com.osiris.payhook.exceptions.ParseBodyException;
+import com.osiris.payhook.exceptions.ParseHeaderException;
 
 import java.util.List;
+import java.util.Map;
 
 
-/**
- * The in-memory representation of a Webhook event/notification. <br>
- * Can be validated through {@link PayPalValidator#validateWebhookEvent(PaypalWebhookEvent)}.
- */
 public class PaypalWebhookEvent {
     private final String validWebhookId;
     private final List<String> validTypesList;
@@ -18,10 +17,17 @@ public class PaypalWebhookEvent {
     private final JsonObject body;
     private boolean isValid = false;
 
+    public PaypalWebhookEvent(String validWebhookId, List<String> validTypesList, Map<String, String> header, String body) throws ParseHeaderException, ParseBodyException {
+        this.validWebhookId = validWebhookId;
+        this.validTypesList = validTypesList;
+        this.header = new UtilsPayPal().parseAndGetHeader(header, validWebhookId);
+        this.body = new UtilsPayPal().parseAndGetBody(body);
+        this.bodyString = new Gson().toJson(body);
+    }
 
     /**
      * The in-memory representation of a Webhook event/notification. <br>
-     * Can be validated through {@link PayPalValidator#validateWebhookEvent(PaypalWebhookEvent)}.
+     * Can be validated through {@link MyPayPal#isWebhookEventValid(PaypalWebhookEvent)}.
      *
      * @param validWebhookId your webhooks valid id. Get it from here: https://developer.paypal.com/developer/applications/
      * @param validTypesList your webhooks valid types/names. Here is a full list: https://developer.paypal.com/docs/api-basics/notifications/webhooks/event-names/
@@ -57,7 +63,7 @@ public class PaypalWebhookEvent {
     }
 
     /**
-     * Perform {@link PayPalValidator#validateWebhookEvent(PaypalWebhookEvent)} on this event, so this method
+     * Perform {@link MyPayPal#isWebhookEventValid(PaypalWebhookEvent)} on this event, so this method
      * returns the right value.
      *
      * @return true if this event is a valid paypal webhook event.

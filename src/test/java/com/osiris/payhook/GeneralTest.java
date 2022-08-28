@@ -7,13 +7,17 @@ import com.github.alexdlaird.ngrok.protocol.Tunnel;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.osiris.dyml.Yaml;
+import com.osiris.payhook.utils.Converter;
 import com.stripe.model.WebhookEndpoint;
 import io.muserver.*;
 import org.junit.jupiter.api.Test;
 
+import java.awt.*;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class GeneralTest {
     public static SQLTestServer dbServer;
@@ -133,8 +137,22 @@ public class GeneralTest {
         pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE);
         pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Intervall.MONTHLY);
         System.out.println("Created/Updated products.");
-
         System.out.println("OK!");
+
+        PaymentProcessor paymentProcessor = PaymentProcessor.PAYPAL;
+        System.out.println("Test buying "+pCoolCookie.name+" over "+paymentProcessor+", waiting for user authorization...");
+        Payment payment = PayHook.createPayment("testUser", pCoolCookie, paymentProcessor);
+        AtomicBoolean isAuthorized = new AtomicBoolean(false);
+        PayHook.onPaymentAuthorized.addAction((action, event) -> {
+            if(event.payment.id == payment.id){
+                action.remove();
+                isAuthorized.set(true);
+            }
+        }, Throwable::printStackTrace);
+        Desktop.getDesktop().browse(URI.create(payment.url));
+        while (!isAuthorized.get()) Thread.sleep(100);
+        System.out.println("Payment "+new Converter().toMoneyString(pCoolCookie)+" was authorized.");
+
     }
 
     private void doPayPalWebhookEvent(MuRequest request, MuResponse response, Map<String, String> pathParams) {
