@@ -7,17 +7,19 @@ third-party payment processors it's hell, that's why PayHook exists.
    * This can be anywhere in your application.
    */
   void onBuyBtnClick() throws Exception {
-    Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
-    // Forward your user to payment.url
+    Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL);
+    // Forward your user to payment.url to complete/authorize the payment here...
+
     PayHook.onPaymentAuthorized.addAction((action, event) -> {
       if (event.payment.id == payment.id) {
         action.remove(); // To make sure it only gets executed once, for this payment.
         Product product = event.product;
         Payment authorizedPayment = event.payment;
-        // Additional UI code here (make sure to have access to the UI thread).
+        // Insert ONLY additional UI code here (make sure to have access to the UI thread).
+        // Code that does backend, aka important stuff does not belong here!
       }
     }, e -> {
-      e.printStackTrace(); // Handle exception
+      e.printStackTrace();
     }).object = System.currentTimeMillis();
 
     //PayHook.onPaymentCancelled.addAction((action, event) -> {...}
@@ -25,6 +27,8 @@ third-party payment processors it's hell, that's why PayHook exists.
 ```
 PayHooks' main goal is simplicity, thus there are only 3 important Java objects (**PayHook** | **Product** | **Payment**)
 and as you can see above, creating payments can be done in one line.
+
+The PayHook class hower is the most important one and contains static methods to do basically anything.
 
 ### Features
 - Support for regular products and products with recurring payments (subscriptions).
@@ -87,7 +91,9 @@ public class ExampleConstants {
               "db_url",
               "db_username",
               "db_password",
-              true);
+              true,
+              "https://my-shop.com/payment/success",
+              "https://my-shop.com/payment/cancel");
 
       PayHook.initBraintree("merchant_id", "public_key", "private_key", "https://my-shop.com/braintree-hook");
       PayHook.initStripe("secret_key", "https://my-shop.com/stripe-hook");
@@ -130,14 +136,16 @@ public class ExampleConstants {
    * This can be anywhere in your application.
    */
   void onBuyBtnClick() throws Exception {
-    Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
-    // Forward your user to payment.url
+    Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL);
+    // Forward your user to payment.url to complete/authorize the payment here...
+
     PayHook.onPaymentAuthorized.addAction((action, event) -> {
       if (event.payment.id == payment.id) {
         action.remove(); // To make sure it only gets executed once, for this payment.
         Product product = event.product;
         Payment authorizedPayment = event.payment;
-        // Additional UI code here (make sure to have access to the UI thread).
+        // Insert ONLY additional UI code here (make sure to have access to the UI thread).
+        // Code that does backend, aka important stuff does not belong here!
       }
     }, e -> {
       e.printStackTrace();
@@ -148,7 +156,8 @@ public class ExampleConstants {
         action.remove(); // To make sure it only gets executed once, for this payment.
         Product product = event.product;
         Payment cancelledPayment = event.payment;
-        // Additional UI code here (make sure to have access to the UI thread).
+        // Insert ONLY additional UI code here (make sure to have access to the UI thread).
+        // Code that does backend, aka important stuff does not belong here!
       }
     }, e -> {
       e.printStackTrace();
@@ -159,14 +168,16 @@ public class ExampleConstants {
    * This can be anywhere in your application.
    */
   void onAnotherBuyBtnClick() throws Exception {
-    Payment payment = PayHook.createPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE, "https://my-shop.com/payment/success", "https://my-shop.com/payment/cancel");
-    // Forward your user to payment.url
+    Payment payment = PayHook.createPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE);
+    // Forward your user to payment.url to complete/authorize the payment here...
+
     PayHook.onPaymentAuthorized.addAction((action, event) -> {
       if (event.payment.id == payment.id) {
         action.remove(); // To make sure it only gets executed once, for this payment.
         Product product = event.product;
         Payment authorizedPayment = event.payment;
-        // Additional UI code here (make sure to have access to the UI thread).
+        // Insert ONLY additional UI code here (make sure to have access to the UI thread).
+        // Code that does backend, aka important stuff does not belong here!
       }
     }, e -> {
       e.printStackTrace();
@@ -177,7 +188,8 @@ public class ExampleConstants {
         action.remove(); // To make sure it only gets executed once, for this payment.
         Product product = event.product;
         Payment cancelledPayment = event.payment;
-        // Additional UI code here (make sure to have access to the UI thread).
+        // Insert ONLY additional UI code here (make sure to have access to the UI thread).
+        // Code that does backend, aka important stuff does not belong here!
       }
     }, e -> {
       e.printStackTrace();

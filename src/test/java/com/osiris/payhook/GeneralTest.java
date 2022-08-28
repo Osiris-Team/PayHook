@@ -15,10 +15,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
-/**
- * Create test-credentials.yml inside the project root directory. <br>
- * First line is the stripe secret key. <br>
- */
 public class GeneralTest {
     public static SQLTestServer dbServer;
     public static String dbUrl;
@@ -29,7 +25,11 @@ public class GeneralTest {
     private static Product pCoolSubscription;
 
     /**
-     * Initialises PayHook test environment if not already done.
+     * A general test that tests product creation/updating
+     * for all currently supported payment processors
+     * and payment creation/cancellation. (sandbox mode strictly) <br>
+     * Note that this will delete old
+     * webhooks that contain ngrok.io in their url. <br>
      */
     @Test
     public void run() throws Exception {
@@ -99,13 +99,15 @@ public class GeneralTest {
                 GeneralTest.dbUrl,
                 GeneralTest.dbUsername,
                 GeneralTest.dbPassword,
-                true);
+                true,
+                "https://my-shop.com/payment/success",
+                "https://my-shop.com/payment/cancel");
 
         // Init processors
         PayHook.initStripe(stripeSecretKey, stripeWebhookUrl);
         PayHook.initPayPal(paypalClientId, paypalClientSecret, paypalWebhookUrl);
 
-        // Delete old webhook endpoints that have ngrok.io in their url
+        // Delete old webhook endpoints that have ngrok.io in their url // STRIPE
         Map<String, Object> params = new HashMap<>();
         params.put("limit", "100");
         for (WebhookEndpoint webhook :
@@ -115,7 +117,7 @@ public class GeneralTest {
             }
         }
 
-        // Delete old webhook endpoints that have ngrok.io in their url
+        // Delete old webhook endpoints that have ngrok.io in their url // PAYPAL
         for (JsonElement el : PayHook.myPayPal.getWebhooks()) {
             JsonObject webhook = el.getAsJsonObject();
             String url = webhook.get("url").getAsString();
@@ -127,9 +129,11 @@ public class GeneralTest {
         System.out.println("Payment processors initialised with webhooks above.");
 
 
-        // Create products
+        // Create/Update products
         pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE);
         pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Intervall.MONTHLY);
+        System.out.println("Created/Updated products.");
+
         System.out.println("OK!");
     }
 

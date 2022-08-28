@@ -73,6 +73,20 @@ public final class PayHook {
     public static String brandName;
     public static boolean isInitialised = false;
     public static boolean isSandbox = false;
+    /**
+     * Redirect the user to this url after a successful checkout. <br>
+     * This value should be final, not null and not contain
+     * any session related information or any personal information about the buyer. <br>
+     * Example: https://my-shop/payment/success
+     */
+    public static String successUrl;
+    /**
+     * Redirect the user to this url after an aborted checkout. <br>
+     * This value should be final, not null and not contain
+     * any session related information or any personal information about the buyer. <br>
+     * Example: https://my-shop/payment/cancel
+     */
+    public static String cancelUrl;
     // Stripe specific:
     public static Stripe stripe;
     /**
@@ -141,23 +155,31 @@ public final class PayHook {
      * Remember to set your {@link PaymentProcessor} credentials, before
      * creating/updating any {@link Product}s. <br>
      *
+     * @param brandName
      * @param databaseUrl      Example: "jdbc:mysql://localhost:3306/db_name?serverTimezone=Europe/Rome".
      * @param databaseUsername Example: "root".
      * @param databasePassword Example: "".
+     * @param isSandbox Set false in production, set true when testing.
+     * @param successUrl See {@link #successUrl}.
+     * @param cancelUrl See {@link #cancelUrl}.
      * @throws SQLException     When the databaseUrl does not contain "db_name" or another error happens during database initialisation.
      * @throws RuntimeException when there is an error in the thread, which checks for missed payments in a regular interval.
      */
-    public static synchronized void init(String brandName, String databaseUrl, String databaseUsername, String databasePassword, boolean isSandbox) throws SQLException {
+    public static synchronized void init(String brandName, String databaseUrl, String databaseUsername, String databasePassword, boolean isSandbox,
+    String successUrl, String cancelUrl) throws SQLException {
         if (isInitialised) return;
-        PayHook.brandName = brandName;
+        PayHook.brandName = Objects.requireNonNull(brandName);
         PayHook.isSandbox = isSandbox;
+        PayHook.successUrl = Objects.requireNonNull(successUrl);
+        PayHook.cancelUrl = Objects.requireNonNull(cancelUrl);
+        Objects.requireNonNull(databaseUrl);
         if (!isSandbox && (databaseUrl.contains("sandbox") || databaseUrl.contains("test")))
             throw new SQLException("You are NOT running in sandbox mode, thus your database-url/name CANNOT contain 'sandbox' or 'test'!");
         if (isSandbox && (!databaseUrl.contains("sandbox") && !databaseUrl.contains("test")))
             throw new SQLException("You are running in sandbox mode, thus your database-url/name must contain 'sandbox' or 'test'!");
         Database.url = databaseUrl;
-        Database.username = databaseUsername;
-        Database.password = databasePassword;
+        Database.username = Objects.requireNonNull(databaseUsername);
+        Database.password = Objects.requireNonNull(databasePassword);
 
         expiredPaymentsCheckerThread = new Thread(() -> {
             try {
@@ -396,11 +418,13 @@ public final class PayHook {
         if (p == null) { // Product not existing yet
             p = new Product(id, charge, currency, name, description, paymentIntervall);
 
-            if (myPayPal != null) { // Create paypal produt
+            if (myPayPal != null) { // Create paypal product
                 JsonObject response = myPayPal.createProduct(p);
                 p.paypalProductId = response.get("id").getAsString();
                 if (p.isRecurring()) {
-                    com.paypal.api.payments.Plan plan = converter.toPayPalPlan(p);
+                    com.paypal.api.payments.Plan plan = converter.toPayPalPlan(p, successUrl, cancelUrl);
+                    // TODO find a way of updating success and cancel urls
+                    //  for paypal plan without the need of saving them for each product in the database
                     plan.create(paypalV1);
                     p.paypalPlanId = plan.getId();
                 }
@@ -420,13 +444,13 @@ public final class PayHook {
 
         Product newProduct = new Product(id, charge, currency, name, description, paymentIntervall);
         if (newProduct.id != p.id || newProduct.charge != p.charge || !newProduct.currency.equals(p.currency) ||
-                !newProduct.name.equals(p.name) || !newProduct.description.equals(p.description) || newProduct.paymentIntervall != p.paymentIntervall) {
+                !newProduct.name.equals(p.name) || !newProduct.description.equals(p.description) || newProduct.paymentInterval != p.paymentInterval) {
             p.id = id;
             p.charge = charge; // TODO find way of updating payments
             p.currency = currency; // TODO find way of updating payments
             p.name = name;
             p.description = description;
-            p.paymentIntervall = paymentIntervall; // TODO find way of updating payments
+            p.paymentInterval = paymentIntervall; // TODO find way of updating payments
 
             if (myPayPal != null) {
                 if (p.isRecurring()) {
@@ -449,26 +473,26 @@ public final class PayHook {
     /**
      * Convenience method for creating a single {@link Payment} for a single {@link Product}. <br>
      *
-     * @see #createPayments(String, List, PaymentProcessor, String, String)
+     * @see #createPayments(String, List, PaymentProcessor)
      */
-    public static Payment createPayment(String userId, Product product, PaymentProcessor paymentProcessor, String successUrl, String cancelUrl) throws Exception {
+    public static Payment createPayment(String userId, Product product, PaymentProcessor paymentProcessor) throws Exception {
         List<Product> products = new ArrayList<>(1);
         products.add(product);
-        return createPayments(userId, products, paymentProcessor, successUrl, cancelUrl)
+        return createPayments(userId, products, paymentProcessor)
                 .get(0);
     }
 
     /**
      * Convenience method for creating a single {@link Payment} for a single {@link Product}, with custom quantity. <br>
      *
-     * @see #createPayments(String, List, PaymentProcessor, String, String)
+     * @see #createPayments(String, List, PaymentProcessor)
      */
-    public static Payment createPayment(String userId, Product product, int quantity, PaymentProcessor paymentProcessor, String successUrl, String cancelUrl) throws Exception {
+    public static Payment createPayment(String userId, Product product, int quantity, PaymentProcessor paymentProcessor) throws Exception {
         List<Product> products = new ArrayList<>(quantity);
         for (int i = 0; i < quantity; i++) {
             products.add(product);
         }
-        return createPayments(userId, products, paymentProcessor, successUrl, cancelUrl)
+        return createPayments(userId, products, paymentProcessor)
                 .get(0);
     }
 
@@ -485,10 +509,8 @@ public final class PayHook {
      *                         Cannot be null, empty, or contain products with different currencies.
      *                         If the user wants the same {@link Product} twice for example, simply add it twice to this list.
      * @param paymentProcessor The users' desired {@link PaymentProcessor}.
-     * @param successUrl       Redirect the user to this url on a successful checkout.
-     * @param cancelUrl        Redirect the user to this url on an aborted checkout.
      */
-    public static List<Payment> createPayments(String userId, List<Product> products, PaymentProcessor paymentProcessor, String successUrl, String cancelUrl) throws Exception {
+    public static List<Payment> createPayments(String userId, List<Product> products, PaymentProcessor paymentProcessor) throws Exception {
         Converter converter = new Converter();
         Objects.requireNonNull(products);
         if (products.size() == 0) throw new Exception("Products array cannot be empty!");
@@ -543,7 +565,7 @@ public final class PayHook {
                                     .build());
                     payments.add(Payment.create(userId,
                             (quantity * p.charge), p.currency,
-                            p.paymentIntervall,
+                            p.paymentInterval,
                             null, p.id, p.name, quantity,
                             now, now + stripeUrlTimeoutMs, 0, 0,
                             null, null, null,
@@ -572,7 +594,7 @@ public final class PayHook {
                 Session session = Session.create(paramsBuilder.build());
                 Payment payment = Payment.create(userId,
                         product.charge, product.currency,
-                        product.paymentIntervall,
+                        product.paymentInterval,
                         session.getUrl(),
                         product.id, product.name, 1, now, now + stripeUrlTimeoutMs, 0, 0,
                         null, session.getSubscriptionObject().getId(), null,
@@ -603,7 +625,7 @@ public final class PayHook {
                             .category("DIGITAL_GOODS"));
                     payments.add(Payment.create(userId,
                             (quantity * p.charge), p.currency,
-                            p.paymentIntervall, null,
+                            p.paymentInterval, null,
                             p.id, p.name, quantity, now, now + paypalUrlTimeoutMs, 0, 0,
                             null, null, null,
                             null, null, null));
@@ -642,7 +664,7 @@ public final class PayHook {
                     productsRecurring) {
                 String[] arr = myPayPal.createSubscription(brandName, p.paypalPlanId, successUrl, cancelUrl);
                 Payment payment = Payment.create(userId,
-                        p.charge, p.currency, p.paymentIntervall, arr[1],
+                        p.charge, p.currency, p.paymentInterval, arr[1],
                         p.id, p.name, 1, now, now + paypalUrlTimeoutMs, 0, 0,
                         null, null, null,
                         null, arr[0], null);

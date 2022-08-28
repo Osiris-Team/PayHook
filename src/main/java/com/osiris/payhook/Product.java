@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Product {
+    //TODO generate again because of field renamed
     private static final java.sql.Connection con;
     private static final java.util.concurrent.atomic.AtomicInteger idCounter = new java.util.concurrent.atomic.AtomicInteger(0);
 
@@ -93,7 +94,7 @@ public class Product {
     /**
      * Database field/value. Not null. <br>
      */
-    public int paymentIntervall;
+    public int paymentInterval;
     /**
      * Database field/value. <br>
      */
@@ -117,26 +118,26 @@ public class Product {
      * if you plan to add this object to the database in the future, since
      * that method fetches and sets/reserves the {@link #id}.
      */
-    public Product(int id, long charge, String currency, String name, String description, int paymentIntervall) {
+    public Product(int id, long charge, String currency, String name, String description, int paymentInterval) {
         this.id = id;
         this.charge = charge;
         this.currency = currency;
         this.name = name;
         this.description = description;
-        this.paymentIntervall = paymentIntervall;
+        this.paymentInterval = paymentInterval;
     }
     /**
      * Use the static create method instead of this constructor,
      * if you plan to add this object to the database in the future, since
      * that method fetches and sets/reserves the {@link #id}.
      */
-    public Product(int id, long charge, String currency, String name, String description, int paymentIntervall, String paypalProductId, String paypalPlanId, String stripeProductId, String stripePriceId) {
+    public Product(int id, long charge, String currency, String name, String description, int paymentInterval, String paypalProductId, String paypalPlanId, String stripeProductId, String stripePriceId) {
         this.id = id;
         this.charge = charge;
         this.currency = currency;
         this.name = name;
         this.description = description;
-        this.paymentIntervall = paymentIntervall;
+        this.paymentInterval = paymentInterval;
         this.paypalProductId = paypalProductId;
         this.paypalPlanId = paypalPlanId;
         this.stripeProductId = stripeProductId;
@@ -168,7 +169,7 @@ public class Product {
         obj.currency = currency;
         obj.name = name;
         obj.description = description;
-        obj.paymentIntervall = paymentIntervall;
+        obj.paymentInterval = paymentIntervall;
         obj.paypalProductId = paypalProductId;
         obj.paypalPlanId = paypalPlanId;
         obj.stripeProductId = stripeProductId;
@@ -198,7 +199,7 @@ public class Product {
         obj.currency = currency;
         obj.name = name;
         obj.description = description;
-        obj.paymentIntervall = paymentIntervall;
+        obj.paymentInterval = paymentIntervall;
         obj.paypalProductId = paypalProductId;
         obj.paypalPlanId = paypalPlanId;
         obj.stripeProductId = stripeProductId;
@@ -251,7 +252,7 @@ public class Product {
                 obj.currency = rs.getString(3);
                 obj.name = rs.getString(4);
                 obj.description = rs.getString(5);
-                obj.paymentIntervall = rs.getInt(6);
+                obj.paymentInterval = rs.getInt(6);
                 obj.paypalProductId = rs.getString(7);
                 obj.paypalPlanId = rs.getString(8);
                 obj.stripeProductId = rs.getString(9);
@@ -275,7 +276,7 @@ public class Product {
             ps.setString(3, obj.currency);
             ps.setString(4, obj.name);
             ps.setString(5, obj.description);
-            ps.setInt(6, obj.paymentIntervall);
+            ps.setInt(6, obj.paymentInterval);
             ps.setString(7, obj.paypalProductId);
             ps.setString(8, obj.paypalPlanId);
             ps.setString(9, obj.stripeProductId);
@@ -295,7 +296,7 @@ public class Product {
             ps.setString(3, obj.currency);
             ps.setString(4, obj.name);
             ps.setString(5, obj.description);
-            ps.setInt(6, obj.paymentIntervall);
+            ps.setInt(6, obj.paymentInterval);
             ps.setString(7, obj.paypalProductId);
             ps.setString(8, obj.paypalPlanId);
             ps.setString(9, obj.stripeProductId);
@@ -372,11 +373,11 @@ public class Product {
     }
 
     public Product clone() {
-        return new Product(this.id, this.charge, this.currency, this.name, this.description, this.paymentIntervall, this.paypalProductId, this.paypalPlanId, this.stripeProductId, this.stripePriceId);
+        return new Product(this.id, this.charge, this.currency, this.name, this.description, this.paymentInterval, this.paypalProductId, this.paypalPlanId, this.stripeProductId, this.stripePriceId);
     }
 
     public String toPrintString() {
-        return "" + "id=" + this.id + " " + "charge=" + this.charge + " " + "currency=" + this.currency + " " + "name=" + this.name + " " + "description=" + this.description + " " + "paymentIntervall=" + this.paymentIntervall + " " + "paypalProductId=" + this.paypalProductId + " " + "paypalPlanId=" + this.paypalPlanId + " " + "stripeProductId=" + this.stripeProductId + " " + "stripePriceId=" + this.stripePriceId + " ";
+        return "" + "id=" + this.id + " " + "charge=" + this.charge + " " + "currency=" + this.currency + " " + "name=" + this.name + " " + "description=" + this.description + " " + "paymentIntervall=" + this.paymentInterval + " " + "paypalProductId=" + this.paypalProductId + " " + "paypalPlanId=" + this.paypalPlanId + " " + "stripeProductId=" + this.stripeProductId + " " + "stripePriceId=" + this.stripePriceId + " ";
     }
 
     public boolean isPayPalSupported() {
@@ -397,7 +398,7 @@ public class Product {
     }
 
     public boolean isRecurring() { // For example a subscription
-        return paymentIntervall != 0;
+        return paymentInterval != 0;
     }
 
     public String getFormattedPrice() {

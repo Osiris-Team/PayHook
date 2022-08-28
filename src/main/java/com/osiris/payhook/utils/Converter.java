@@ -4,7 +4,6 @@ import com.osiris.payhook.Product;
 import com.paypal.api.payments.MerchantPreferences;
 import com.paypal.api.payments.PaymentDefinition;
 import com.paypal.payments.Money;
-import com.stripe.model.Price;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -47,30 +46,41 @@ public class Converter {
         paramsPrice.put("product", product.stripeProductId);
         paramsPrice.put("unit_amount", product.charge);
         if (product.isRecurring()) {
-            if (product.paymentIntervall == 0)
-                throw new IllegalArgumentException("Payment intervall cannot be 0 if product is meant to have recurring payments!");
-            Price.Recurring stripeRecurring = new Price.Recurring();
-            stripeRecurring.setInterval("day");
-            stripeRecurring.setIntervalCount((long) product.paymentIntervall);
-            paramsPrice.put("recurring", stripeRecurring);
+            Map<String, Object> recurring = new HashMap<>();
+            recurring.put("interval", "day");
+            if (product.paymentInterval <= 0)
+                throwInvalidPaymentInterval(product.paymentInterval);
+            recurring.put("interval_count", (long) product.paymentInterval);
+            recurring.put("usage_type", "licensed");
+
+            paramsPrice.put("recurring", recurring);
         }
         return paramsPrice;
     }
 
-    public com.paypal.api.payments.Plan toPayPalPlan(Product product) {
+    public com.paypal.api.payments.Plan toPayPalPlan(Product product, String successUrl, String cancelUrl) {
         com.paypal.api.payments.Plan plan = new com.paypal.api.payments.Plan(product.name, product.description, "INFINITE");
         plan.setMerchantPreferences(new MerchantPreferences()
+                        .setReturnUrl(successUrl)
+                        .setCancelUrl(cancelUrl)
                 .setAutoBillAmount("YES"));
         List<PaymentDefinition> paymentDefinitions = new ArrayList<>(1);
-        PaymentDefinition paymentDefinition = new PaymentDefinition().setAmount(toPayPalCurrency(product)).setType("REGULAR");
+        PaymentDefinition paymentDefinition = new PaymentDefinition()
+                .setName("Payment for "+product.name)
+                .setAmount(toPayPalCurrency(product))
+                .setType("REGULAR");
         paymentDefinition.setFrequency("DAY");
-        if (product.paymentIntervall == 0)
-            throw new IllegalArgumentException("Payment intervall cannot be 0 if product is meant to have recurring payments!");
-        paymentDefinition.setFrequencyInterval("" + product.paypalProductId);
+        if (product.paymentInterval <= 0)
+            throwInvalidPaymentInterval(product.paymentInterval);
+        paymentDefinition.setFrequencyInterval("" + product.paymentInterval);
 
         paymentDefinitions.add(paymentDefinition);
         plan.setPaymentDefinitions(paymentDefinitions);
         return plan;
+    }
+
+    private void throwInvalidPaymentInterval(int paymentInterval) {
+        throw new IllegalArgumentException("Payment interval ("+paymentInterval+") cannot be <= 0 if product is meant to have recurring payments!");
     }
 
     public List<com.paypal.api.payments.Patch> toPayPalPlanPatch(Product product) {
