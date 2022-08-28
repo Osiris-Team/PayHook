@@ -16,6 +16,8 @@ import com.google.gson.JsonObject;
 import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
 import com.osiris.autoplug.core.json.exceptions.WrongJsonTypeException;
 import com.osiris.payhook.Product;
+import com.osiris.payhook.exceptions.ParseBodyException;
+import com.osiris.payhook.exceptions.ParseHeaderException;
 import com.paypal.api.payments.Currency;
 import com.paypal.base.codec.binary.Base64;
 import com.paypal.base.rest.PayPalRESTException;
@@ -30,10 +32,7 @@ import java.io.IOException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.Objects;
-import java.util.TimeZone;
+import java.util.*;
 
 /**
  * PayPals' Java SDKs don't cover the complete REST API. <br>
@@ -358,11 +357,48 @@ public class MyPayPal {
         utilsJson.deleteAndGetResponse(BASE_V1_URL + "/notifications/webhooks/" + webhookId, this);
     }
 
+    public boolean isWebhookEventValid(String validWebhookId, List<String> validTypesList, Map<String, String> header, String body)
+            throws ParseHeaderException, ParseBodyException, IOException, HttpErrorException {
+        return isWebhookEventValid(new PaypalWebhookEvent(validWebhookId, validTypesList, header, body));
+    }
+
     /**
      * Checks if the provided webhook event is valid via the PayPal-REST-API. <br>
      * Also sets {@link PaypalWebhookEvent#isValid()} accordingly.
      */
-    public boolean isWebhookEventValid(PaypalWebhookEvent event) throws IOException, HttpErrorException {
+    public boolean isWebhookEventValid(PaypalWebhookEvent event)
+            throws IOException, HttpErrorException, ParseBodyException {
+        // Check if the webhook types match
+        List<String> validEventTypes = event.getValidTypesList();
+
+        // event_type can be either an json array or a normal field. Do stuff accordingly.
+        JsonElement elementEventType = event.getBody().get("event_type");
+        if (elementEventType == null)
+            elementEventType = event.getBody().get("event_types"); // Check for event_types
+        if (elementEventType == null)
+            throw new ParseBodyException("Failed to find key 'event_type' or 'event_types' in the provided json body."); // if the element is still null
+
+        if (elementEventType.isJsonArray()) {
+            // This means we have multiple event_type objects in the array
+            JsonArray arrayEventType = elementEventType.getAsJsonArray();
+            for (JsonElement singleElementEventType :
+                    arrayEventType) {
+                JsonObject o = singleElementEventType.getAsJsonObject();
+                if (!validEventTypes.contains(o.get("name").getAsString())){
+                    //throw new WebHookValidationException("No valid type(" + o.get("name") + ") found in the valid types list: " + validEventTypes);
+                    return false;
+                }
+            }
+        } else {
+            // This means we only have one event_type in the json and not an array.
+            String webHookType = event.getBody().get("event_type").getAsString();
+            if (!validEventTypes.contains(webHookType)){
+                //throw new WebHookValidationException("No valid type(" + webHookType + ") found in the valid types list: " + validEventTypes);
+                return false;
+            }
+
+        }
+
         PaypalWebhookEventHeader header = event.getHeader();
         JsonObject json = new JsonObject();
         json.addProperty("transmission_id", header.getTransmissionId());

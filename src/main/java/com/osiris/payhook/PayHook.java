@@ -205,9 +205,9 @@ public final class PayHook {
         onPaymentAuthorized.addAction((action, event) -> {
             Payment currentPayment = event.payment;
             if (currentPayment.isRecurring() && !currentPayment.isRefund()) {
-                long futureTime = System.currentTimeMillis() + Payment.Intervall.toMilliseconds(currentPayment.intervall);
+                long futureTime = System.currentTimeMillis() + Payment.Intervall.toMilliseconds(currentPayment.interval);
                 Payment futurePayment = currentPayment.clone();
-                futurePayment.id = Payment.create(currentPayment.userId, currentPayment.charge, currentPayment.currency, currentPayment.intervall)
+                futurePayment.id = Payment.create(currentPayment.userId, currentPayment.charge, currentPayment.currency, currentPayment.interval)
                         .id;
                 futurePayment.timestampCreated = futureTime;
                 futurePayment.timestampExpires = futureTime + currentPayment.getUrlTimeoutMs();
@@ -747,7 +747,7 @@ public final class PayHook {
             switch (event.getEventType()) {
                 case "CHECKOUT.ORDER.APPROVED": { // One time payments
                     String orderId = resource.get("id").getAsString();
-                    List<Payment> payments = Payment.get("paypalOrderId = " + orderId);
+                    List<Payment> payments = Payment.wherePaypalOrderId().is(orderId).get();
                     if (payments.isEmpty())
                         throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.PAYPAL + ", failed to find payment order id '" + orderId + "' in local database).");
                     long totalCharge = 0;
@@ -791,7 +791,7 @@ public final class PayHook {
                 }
                 case "BILLING.SUBSCRIPTION.CANCELLED": { // Recurring payments
                     String subscriptionId = resource.get("id").getAsString();
-                    List<Payment> payments = Payment.get("paypalSubscriptionId = " + subscriptionId);
+                    List<Payment> payments = Payment.wherePaypalSubscriptionId().is(subscriptionId).get();
                     if (payments.isEmpty()) throw new WebHookValidationException(
                             "Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find payments with subscription id '" + subscriptionId + "' in local database).");
                     cancelPayments(payments);
@@ -822,7 +822,7 @@ public final class PayHook {
             switch (event.getType()) {
                 case "payment_intent.succeeded": { // One time payments
                     PaymentIntent paymentIntent = (PaymentIntent) stripeObject;
-                    List<Payment> payments = Payment.get("stripePaymentIntentId = " + paymentIntent.getId());
+                    List<Payment> payments = Payment.whereStripePaymentIntentId().is(paymentIntent.getId()).get();
                     if (payments.isEmpty())
                         throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find payment intent id '" + paymentIntent.getId() + "' in local database).");
                     long totalCharge = 0;
@@ -866,7 +866,7 @@ public final class PayHook {
                 }
                 case "customer.subscription.deleted": { // Recurring payments
                     Subscription subscription = (Subscription) stripeObject; // TODO check if this actually works
-                    List<Payment> payments = Payment.get("stripeSubscriptionId = " + subscription.getId());
+                    List<Payment> payments = Payment.whereStripeSubscriptionId().is(subscription.getId()).get();
                     if (payments.isEmpty()) throw new WebHookValidationException(
                             "Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find payments with stripe_subscription_id '" + subscription.getId() + "' in local database).");
                     cancelPayments(payments);
@@ -1029,7 +1029,7 @@ public final class PayHook {
 
             for (Payment payment : payments) { // Create refund payments
                 Payment refundPayment = payment.clone();
-                refundPayment.id = Payment.create(payment.userId, payment.charge, payment.currency, payment.intervall)
+                refundPayment.id = Payment.create(payment.userId, payment.charge, payment.currency, payment.interval)
                         .id;
                 refundPayment.charge = Long.parseLong("-" + payment.charge);
                 refundPayment.timestampCreated = now;

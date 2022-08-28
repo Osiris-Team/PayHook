@@ -1,6 +1,15 @@
 # PayHook [![](https://jitpack.io/v/Osiris-Team/PayHook.svg)](https://jitpack.io/#Osiris-Team/PayHook)
 A Java-API for validating PayPals Webhook events/notifications.
 
+```java
+MyPayPal paypal = new MyPayPal(clientId, clientSecret, MyPayPal.Mode.SANDBOX);
+PaypalWebhookEvent event = new PaypalWebhookEvent(paypalWebhookId, paypalWebhookEventTypes, header, body);
+if(!paypal.isWebhookEventValid(event)){
+    System.err.println("Received invalid PayPal webhook event.");
+    return;
+}
+```
+
 ## Major changes coming soon! Stripe & PayPal unified Java-API.
 I am rewriting this Java lib from the ground up (for a while now).
 My aim is to create a library that handles checkouts/payments/subscriptions for multiple payment processors (PayPal & Stripe for now)
@@ -21,14 +30,20 @@ is missing the webhook event validation feature, which was available in the old,
 [PayPal Java-SDK](https://github.com/paypal/PayPal-Java-SDK).
 That's why PayHook exists. Its aim, is to provide a fast and easy to use Java-API for validating
 webhook events, without the need of any extra dependencies.
-PayHooks validation methods are based on the official, old [PayPal Java-SDKs](https://github.com/paypal/PayPal-Java-SDK) methods and were enhanced for greater functionality/performance.
+PayHook uses the [/v1/notifications/verify-webhook-signature](https://developer.paypal.com/docs/api/webhooks/v1/#verify-webhook-signature) endpoint internally for validation. 
 ## Usage example
 This example uses spring(tomcat) to listen for POST requests. 
 Nevertheless, this can be easily ported to your web application.
+
+<details>
+<summary>Show SpringBoot example</summary>
+
 ```java
 @RestController
 @RequestMapping(value = "paypal-hook", method = RequestMethod.POST)
 public class PayHookExample {
+
+    MyPayPal paypal = new MyPayPal(clientId, clientSecret, MyPayPal.Mode.SANDBOX);
 
     // This listens at https://.../paypal-hook
     // for paypal notification messages and returns a "OK" text as response.
@@ -37,10 +52,7 @@ public class PayHookExample {
 
         System.out.println("Received webhook event. Validating...");
         try{
-            PayHook payHook = new PayHook("INSERT_CLIENT_ID", "INSERT_CLIENT_SECRET");
-            payHook.setSandboxMode(true); // Default is false. Remove this in production.
-            
-            boolean isValid = payHook.isWebhookEventValid("INSERT_VALID_WEBHOOK_ID", // Get it from here: https://developer.paypal.com/developer/applications/
+            boolean isValid = paypal.isWebhookEventValid("INSERT_VALID_WEBHOOK_ID", // Get it from here: https://developer.paypal.com/developer/applications/
                     Arrays.asList("CHECKOUT.ORDER.APPROVED", "PAYMENTS.PAYMENT.CREATED"), // Insert your valid event types/names here. Full list of all event types/names here: https://developer.paypal.com/docs/api-basics/notifications/webhooks/event-names
                     getHeadersAsMap(request),
                     getBodyAsString(request));
@@ -82,6 +94,8 @@ public class PayHookExample {
     }
 }
 ```
+</details>
+
 ## Funding
 I am actively maintaining this repository, publishing new releases and working 
 on its codebase for free, so if this project benefits you and/or your company consider 
