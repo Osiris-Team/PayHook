@@ -569,10 +569,8 @@ public final class PayHook {
                     int quantity = productsAndQuantity.get(p);
                     paramsBuilder.addLineItem(
                             SessionCreateParams.LineItem.builder()
-                                    .setName(p.name)
-                                    .setDescription(p.description)
                                     .setQuantity((long) quantity)
-                                    .setPrice("{{" + p.stripePriceId + "}}")
+                                    .setPrice(p.stripePriceId)
                                     .build());
                     payments.add(Payment.create(userId,
                             (quantity * p.charge), p.currency,
@@ -586,7 +584,7 @@ public final class PayHook {
                 for (Payment payment :
                         payments) {
                     payment.url = session.getUrl();
-                    payment.stripePaymentIntentId = session.getPaymentIntentObject().getId();
+                    payment.stripePaymentIntentId = session.getPaymentIntent();
                 }
             }
             for (Product product :
@@ -597,10 +595,8 @@ public final class PayHook {
                         .setCancelUrl(cancelUrl);
                 paramsBuilder.addLineItem(
                         SessionCreateParams.LineItem.builder()
-                                .setName(product.name)
-                                .setDescription(product.description)
                                 .setQuantity((long) 1)
-                                .setPrice("{{" + product.stripePriceId + "}}")
+                                .setPrice(product.stripePriceId)
                                 .build());
                 Session session = Session.create(paramsBuilder.build());
                 Payment payment = Payment.create(userId,
@@ -831,11 +827,17 @@ public final class PayHook {
                     }
                     if (totalCharge != paymentIntent.getAmount())
                         throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", expected paid amount of '" + totalCharge + "' but got '" + paymentIntent.getAmount() + "').");
-                    paymentIntent.capture();
+                    if(paymentIntent.getAmountCapturable() != null && paymentIntent.getAmountCapturable() > 0)
+                        paymentIntent.capture();
                     for (Payment payment : payments) {
                         if (payment.timestampAuthorized == 0) {
                             payment.timestampAuthorized = now;
-                            payment.stripeChargeId = paymentIntent.getInvoiceObject().getCharge();
+                            List<Charge> charges = paymentIntent.getCharges().getData();
+                            if(charges.size() > 1)
+                                throw new IllegalArgumentException("Expected 1 charge but got multiple ("+charges.size()+") charges! "
+                                        +paymentIntent.getCharges().toJson());
+                            Charge charge = charges.get(0);
+                            payment.stripeChargeId = charge.getId();
                             Payment.update(payment);
                             onPaymentAuthorized.execute(new PaymentEvent(Product.get(payment.productId), payment));
                         }

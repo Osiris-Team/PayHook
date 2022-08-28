@@ -139,20 +139,20 @@ public class GeneralTest {
         System.out.println("Created/Updated products.");
         System.out.println("OK!");
 
-        PaymentProcessor paymentProcessor = PaymentProcessor.PAYPAL;
+        //oneTimePayment(PaymentProcessor.PAYPAL);
+        oneTimePayment(PaymentProcessor.STRIPE);
+    }
+
+    private void oneTimePayment(PaymentProcessor paymentProcessor) throws Exception {
         System.out.println("Test buying "+pCoolCookie.name+" over "+paymentProcessor+", waiting for user authorization...");
         Payment payment = PayHook.createPayment("testUser", pCoolCookie, paymentProcessor);
         AtomicBoolean isAuthorized = new AtomicBoolean(false);
         PayHook.onPaymentAuthorized.addAction((action, event) -> {
-            if(event.payment.id == payment.id){
-                action.remove();
-                isAuthorized.set(true);
-            }
+            System.out.println("Received authorized payment for "+event.payment.productName+" "+new Converter().toMoneyString(pCoolCookie));
+            isAuthorized.set(true);
         }, Throwable::printStackTrace);
         Desktop.getDesktop().browse(URI.create(payment.url));
         while (!isAuthorized.get()) Thread.sleep(100);
-        System.out.println("Payment "+new Converter().toMoneyString(pCoolCookie)+" was authorized.");
-
     }
 
     private void doPayPalWebhookEvent(MuRequest request, MuResponse response, Map<String, String> pathParams) {
