@@ -96,7 +96,7 @@ public final class PayHook {
      *
      * @see <a href="https://stripe.com/docs/api/webhook_endpoints/update">Stripe docs</a>
      */
-    public static List<String> stripeWebhookEventTypes = Arrays.asList("payment_intent.succeeded", "invoice.created",
+    public static List<String> stripeWebhookEventTypes = Arrays.asList("checkout.session.completed", "invoice.created",
             "invoice.paid", "customer.subscription.deleted");
 
 
@@ -584,6 +584,7 @@ public final class PayHook {
                 for (Payment payment :
                         payments) {
                     payment.url = session.getUrl();
+                    payment.stripeSessionId = session.getId();
                     payment.stripePaymentIntentId = session.getPaymentIntent();
                 }
             }
@@ -599,12 +600,13 @@ public final class PayHook {
                                 .setPrice(product.stripePriceId)
                                 .build());
                 Session session = Session.create(paramsBuilder.build());
+
                 Payment payment = Payment.create(userId,
                         product.charge, product.currency,
                         product.paymentInterval,
                         session.getUrl(),
                         product.id, product.name, 1, now, now + stripeUrlTimeoutMs, 0, 0,
-                        null, session.getSubscriptionObject().getId(), null,
+                        session.getId(), null, null, //session.getPaymentIntent() and session.getSubscription() always returns null here
                         null, null, null);
                 payments.add(payment);
             }
@@ -634,7 +636,7 @@ public final class PayHook {
                             (quantity * p.charge), p.currency,
                             p.paymentInterval, null,
                             p.id, p.name, quantity, now, now + paypalUrlTimeoutMs, 0, 0,
-                            null, null, null,
+                            null, null,null,
                             null, null, null));
                 }
                 PurchaseUnitRequest purchaseUnitRequest = new PurchaseUnitRequest()
@@ -673,7 +675,7 @@ public final class PayHook {
                 Payment payment = Payment.create(userId,
                         p.charge, p.currency, p.paymentInterval, arr[1],
                         p.id, p.name, 1, now, now + paypalUrlTimeoutMs, 0, 0,
-                        null, null, null,
+                        null, null,null,
                         null, arr[0], null);
                 payments.add(payment);
             }
@@ -769,7 +771,7 @@ public final class PayHook {
                     String paymentId = resource.get("id").getAsString();
                     com.paypal.payments.Capture capture = myPayPal.capturePayment(paypalV2, paymentId).result();
                     String subscriptionId = myPayPal.findSubscriptionId(paymentId);
-                    List<Payment> payments = Payment.getPendingPayments("paypalSubscriptionId = " + subscriptionId);
+                    List<Payment> payments = Payment.getPendingPayments("paypalSubscriptionId = ?", subscriptionId);
                     if (payments.isEmpty()) throw new WebHookValidationException(
                             "Received invalid webhook event (" + PaymentProcessor.PAYPAL + ", failed to find pending payments with subscription id '" + subscriptionId + "' in local database).");
                     if (payments.size() > 1) throw new WebHookValidationException(
@@ -813,57 +815,72 @@ public final class PayHook {
                 // instructions on how to handle this case, or return an error here.
                 throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", deserialization failed).");
             }
-            // Handle the event
 
+            // Handle the event
             switch (event.getType()) {
-                case "payment_intent.succeeded": { // One time payments
-                    PaymentIntent paymentIntent = (PaymentIntent) stripeObject;
-                    List<Payment> payments = Payment.whereStripePaymentIntentId().is(paymentIntent.getId()).get();
-                    if (payments.isEmpty())
-                        throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find payment intent id '" + paymentIntent.getId() + "' in local database).");
+                case "checkout.session.completed": { // Checkout payment was authorized/completed
+                    Session session = (Session) stripeObject;
+
+                    List<Payment> paymentsWithSessionId = Payment.whereStripeSessionId().is(session.getId()).get();
+                    if (paymentsWithSessionId.isEmpty())
+                        throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find session id '" + session.getId() + "' in local database).");
                     long totalCharge = 0;
-                    for (Payment p : payments) {
+                    for (Payment p : paymentsWithSessionId) {
                         totalCharge += p.charge;
                     }
-                    if (totalCharge != paymentIntent.getAmount())
-                        throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", expected paid amount of '" + totalCharge + "' but got '" + paymentIntent.getAmount() + "').");
-                    if(paymentIntent.getAmountCapturable() != null && paymentIntent.getAmountCapturable() > 0)
-                        paymentIntent.capture();
-                    for (Payment payment : payments) {
-                        if (payment.timestampAuthorized == 0) {
-                            payment.timestampAuthorized = now;
-                            List<Charge> charges = paymentIntent.getCharges().getData();
-                            if(charges.size() > 1)
-                                throw new IllegalArgumentException("Expected 1 charge but got multiple ("+charges.size()+") charges! "
-                                        +paymentIntent.getCharges().toJson());
-                            Charge charge = charges.get(0);
-                            payment.stripeChargeId = charge.getId();
-                            Payment.update(payment);
-                            onPaymentAuthorized.execute(new PaymentEvent(Product.get(payment.productId), payment));
+                    if (totalCharge != session.getAmountTotal())
+                        throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", expected paid amount of '" + totalCharge + "' but got '" + session.getAmountTotal() + "').");
+
+                    if(session.getSubscription() != null){ // Subscription was just bought
+                        if(paymentsWithSessionId.size() != 1)
+                            throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", wrong amount of payments ("+paymentsWithSessionId.size()+") for subscription that was just created," +
+                                    " expected 1 with stripe session id "+session.getId()+").");
+
+                        Payment firstPayment = paymentsWithSessionId.get(0);
+                        firstPayment.stripeSubscriptionId = session.getSubscription();
+                        firstPayment.stripePaymentIntentId = Invoice.retrieve(Subscription.retrieve(session.getSubscription()).getLatestInvoice()).getPaymentIntent();
+                        firstPayment.timestampAuthorized = now;
+
+                        Payment.update(firstPayment);
+                        onPaymentAuthorized.execute(new PaymentEvent(Product.get(firstPayment.productId), firstPayment));
+                    }
+                    else { // Authorized/Completed one-time payment(s)
+                        for (Payment payment : paymentsWithSessionId) {
+                            if(payment.timestampAuthorized == 0){
+                                payment.timestampAuthorized = now;
+                                payment.stripePaymentIntentId = session.getPaymentIntent();
+                                Payment.update(payment);
+                                onPaymentAuthorized.execute(new PaymentEvent(Product.get(payment.productId), payment));
+                            }
                         }
                     }
                     break;
                 }
                 case "invoice.created": { // Recurring payments
-                    break; // Return 2xx status code to auto-finalize the invoice and receive a invoice.paid event next
+                    break; // Return 2xx status code to auto-finalize the invoice and receive an invoice.paid event next
                 }
                 case "invoice.paid": { // Recurring payments
                     Invoice invoice = (Invoice) stripeObject;
-                    Subscription subscription = invoice.getSubscriptionObject();
-                    List<Payment> payments = Payment.getPendingPayments("stripeSubscriptionId = " + subscription.getId());
-                    if (payments.isEmpty()) throw new WebHookValidationException(
-                            "Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find pending payments with stripe_subscription_id '" + subscription.getId() + "' in local database).");
-                    if (payments.size() > 1) throw new WebHookValidationException(
-                            "Received invalid webhook event (" + PaymentProcessor.STRIPE + ", there are multiple (" + payments.size() + ") pending payments with the stripe_subscription_id '" + subscription.getId() + "' in local database).");
-                    Payment payment = payments.get(0);
-                    if (payment.charge != invoice.getChargeObject().getAmount())
-                        throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", expected paid amount of '" + payment.charge + "' but got '" + invoice.getChargeObject().getAmount() + "').");
-                    if (payment.timestampAuthorized == 0) {
-                        payment.timestampAuthorized = now;
-                        payment.stripeChargeId = invoice.getCharge();
-                        Payment.update(payment);
-                        onPaymentAuthorized.execute(new PaymentEvent(Product.get(payment.productId), payment));
-                    }
+                    String subscriptionId = invoice.getSubscription();
+                    if(subscriptionId == null) break; // Make sure NOT recurring payments are ignored
+                    if(invoice.getBillingReason().equals("subscription_create")) break; // Also ignore
+                    // the first payment/invoice for a subscription, because that MUST be handled by checkout.session.completed,
+                    // because this event has no information about the checkout session id.
+
+                    List<Payment> authorizedPayments = Payment.getAuthorizedPayments("id = ?", subscriptionId);
+                    if (authorizedPayments.isEmpty()) throw new WebHookValidationException(
+                            "Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find authorized payments with stripeSubscriptionId '" + subscriptionId + "' in local database).");
+                    Payment lastPayment = authorizedPayments.get(authorizedPayments.size()-1);
+                    Product product = Product.get(lastPayment.productId);
+                    if (product.charge != invoice.getAmountPaid())
+                        throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", expected paid amount of '" + product.charge + "' but got '" + invoice.getAmountPaid() + "').");
+                    Payment newPayment = Payment.create(lastPayment.userId, invoice.getAmountPaid(), product.currency, product.paymentInterval);
+                    newPayment.stripeSessionId = lastPayment.stripeSessionId;
+                    newPayment.stripePaymentIntentId = invoice.getPaymentIntent();
+                    newPayment.stripeSubscriptionId = lastPayment.stripeSubscriptionId;
+                    newPayment.timestampAuthorized = now;
+                    Payment.add(newPayment);
+                    onPaymentAuthorized.execute(new PaymentEvent(Product.get(newPayment.productId), newPayment));
                     break;
                 }
                 case "customer.subscription.deleted": { // Recurring payments
@@ -992,7 +1009,6 @@ public final class PayHook {
                         throw new Exception("All provided payments must have the same id! Failed at: " + p);
                     Refund.create(new RefundCreateParams.Builder()
                             .setAmount(p.charge)
-                            .setCharge(p.stripeChargeId)
                             .setPaymentIntent(firstPayment.stripePaymentIntentId)
                             .build());
                 }

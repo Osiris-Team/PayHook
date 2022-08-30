@@ -139,16 +139,22 @@ public class GeneralTest {
         System.out.println("Created/Updated products.");
         System.out.println("OK!");
 
-        //oneTimePayment(PaymentProcessor.PAYPAL);
-        oneTimePayment(PaymentProcessor.STRIPE);
+        if(Desktop.isDesktopSupported()){
+            //waitForPayment(pCoolCookie, PaymentProcessor.PAYPAL);
+            //waitForPayment(pCoolCookie, PaymentProcessor.STRIPE);
+            waitForPayment(pCoolSubscription, PaymentProcessor.STRIPE);
+        }else{
+            System.out.println("Skipped payment test since GUI/desktop not available.");
+        }
+
     }
 
-    private void oneTimePayment(PaymentProcessor paymentProcessor) throws Exception {
-        System.out.println("Test buying "+pCoolCookie.name+" over "+paymentProcessor+", waiting for user authorization...");
-        Payment payment = PayHook.createPayment("testUser", pCoolCookie, paymentProcessor);
+    private void waitForPayment(Product product, PaymentProcessor paymentProcessor) throws Exception {
+        System.out.println("Test buying "+product.name+" over "+paymentProcessor+", waiting for user authorization...");
+        Payment payment = PayHook.createPayment("testUser", product, paymentProcessor);
         AtomicBoolean isAuthorized = new AtomicBoolean(false);
         PayHook.onPaymentAuthorized.addAction((action, event) -> {
-            System.out.println("Received authorized payment for "+event.payment.productName+" "+new Converter().toMoneyString(pCoolCookie));
+            System.out.println("Received authorized payment for "+event.payment.productName+" "+new Converter().toMoneyString(product));
             isAuthorized.set(true);
         }, Throwable::printStackTrace);
         Desktop.getDesktop().browse(URI.create(payment.url));

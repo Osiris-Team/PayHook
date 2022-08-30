@@ -47,12 +47,12 @@ public class Payment{
                 s.executeUpdate("ALTER TABLE `Payment` MODIFY COLUMN `timestampAuthorized` BIGINT DEFAULT NULL");
                 try{s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN `timestampCancelled` BIGINT DEFAULT NULL");}catch(Exception ignored){}
                 s.executeUpdate("ALTER TABLE `Payment` MODIFY COLUMN `timestampCancelled` BIGINT DEFAULT NULL");
-                try{s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN `stripePaymentIntentId` TEXT(65532) DEFAULT NULL");}catch(Exception ignored){}
-                s.executeUpdate("ALTER TABLE `Payment` MODIFY COLUMN `stripePaymentIntentId` TEXT(65532) DEFAULT NULL");
+                try{s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN `stripeSessionId` TEXT(65532) DEFAULT NULL");}catch(Exception ignored){}
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY COLUMN `stripeSessionId` TEXT(65532) DEFAULT NULL");
                 try{s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN `stripeSubscriptionId` TEXT(65532) DEFAULT NULL");}catch(Exception ignored){}
                 s.executeUpdate("ALTER TABLE `Payment` MODIFY COLUMN `stripeSubscriptionId` TEXT(65532) DEFAULT NULL");
-                try{s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN `stripeChargeId` TEXT(65532) DEFAULT NULL");}catch(Exception ignored){}
-                s.executeUpdate("ALTER TABLE `Payment` MODIFY COLUMN `stripeChargeId` TEXT(65532) DEFAULT NULL");
+                try{s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN `stripePaymentIntentId` TEXT(65532) DEFAULT NULL");}catch(Exception ignored){}
+                s.executeUpdate("ALTER TABLE `Payment` MODIFY COLUMN `stripePaymentIntentId` TEXT(65532) DEFAULT NULL");
                 try{s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN `paypalOrderId` TEXT(65532) DEFAULT NULL");}catch(Exception ignored){}
                 s.executeUpdate("ALTER TABLE `Payment` MODIFY COLUMN `paypalOrderId` TEXT(65532) DEFAULT NULL");
                 try{s.executeUpdate("ALTER TABLE `Payment` ADD COLUMN `paypalSubscriptionId` TEXT(65532) DEFAULT NULL");}catch(Exception ignored){}
@@ -81,8 +81,8 @@ public class Payment{
      if you plan to add this object to the database in the future, since
      that method fetches and sets/reserves the {@link #id}.
      */
-    public Payment (int id, String userId, long charge, String currency, int interval, String url, int productId, String productName, int productQuantity, long timestampCreated, long timestampExpires, long timestampAuthorized, long timestampCancelled, String stripePaymentIntentId, String stripeSubscriptionId, String stripeChargeId, String paypalOrderId, String paypalSubscriptionId, String paypalCaptureId){
-        this.id = id;this.userId = userId;this.charge = charge;this.currency = currency;this.interval = interval;this.url = url;this.productId = productId;this.productName = productName;this.productQuantity = productQuantity;this.timestampCreated = timestampCreated;this.timestampExpires = timestampExpires;this.timestampAuthorized = timestampAuthorized;this.timestampCancelled = timestampCancelled;this.stripePaymentIntentId = stripePaymentIntentId;this.stripeSubscriptionId = stripeSubscriptionId;this.stripeChargeId = stripeChargeId;this.paypalOrderId = paypalOrderId;this.paypalSubscriptionId = paypalSubscriptionId;this.paypalCaptureId = paypalCaptureId;
+    public Payment (int id, String userId, long charge, String currency, int interval, String url, int productId, String productName, int productQuantity, long timestampCreated, long timestampExpires, long timestampAuthorized, long timestampCancelled, String stripeSessionId, String stripeSubscriptionId, String stripePaymentIntentId, String paypalOrderId, String paypalSubscriptionId, String paypalCaptureId){
+        this.id = id;this.userId = userId;this.charge = charge;this.currency = currency;this.interval = interval;this.url = url;this.productId = productId;this.productName = productName;this.productQuantity = productQuantity;this.timestampCreated = timestampCreated;this.timestampExpires = timestampExpires;this.timestampAuthorized = timestampAuthorized;this.timestampCancelled = timestampCancelled;this.stripeSessionId = stripeSessionId;this.stripeSubscriptionId = stripeSubscriptionId;this.stripePaymentIntentId = stripePaymentIntentId;this.paypalOrderId = paypalOrderId;this.paypalSubscriptionId = paypalSubscriptionId;this.paypalCaptureId = paypalCaptureId;
     }
     /**
      Database field/value. Not null. <br>
@@ -139,7 +139,7 @@ public class Payment{
     /**
      Database field/value. <br>
      */
-    public String stripePaymentIntentId;
+    public String stripeSessionId;
     /**
      Database field/value. <br>
      */
@@ -147,7 +147,7 @@ public class Payment{
     /**
      Database field/value. <br>
      */
-    public String stripeChargeId;
+    public String stripePaymentIntentId;
     /**
      Database field/value. <br>
      */
@@ -177,10 +177,10 @@ public class Payment{
      Increments the id (thread-safe) and sets it for this object (basically reserves a space in the database).
      Note that this method will NOT add the object to the table.
      */
-    public static Payment create( String userId, long charge, String currency, int interval, String url, int productId, String productName, int productQuantity, long timestampCreated, long timestampExpires, long timestampAuthorized, long timestampCancelled, String stripePaymentIntentId, String stripeSubscriptionId, String stripeChargeId, String paypalOrderId, String paypalSubscriptionId, String paypalCaptureId)  {
+    public static Payment create( String userId, long charge, String currency, int interval, String url, int productId, String productName, int productQuantity, long timestampCreated, long timestampExpires, long timestampAuthorized, long timestampCancelled, String stripeSessionId, String stripeSubscriptionId, String stripePaymentIntentId, String paypalOrderId, String paypalSubscriptionId, String paypalCaptureId)  {
         int id = idCounter.getAndIncrement();
         Payment obj = new Payment();
-        obj.id=id; obj.userId=userId; obj.charge=charge; obj.currency=currency; obj.interval=interval; obj.url=url; obj.productId=productId; obj.productName=productName; obj.productQuantity=productQuantity; obj.timestampCreated=timestampCreated; obj.timestampExpires=timestampExpires; obj.timestampAuthorized=timestampAuthorized; obj.timestampCancelled=timestampCancelled; obj.stripePaymentIntentId=stripePaymentIntentId; obj.stripeSubscriptionId=stripeSubscriptionId; obj.stripeChargeId=stripeChargeId; obj.paypalOrderId=paypalOrderId; obj.paypalSubscriptionId=paypalSubscriptionId; obj.paypalCaptureId=paypalCaptureId;
+        obj.id=id; obj.userId=userId; obj.charge=charge; obj.currency=currency; obj.interval=interval; obj.url=url; obj.productId=productId; obj.productName=productName; obj.productQuantity=productQuantity; obj.timestampCreated=timestampCreated; obj.timestampExpires=timestampExpires; obj.timestampAuthorized=timestampAuthorized; obj.timestampCancelled=timestampCancelled; obj.stripeSessionId=stripeSessionId; obj.stripeSubscriptionId=stripeSubscriptionId; obj.stripePaymentIntentId=stripePaymentIntentId; obj.paypalOrderId=paypalOrderId; obj.paypalSubscriptionId=paypalSubscriptionId; obj.paypalCaptureId=paypalCaptureId;
         return obj;
     }
 
@@ -198,10 +198,10 @@ public class Payment{
     /**
      Convenience method for creating and directly adding a new object to the table.
      */
-    public static Payment createAndAdd( String userId, long charge, String currency, int interval, String url, int productId, String productName, int productQuantity, long timestampCreated, long timestampExpires, long timestampAuthorized, long timestampCancelled, String stripePaymentIntentId, String stripeSubscriptionId, String stripeChargeId, String paypalOrderId, String paypalSubscriptionId, String paypalCaptureId)  {
+    public static Payment createAndAdd( String userId, long charge, String currency, int interval, String url, int productId, String productName, int productQuantity, long timestampCreated, long timestampExpires, long timestampAuthorized, long timestampCancelled, String stripeSessionId, String stripeSubscriptionId, String stripePaymentIntentId, String paypalOrderId, String paypalSubscriptionId, String paypalCaptureId)  {
         int id = idCounter.getAndIncrement();
         Payment obj = new Payment();
-        obj.id=id; obj.userId=userId; obj.charge=charge; obj.currency=currency; obj.interval=interval; obj.url=url; obj.productId=productId; obj.productName=productName; obj.productQuantity=productQuantity; obj.timestampCreated=timestampCreated; obj.timestampExpires=timestampExpires; obj.timestampAuthorized=timestampAuthorized; obj.timestampCancelled=timestampCancelled; obj.stripePaymentIntentId=stripePaymentIntentId; obj.stripeSubscriptionId=stripeSubscriptionId; obj.stripeChargeId=stripeChargeId; obj.paypalOrderId=paypalOrderId; obj.paypalSubscriptionId=paypalSubscriptionId; obj.paypalCaptureId=paypalCaptureId;
+        obj.id=id; obj.userId=userId; obj.charge=charge; obj.currency=currency; obj.interval=interval; obj.url=url; obj.productId=productId; obj.productName=productName; obj.productQuantity=productQuantity; obj.timestampCreated=timestampCreated; obj.timestampExpires=timestampExpires; obj.timestampAuthorized=timestampAuthorized; obj.timestampCancelled=timestampCancelled; obj.stripeSessionId=stripeSessionId; obj.stripeSubscriptionId=stripeSubscriptionId; obj.stripePaymentIntentId=stripePaymentIntentId; obj.paypalOrderId=paypalOrderId; obj.paypalSubscriptionId=paypalSubscriptionId; obj.paypalCaptureId=paypalCaptureId;
         add(obj);
         return obj;
     }
@@ -232,7 +232,7 @@ public class Payment{
     public static List<Payment> get(String where, Object... whereValues)  {
         List<Payment> list = new ArrayList<>();
         try (PreparedStatement ps = con.prepareStatement(
-                "SELECT `id`,`userId`,`charge`,`currency`,`interval`,`url`,`productId`,`productName`,`productQuantity`,`timestampCreated`,`timestampExpires`,`timestampAuthorized`,`timestampCancelled`,`stripePaymentIntentId`,`stripeSubscriptionId`,`stripeChargeId`,`paypalOrderId`,`paypalSubscriptionId`,`paypalCaptureId`" +
+                "SELECT `id`,`userId`,`charge`,`currency`,`interval`,`url`,`productId`,`productName`,`productQuantity`,`timestampCreated`,`timestampExpires`,`timestampAuthorized`,`timestampCancelled`,`stripeSessionId`,`stripeSubscriptionId`,`stripePaymentIntentId`,`paypalOrderId`,`paypalSubscriptionId`,`paypalCaptureId`" +
                         " FROM `Payment`" +
                         (where != null ? ("WHERE "+where) : ""))) {
             if(where!=null && whereValues!=null)
@@ -257,9 +257,9 @@ public class Payment{
                 obj.timestampExpires = rs.getLong(11);
                 obj.timestampAuthorized = rs.getLong(12);
                 obj.timestampCancelled = rs.getLong(13);
-                obj.stripePaymentIntentId = rs.getString(14);
+                obj.stripeSessionId = rs.getString(14);
                 obj.stripeSubscriptionId = rs.getString(15);
-                obj.stripeChargeId = rs.getString(16);
+                obj.stripePaymentIntentId = rs.getString(16);
                 obj.paypalOrderId = rs.getString(17);
                 obj.paypalSubscriptionId = rs.getString(18);
                 obj.paypalCaptureId = rs.getString(19);
@@ -275,7 +275,7 @@ public class Payment{
      */
     public static void update(Payment obj)  {
         try (PreparedStatement ps = con.prepareStatement(
-                "UPDATE `Payment` SET `id`=?,`userId`=?,`charge`=?,`currency`=?,`interval`=?,`url`=?,`productId`=?,`productName`=?,`productQuantity`=?,`timestampCreated`=?,`timestampExpires`=?,`timestampAuthorized`=?,`timestampCancelled`=?,`stripePaymentIntentId`=?,`stripeSubscriptionId`=?,`stripeChargeId`=?,`paypalOrderId`=?,`paypalSubscriptionId`=?,`paypalCaptureId`=? WHERE id="+obj.id)) {
+                "UPDATE `Payment` SET `id`=?,`userId`=?,`charge`=?,`currency`=?,`interval`=?,`url`=?,`productId`=?,`productName`=?,`productQuantity`=?,`timestampCreated`=?,`timestampExpires`=?,`timestampAuthorized`=?,`timestampCancelled`=?,`stripeSessionId`=?,`stripeSubscriptionId`=?,`stripePaymentIntentId`=?,`paypalOrderId`=?,`paypalSubscriptionId`=?,`paypalCaptureId`=? WHERE id="+obj.id)) {
             ps.setInt(1, obj.id);
             ps.setString(2, obj.userId);
             ps.setLong(3, obj.charge);
@@ -289,9 +289,9 @@ public class Payment{
             ps.setLong(11, obj.timestampExpires);
             ps.setLong(12, obj.timestampAuthorized);
             ps.setLong(13, obj.timestampCancelled);
-            ps.setString(14, obj.stripePaymentIntentId);
+            ps.setString(14, obj.stripeSessionId);
             ps.setString(15, obj.stripeSubscriptionId);
-            ps.setString(16, obj.stripeChargeId);
+            ps.setString(16, obj.stripePaymentIntentId);
             ps.setString(17, obj.paypalOrderId);
             ps.setString(18, obj.paypalSubscriptionId);
             ps.setString(19, obj.paypalCaptureId);
@@ -304,7 +304,7 @@ public class Payment{
      */
     public static void add(Payment obj)  {
         try (PreparedStatement ps = con.prepareStatement(
-                "INSERT INTO `Payment` (`id`,`userId`,`charge`,`currency`,`interval`,`url`,`productId`,`productName`,`productQuantity`,`timestampCreated`,`timestampExpires`,`timestampAuthorized`,`timestampCancelled`,`stripePaymentIntentId`,`stripeSubscriptionId`,`stripeChargeId`,`paypalOrderId`,`paypalSubscriptionId`,`paypalCaptureId`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")) {
+                "INSERT INTO `Payment` (`id`,`userId`,`charge`,`currency`,`interval`,`url`,`productId`,`productName`,`productQuantity`,`timestampCreated`,`timestampExpires`,`timestampAuthorized`,`timestampCancelled`,`stripeSessionId`,`stripeSubscriptionId`,`stripePaymentIntentId`,`paypalOrderId`,`paypalSubscriptionId`,`paypalCaptureId`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")) {
             ps.setInt(1, obj.id);
             ps.setString(2, obj.userId);
             ps.setLong(3, obj.charge);
@@ -318,9 +318,9 @@ public class Payment{
             ps.setLong(11, obj.timestampExpires);
             ps.setLong(12, obj.timestampAuthorized);
             ps.setLong(13, obj.timestampCancelled);
-            ps.setString(14, obj.stripePaymentIntentId);
+            ps.setString(14, obj.stripeSessionId);
             ps.setString(15, obj.stripeSubscriptionId);
-            ps.setString(16, obj.stripeChargeId);
+            ps.setString(16, obj.stripePaymentIntentId);
             ps.setString(17, obj.paypalOrderId);
             ps.setString(18, obj.paypalSubscriptionId);
             ps.setString(19, obj.paypalCaptureId);
@@ -354,10 +354,10 @@ public class Payment{
     }
 
     public Payment clone(){
-        return new Payment(this.id,this.userId,this.charge,this.currency,this.interval,this.url,this.productId,this.productName,this.productQuantity,this.timestampCreated,this.timestampExpires,this.timestampAuthorized,this.timestampCancelled,this.stripePaymentIntentId,this.stripeSubscriptionId,this.stripeChargeId,this.paypalOrderId,this.paypalSubscriptionId,this.paypalCaptureId);
+        return new Payment(this.id,this.userId,this.charge,this.currency,this.interval,this.url,this.productId,this.productName,this.productQuantity,this.timestampCreated,this.timestampExpires,this.timestampAuthorized,this.timestampCancelled,this.stripeSessionId,this.stripeSubscriptionId,this.stripePaymentIntentId,this.paypalOrderId,this.paypalSubscriptionId,this.paypalCaptureId);
     }
     public String toPrintString(){
-        return  ""+"id="+this.id+" "+"userId="+this.userId+" "+"charge="+this.charge+" "+"currency="+this.currency+" "+"interval="+this.interval+" "+"url="+this.url+" "+"productId="+this.productId+" "+"productName="+this.productName+" "+"productQuantity="+this.productQuantity+" "+"timestampCreated="+this.timestampCreated+" "+"timestampExpires="+this.timestampExpires+" "+"timestampAuthorized="+this.timestampAuthorized+" "+"timestampCancelled="+this.timestampCancelled+" "+"stripePaymentIntentId="+this.stripePaymentIntentId+" "+"stripeSubscriptionId="+this.stripeSubscriptionId+" "+"stripeChargeId="+this.stripeChargeId+" "+"paypalOrderId="+this.paypalOrderId+" "+"paypalSubscriptionId="+this.paypalSubscriptionId+" "+"paypalCaptureId="+this.paypalCaptureId+" ";
+        return  ""+"id="+this.id+" "+"userId="+this.userId+" "+"charge="+this.charge+" "+"currency="+this.currency+" "+"interval="+this.interval+" "+"url="+this.url+" "+"productId="+this.productId+" "+"productName="+this.productName+" "+"productQuantity="+this.productQuantity+" "+"timestampCreated="+this.timestampCreated+" "+"timestampExpires="+this.timestampExpires+" "+"timestampAuthorized="+this.timestampAuthorized+" "+"timestampCancelled="+this.timestampCancelled+" "+"stripeSessionId="+this.stripeSessionId+" "+"stripeSubscriptionId="+this.stripeSubscriptionId+" "+"stripePaymentIntentId="+this.stripePaymentIntentId+" "+"paypalOrderId="+this.paypalOrderId+" "+"paypalSubscriptionId="+this.paypalSubscriptionId+" "+"paypalCaptureId="+this.paypalCaptureId+" ";
     }
     public static WHERE whereId() {
         return new WHERE("`id`");
@@ -398,14 +398,14 @@ public class Payment{
     public static WHERE whereTimestampCancelled() {
         return new WHERE("`timestampCancelled`");
     }
-    public static WHERE whereStripePaymentIntentId() {
-        return new WHERE("`stripePaymentIntentId`");
+    public static WHERE whereStripeSessionId() {
+        return new WHERE("`stripeSessionId`");
     }
     public static WHERE whereStripeSubscriptionId() {
         return new WHERE("`stripeSubscriptionId`");
     }
-    public static WHERE whereStripeChargeId() {
-        return new WHERE("`stripeChargeId`");
+    public static WHERE whereStripePaymentIntentId() {
+        return new WHERE("`stripePaymentIntentId`");
     }
     public static WHERE wherePaypalOrderId() {
         return new WHERE("`paypalOrderId`");
@@ -649,9 +649,9 @@ public class Payment{
      * @return list of payments, where {@link Payment#timestampAuthorized} is null, and
      * {@link Payment#timestampCancelled} is null, and {@link Payment#timestampCreated} is bigger than now.
      */
-    public static List<Payment> getPendingFuturePayments(String where) throws Exception {
+    public static List<Payment> getPendingFuturePayments(String where, Object... objs) throws Exception {
         return get("timestampAuthorized = 0 AND timestampCancelled = 0 AND timestampCreated > " + System.currentTimeMillis() +
-                (where != null ? " AND " + where : ""));
+                (where != null ? " AND " + where : ""), objs);
     }
 
     /**
@@ -670,10 +670,10 @@ public class Payment{
      * @return list of payments, where {@link Payment#timestampAuthorized} is null, and
      * {@link Payment#timestampCancelled} is null, and {@link Payment#timestampCreated} is smaller than now and {@link Payment#timestampExpires} is bigger than now.
      */
-    public static List<Payment> getPendingPayments(String where) throws Exception {
+    public static List<Payment> getPendingPayments(String where, Object... objs) throws Exception {
         long now = System.currentTimeMillis();
         return get("timestampAuthorized = 0 AND timestampCancelled = 0 AND timestampCreated < " + now
-                + " AND timestampCreated > " + now + (where != null ? " AND " + where : ""));
+                + " AND timestampCreated > " + now + " " + (where != null ? " AND " + where : ""), objs);
     }
 
     /**
@@ -692,8 +692,8 @@ public class Payment{
      * @return list of payments, where {@link Payment#timestampAuthorized} is not null.
      * @see PayHook#onPaymentAuthorized
      */
-    public static List<Payment> getAuthorizedPayments(String where) throws Exception {
-        return get("timestampAuthorized != 0" + (where != null ? " AND " + where : ""));
+    public static List<Payment> getAuthorizedPayments(String where, Object... objs) throws Exception {
+        return get("timestampAuthorized != 0 " + (where != null ? " AND " + where : ""), objs);
     }
 
     /**
@@ -712,8 +712,8 @@ public class Payment{
      * @return list of payments, where {@link Payment#timestampCancelled} is not null.
      * @see PayHook#onPaymentCancelled
      */
-    public static List<Payment> getCancelledPayments(String where) throws Exception {
-        return get("timestampCancelled != 0" + (where != null ? " AND " + where : ""));
+    public static List<Payment> getCancelledPayments(String where, Object... objs) throws Exception {
+        return get("timestampCancelled != 0 " + (where != null ? " AND " + where : ""), objs);
     }
 
     /**
@@ -730,8 +730,8 @@ public class Payment{
      *
      * @return list of payments, where {@link Payment#charge} is smaller than 0.
      */
-    public static List<Payment> getRefundedPayments(String where) throws Exception {
-        return get("charge < 0" + (where != null ? " AND " + where : ""));
+    public static List<Payment> getRefundedPayments(String where, Object... objs) throws Exception {
+        return get("charge < 0 " + (where != null ? " AND " + where : ""), objs);
     }
 
     public PaymentProcessor getPaymentProcessor() {
@@ -746,7 +746,7 @@ public class Payment{
     }
 
     public boolean isStripeSupported() {
-        return stripePaymentIntentId != null || stripeSubscriptionId != null;
+        return stripeSessionId != null || stripeSubscriptionId != null;
     }
 
     public long getUrlTimeoutMs() {
@@ -772,9 +772,9 @@ public class Payment{
         long now = System.currentTimeMillis();
         List<Payment> futurePayments;
         if (isPayPalSupported())
-            futurePayments = Payment.getPendingFuturePayments("paypalSubscriptionId = " + paypalSubscriptionId);
+            futurePayments = Payment.getPendingFuturePayments("paypalSubscriptionId = ?", paypalSubscriptionId);
         else if (isStripeSupported())
-            futurePayments = Payment.getPendingFuturePayments("stripeSubscriptionId = " + stripeSubscriptionId);
+            futurePayments = Payment.getPendingFuturePayments("stripeSubscriptionId = ?", stripeSubscriptionId);
         else throw new IllegalArgumentException("Unknown/Invalid payment processor: " + getPaymentProcessor());
         // TODO ADD NEW PROCESSORS
         if (futurePayments.isEmpty()) return -1;
