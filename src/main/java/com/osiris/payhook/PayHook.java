@@ -9,6 +9,7 @@ import com.osiris.autoplug.core.json.exceptions.WrongJsonTypeException;
 import com.osiris.payhook.exceptions.InvalidChangeException;
 import com.osiris.payhook.exceptions.WebHookValidationException;
 import com.osiris.payhook.paypal.MyPayPal;
+import com.osiris.payhook.paypal.PayPalPlan;
 import com.osiris.payhook.paypal.PaypalWebhookEvent;
 import com.osiris.payhook.stripe.UtilsStripe;
 import com.osiris.payhook.utils.Converter;
@@ -421,64 +422,66 @@ public final class PayHook {
                                      String currency, String name, String description,
                                      int paymentIntervall) throws Exception {
         Converter converter = new Converter();
-        Product p = null;
+        Product product = null;
         try {
-            p = Product.get(id);
+            product = Product.get(id);
         } catch (Exception ignored) {
         }
-        if (p == null) { // Product not existing yet
-            p = new Product(id, charge, currency, name, description, paymentIntervall);
+        if (product == null) { // Product not existing yet
+            product = new Product(id, charge, currency, name, description, paymentIntervall);
 
             if (myPayPal != null) { // Create paypal product
-                JsonObject response = myPayPal.createProduct(p);
-                p.paypalProductId = response.get("id").getAsString();
-                if (p.isRecurring()) {
-                    com.paypal.api.payments.Plan plan = converter.toPayPalPlan(p, successUrl, cancelUrl);
-                    // TODO find a way of updating success and cancel urls
-                    //  for paypal plan without the need of saving them for each product in the database
-                    plan.create(paypalV1);
-                    p.paypalPlanId = plan.getId();
+                JsonObject response = myPayPal.createProduct(product);
+                product.paypalProductId = response.get("id").getAsString();
+                Objects.requireNonNull(product.paypalProductId);
+                if (product.isRecurring()) {
+                    PayPalPlan plan = myPayPal.createPlan(product, true);
+                    product.paypalPlanId = plan.getPlanId();
+                    Objects.requireNonNull(product.paypalPlanId);
                 }
             }
 
             if (braintree != null) ; // TODO
 
             if (Stripe.apiKey != null) { // Create stripe product
-                com.stripe.model.Product stripeProduct = com.stripe.model.Product.create(converter.toStripeProduct(p));
-                p.stripeProductId = stripeProduct.getId();
-                com.stripe.model.Price stripePrice = com.stripe.model.Price.create(converter.toStripePrice(p));
-                p.stripePriceId = stripePrice.getId();
+                com.stripe.model.Product stripeProduct = com.stripe.model.Product.create(converter.toStripeProduct(product));
+                product.stripeProductId = stripeProduct.getId();
+                Objects.requireNonNull(product.stripeProductId);
+                com.stripe.model.Price stripePrice = com.stripe.model.Price.create(converter.toStripePrice(product));
+                product.stripePriceId = stripePrice.getId();
+                Objects.requireNonNull(product.stripePriceId);
             }
 
-            Product.add(p);
+            Product.add(product);
         }
 
         Product newProduct = new Product(id, charge, currency, name, description, paymentIntervall);
-        if (newProduct.id != p.id || newProduct.charge != p.charge || !newProduct.currency.equals(p.currency) ||
-                !newProduct.name.equals(p.name) || !newProduct.description.equals(p.description) || newProduct.paymentInterval != p.paymentInterval) {
-            p.id = id;
-            p.charge = charge; // TODO find way of updating payments
-            p.currency = currency; // TODO find way of updating payments
-            p.name = name;
-            p.description = description;
-            p.paymentInterval = paymentIntervall; // TODO find way of updating payments
+        if (newProduct.id != product.id || newProduct.charge != product.charge || !newProduct.currency.equals(product.currency) ||
+                !newProduct.name.equals(product.name) || !newProduct.description.equals(product.description) || newProduct.paymentInterval != product.paymentInterval) {
+            product.id = id;
+            product.charge = charge;
+            product.currency = currency;
+            product.name = name;
+            product.description = description;
+            product.paymentInterval = paymentIntervall;
 
             if (myPayPal != null) {
-                if (p.isRecurring()) {
-                    com.paypal.api.payments.Plan plan = com.paypal.api.payments.Plan.get(paypalV1, p.paypalProductId);
-                    plan.update(paypalV1, converter.toPayPalPlanPatch(p)); // TODO
+                myPayPal.updateProduct(product);
+                if (product.isRecurring()) {
+                    com.paypal.api.payments.Plan plan = com.paypal.api.payments.Plan.get(paypalV1, product.paypalPlanId);
+                    plan.update(paypalV1, converter.toPayPalPlanPatch(product)); // TODO
                 }
             }
             if (Stripe.apiKey != null) {
-                com.stripe.model.Product stripeProduct = com.stripe.model.Product.retrieve(p.stripeProductId);
-                stripeProduct.update(converter.toStripeProduct(p));
-                com.stripe.model.Price stripePrice = com.stripe.model.Price.retrieve(p.stripePriceId);
-                stripePrice.update(converter.toStripePrice(p));
+                com.stripe.model.Product stripeProduct = com.stripe.model.Product.retrieve(product.stripeProductId);
+                stripeProduct.update(converter.toStripeProduct(product));
+                com.stripe.model.Price stripePrice = com.stripe.model.Price.retrieve(product.stripePriceId);
+                stripePrice.update(converter.toStripePrice(product));
             }
 
-            Product.update(p);
+            Product.update(product);
         }
-        return p;
+        return product;
     }
 
     /**
@@ -744,6 +747,7 @@ public final class PayHook {
             // EXECUTE ACTION FOR EVENT
             switch (event.getEventType()) {
                 case "CHECKOUT.ORDER.APPROVED": { // One time payments
+                    System.out.println("CHECKOUT.ORDER.APPROVED \n"+event.getBodyString());
                     String orderId = resource.get("id").getAsString();
                     List<Payment> payments = Payment.wherePaypalOrderId().is(orderId).get();
                     if (payments.isEmpty())
@@ -768,6 +772,7 @@ public final class PayHook {
                     break;
                 }
                 case "PAYMENT.SALE.COMPLETED": { // Recurring payments
+                    System.out.println("PAYMENT.SALE.COMPLETED \n"+event.getBodyString());
                     String paymentId = resource.get("id").getAsString();
                     com.paypal.payments.Capture capture = myPayPal.capturePayment(paypalV2, paymentId).result();
                     String subscriptionId = myPayPal.findSubscriptionId(paymentId);
@@ -862,7 +867,7 @@ public final class PayHook {
                 case "invoice.paid": { // Recurring payments
                     Invoice invoice = (Invoice) stripeObject;
                     String subscriptionId = invoice.getSubscription();
-                    if(subscriptionId == null) break; // Make sure NOT recurring payments are ignored
+                    if(subscriptionId == null) break; // Make sure NOT recurring payments are ignored (handled by checkout.session.completed)
                     if(invoice.getBillingReason().equals("subscription_create")) break; // Also ignore
                     // the first payment/invoice for a subscription, because that MUST be handled by checkout.session.completed,
                     // because this event has no information about the checkout session id.

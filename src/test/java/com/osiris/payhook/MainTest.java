@@ -10,16 +10,16 @@ import com.osiris.dyml.Yaml;
 import com.osiris.payhook.utils.Converter;
 import com.stripe.model.WebhookEndpoint;
 import io.muserver.*;
-import org.junit.jupiter.api.Test;
 
 import java.awt.*;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class GeneralTest {
+public class MainTest {
     public static SQLTestServer dbServer;
     public static String dbUrl;
     public static String dbUsername = "root";
@@ -35,8 +35,7 @@ public class GeneralTest {
      * Note that this will delete old
      * webhooks that contain ngrok.io in their url. <br>
      */
-    @Test
-    public void run() throws Exception {
+    public static void main(String[] args) throws Exception {
 
         // Fetch test credentials
         Yaml yaml = new Yaml(System.getProperty("user.dir") + "/test-credentials.yml");
@@ -58,15 +57,15 @@ public class GeneralTest {
         Objects.requireNonNull(paypalClientSecret, "paypalClientSecret cannot be null!");
         System.out.println("OK!");
 
-        // Init web-server to listen for webhook events
+        // Init web-server to listen for webhook events, http://localhost:80/
         System.out.println("Starting web-server...");
         MuServer server = MuServerBuilder.httpServer()
                 .withHttpPort(80)
                 .addHandler(Method.GET, "/", (request, response, pathParams) -> {
-                    response.write("Currently running from " + this);
+                    response.write("Currently running from " + MainTest.class);
                 })
-                .addHandler(Method.POST, "/paypal-hook", this::doPayPalWebhookEvent)
-                .addHandler(Method.POST, "/stripe-hook", this::doStripeWebhookEvent)
+                .addHandler(Method.POST, "/paypal-hook", MainTest::doPayPalWebhookEvent)
+                .addHandler(Method.POST, "/stripe-hook", MainTest::doStripeWebhookEvent)
                 .start();
         System.out.println("Started web-server at " + server.uri());
         System.out.println("OK!");
@@ -100,9 +99,9 @@ public class GeneralTest {
         System.out.println("Starting PayHook...");
         PayHook.init(
                 "Test-Brand-Name",
-                GeneralTest.dbUrl,
-                GeneralTest.dbUsername,
-                GeneralTest.dbPassword,
+                MainTest.dbUrl,
+                MainTest.dbUsername,
+                MainTest.dbPassword,
                 true,
                 "https://my-shop.com/payment/success",
                 "https://my-shop.com/payment/cancel");
@@ -139,17 +138,32 @@ public class GeneralTest {
         System.out.println("Created/Updated products.");
         System.out.println("OK!");
 
+        // Test payments
         if(Desktop.isDesktopSupported()){
-            //waitForPayment(pCoolCookie, PaymentProcessor.PAYPAL);
-            //waitForPayment(pCoolCookie, PaymentProcessor.STRIPE);
-            waitForPayment(pCoolSubscription, PaymentProcessor.STRIPE);
-        }else{
+            System.out.println("Enter a command from below to test payments.");
+            System.out.println("buy cool-cookie paypal");
+            System.out.println("buy cool-cookie stripe");
+            System.out.println("buy cool-subscription paypal");
+            System.out.println("buy cool-subscription stripe");
+            while (true){
+                String command = new Scanner(System.in).nextLine();
+                if(command.equals("buy cool-cookie paypal"))
+                    waitForPayment(pCoolCookie, PaymentProcessor.PAYPAL);
+                else if(command.equals("buy cool-cookie stripe"))
+                    waitForPayment(pCoolCookie, PaymentProcessor.STRIPE);
+                else if(command.equals("buy cool-subscription paypal"))
+                    waitForPayment(pCoolSubscription, PaymentProcessor.PAYPAL);
+                else if(command.equals("buy cool-subscription stripe"))
+                    waitForPayment(pCoolSubscription, PaymentProcessor.STRIPE);
+                else
+                    System.err.println("Unknown command '"+command+"', please enter a valid one.");
+            }
+        } else{
             System.out.println("Skipped payment test since GUI/desktop not available.");
         }
-
     }
 
-    private void waitForPayment(Product product, PaymentProcessor paymentProcessor) throws Exception {
+    private static void waitForPayment(Product product, PaymentProcessor paymentProcessor) throws Exception {
         System.out.println("Test buying "+product.name+" over "+paymentProcessor+", waiting for user authorization...");
         Payment payment = PayHook.createPayment("testUser", product, paymentProcessor);
         AtomicBoolean isAuthorized = new AtomicBoolean(false);
@@ -157,11 +171,12 @@ public class GeneralTest {
             System.out.println("Received authorized payment for "+event.payment.productName+" "+new Converter().toMoneyString(product));
             isAuthorized.set(true);
         }, Throwable::printStackTrace);
+        System.out.println("Authorize payment at: "+payment.url);
         Desktop.getDesktop().browse(URI.create(payment.url));
         while (!isAuthorized.get()) Thread.sleep(100);
     }
 
-    private void doPayPalWebhookEvent(MuRequest request, MuResponse response, Map<String, String> pathParams) {
+    private static void doPayPalWebhookEvent(MuRequest request, MuResponse response, Map<String, String> pathParams) {
         try {
             response.status(200); // Directly set status code
             PayHook.receiveWebhookEvent(
@@ -174,7 +189,7 @@ public class GeneralTest {
         }
     }
 
-    private void doStripeWebhookEvent(MuRequest request, MuResponse response, Map<String, String> pathParams) {
+    private static void doStripeWebhookEvent(MuRequest request, MuResponse response, Map<String, String> pathParams) {
         try {
             response.status(200); // Directly set status code
             PayHook.receiveWebhookEvent(
@@ -188,7 +203,7 @@ public class GeneralTest {
     }
 
     // Simple helper method to help you extract the headers from HttpServletRequest object.
-    private Map<String, String> getHeadersAsMap(MuRequest request) {
+    private static Map<String, String> getHeadersAsMap(MuRequest request) {
         Map<String, String> map = new HashMap<String, String>();
         request.headers().forEach(e -> {
             map.put(e.getKey(), e.getValue());

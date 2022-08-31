@@ -9,15 +9,13 @@
 package com.osiris.payhook.paypal;
 
 
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import com.google.gson.*;
 import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
 import com.osiris.autoplug.core.json.exceptions.WrongJsonTypeException;
 import com.osiris.payhook.Product;
 import com.osiris.payhook.exceptions.ParseBodyException;
 import com.osiris.payhook.exceptions.ParseHeaderException;
+import com.osiris.payhook.utils.Converter;
 import com.paypal.api.payments.Currency;
 import com.paypal.base.codec.binary.Base64;
 import com.paypal.base.rest.PayPalRESTException;
@@ -62,17 +60,73 @@ public class MyPayPal {
     }
 
     public PayPalPlan getPlanById(String planId) throws WrongJsonTypeException, IOException, HttpErrorException {
-        JsonObject obj = new UtilsPayPalJson().getJsonObject(BASE_V1_URL + "/billing/plans/" + planId, this);
+        JsonObject obj = utilsJson.getJsonObject(BASE_V1_URL + "/billing/plans/" + planId, this);
         String desc = "";
         if (obj.get("description") != null)
             desc = obj.get("description").getAsString();
+        String prodId = null;
+        if(obj.get("product_id") != null)
+            prodId = obj.get("product_id").getAsString();
+        PayPalPlan.Status status = null;
+        if(obj.get("status") != null)
+            utils.getPlanStatus(obj.get("status").getAsString());
+        else if (obj.get("state") != null)
+            utils.getPlanStatus(obj.get("state").getAsString());
         return new PayPalPlan(
                 this,
                 planId,
-                obj.get("product_id").getAsString(),
+                prodId,
                 obj.get("name").getAsString(),
                 desc,
-                utils.getPlanStatus(obj.get("status").getAsString()));
+                status);
+    }
+
+    public PayPalPlan createPlan(Product product, boolean activate) throws IOException, HttpErrorException {
+        return createPlan(product.paypalProductId, product.name, product.description, product.paymentInterval,
+                new Converter().toPayPalMoney(product.currency, product.charge), activate);
+    }
+
+    public PayPalPlan createPlan(String productId, String name, String description, int intervalDays,
+                                 Money price, boolean activate) throws IOException, HttpErrorException {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("product_id", productId);
+        obj.addProperty("name", name);
+        obj.addProperty("description", description);
+        JsonArray cycles = new JsonArray();
+        obj.add("billing_cycles", cycles);
+        cycles.add(JsonParser.parseString("{\n" +
+                "      \"frequency\": {\n" +
+                "        \"interval_unit\": \"DAY\",\n" +
+                "        \"interval_count\": "+intervalDays+"\n" +
+                "      },\n" +
+                "      \"tenure_type\": \"REGULAR\",\n" +
+                "      \"sequence\": 2,\n" +
+                "      \"total_cycles\": 0,\n" + // 0 == INFINITE
+                "      \"pricing_scheme\": {\n" +
+                "        \"fixed_price\": {\n" +
+                "          \"value\": \""+price.value()+"\",\n" +
+                "          \"currency_code\": \""+price.currencyCode()+"\"\n" +
+                "        }\n" +
+                "      }\n" +
+                "    }"));
+
+        JsonObject paymentPref = new JsonObject();
+        obj.add("payment_preferences", paymentPref);
+        paymentPref.addProperty("auto_bill_outstanding", "true");
+        // TODO setup_fee and taxes support. See https://developer.paypal.com/docs/api/subscriptions/v1/#plans_create
+
+        JsonObject objResponse =
+                utilsJson.postJsonAndGetResponse(BASE_V1_URL+"/billing/plans", obj, this, 201).getAsJsonObject();
+
+        PayPalPlan plan = new PayPalPlan(this, objResponse.get("id").getAsString(), productId, name, description,
+                utils.getPlanStatus(objResponse.get("status").getAsString()));
+        if(activate)
+            activatePlan(plan.getPlanId());
+        return plan;
+    }
+
+    public void activatePlan(String planId) throws IOException, HttpErrorException {
+        utilsJson.postJsonAndGetResponse(BASE_V1_URL+"/billing/plans/"+planId+"/activate", null, this, 204);
     }
 
     /**
@@ -85,7 +139,7 @@ public class MyPayPal {
         if (product.isRecurring())
             obj.addProperty("type", "SERVICE");
         else
-            obj.addProperty("type", "DIGITAL"); // TODO do we really need to differ between digital/physical goods?
+            obj.addProperty("type", "DIGITAL"); // TODO Add support for physical goods.
         return utilsJson.postJsonAndGetResponse(BASE_V1_URL + "/catalogs/products", obj, this, 201).getAsJsonObject();
     }
 
@@ -118,6 +172,10 @@ public class MyPayPal {
     public String[] createSubscription(String brandName, String planId, String returnUrl, String cancelUrl) throws WrongJsonTypeException, IOException, HttpErrorException, PayPalRESTException {
         JsonObject obj = new JsonObject();
         obj.addProperty("plan_id", planId);
+        SimpleDateFormat sf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        sf.setTimeZone(TimeZone.getTimeZone("Etc/UTC"));
+        obj.addProperty("start_time", sf.format(new Date(System.currentTimeMillis()+ 60000)));
+        obj.addProperty("quantity", "1");
 
         JsonObject applicationContext = new JsonObject();
         obj.add("application_context", applicationContext);
@@ -135,6 +193,7 @@ public class MyPayPal {
         applicationContext.addProperty("cancel_url", cancelUrl);
 
 
+        System.out.println(new GsonBuilder().setPrettyPrinting().create().toJson(obj));
         JsonObject resultObj = utilsJson.postJsonAndGetResponse(BASE_V1_URL + "/billing/subscriptions", obj, this, 201)
                 .getAsJsonObject();
 
@@ -191,10 +250,9 @@ public class MyPayPal {
      * Since the subscription id is not directly returned in
      * webhook event (for example when a payment is made on a subscription), this method can be pretty useful.
      *
-     * @return subscription id.
-     * @throws Exception if provided transaction id is not from a subscription.
+     * @return subscription id or null if not found in the transactions of the last 30 days.
      */
-    public String findSubscriptionId(String transactionId) throws Exception {
+    public String findSubscriptionId(String transactionId) throws WrongJsonTypeException, IOException, HttpErrorException {
         String subscriptionId = null;
         JsonArray arr = getTransactionsLast30Days(transactionId);
         for (JsonElement el : arr) {
@@ -204,8 +262,6 @@ public class MyPayPal {
                 break;
             }
         }
-        if (subscriptionId == null)
-            throw new Exception("Failed to find subscriptionId in transactions of last 2 days! Json: " + new Gson().toJson(arr));
         return subscriptionId;
     }
 
