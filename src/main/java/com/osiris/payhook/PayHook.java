@@ -674,12 +674,16 @@ public final class PayHook {
             }
             for (Product p :
                     productsRecurring) {
-                String[] arr = myPayPal.createSubscription(brandName, p.paypalPlanId, successUrl, cancelUrl);
                 Payment payment = Payment.create(userId,
-                        p.charge, p.currency, p.paymentInterval, arr[1],
+                        p.charge, p.currency, p.paymentInterval, null,
                         p.id, p.name, 1, now, now + paypalUrlTimeoutMs, 0, 0,
                         null, null,null,
-                        null, arr[0], null);
+                        null, null, null);
+                // Save the paymentId in customId of paypal subscription
+                // to find this payment later when receiving payments via the webhook.
+                String[] arr = myPayPal.createSubscription(brandName, p.paypalPlanId, ""+payment.id, successUrl, cancelUrl);
+                payment.paypalSubscriptionId = arr[0];
+                payment.url = arr[1];
                 payments.add(payment);
             }
         } else
@@ -746,8 +750,8 @@ public final class PayHook {
 
             // EXECUTE ACTION FOR EVENT
             switch (event.getEventType()) {
-                case "CHECKOUT.ORDER.APPROVED": { // One time payments
-                    System.out.println("CHECKOUT.ORDER.APPROVED \n"+event.getBodyString());
+                case "CHECKOUT.ORDER.APPROVED": { // One time payments only
+                    //System.out.println("CHECKOUT.ORDER.APPROVED \n"+event.getBodyString());
                     String orderId = resource.get("id").getAsString();
                     List<Payment> payments = Payment.wherePaypalOrderId().is(orderId).get();
                     if (payments.isEmpty())
@@ -771,24 +775,34 @@ public final class PayHook {
                     }
                     break;
                 }
-                case "PAYMENT.SALE.COMPLETED": { // Recurring payments
-                    System.out.println("PAYMENT.SALE.COMPLETED \n"+event.getBodyString());
-                    String paymentId = resource.get("id").getAsString();
-                    com.paypal.payments.Capture capture = myPayPal.capturePayment(paypalV2, paymentId).result();
-                    String subscriptionId = myPayPal.findSubscriptionId(paymentId);
-                    List<Payment> payments = Payment.getPendingPayments("paypalSubscriptionId = ?", subscriptionId);
-                    if (payments.isEmpty()) throw new WebHookValidationException(
-                            "Received invalid webhook event (" + PaymentProcessor.PAYPAL + ", failed to find pending payments with subscription id '" + subscriptionId + "' in local database).");
-                    if (payments.size() > 1) throw new WebHookValidationException(
-                            "Received invalid webhook event (" + PaymentProcessor.PAYPAL + ", there are multiple (" + payments.size() + ") pending payments with the subscription id '" + subscriptionId + "' in local database).");
-                    Payment payment = payments.get(0);
-                    long capturedCharge = new Converter().toSmallestCurrency(capture.amount());
-                    if (payment.charge != capturedCharge)
-                        throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.PAYPAL + ", expected paid amount of '" + payment.charge + "' but got '" + capturedCharge + "').");
-                    if (payment.timestampAuthorized == 0) {
-                        payment.timestampAuthorized = now;
-                        Payment.update(payment);
-                        onPaymentAuthorized.execute(new PaymentEvent(Product.get(payment.productId), payment));
+                case "PAYMENT.SALE.COMPLETED": { // Recurring payments only
+                    //System.out.println("PAYMENT.SALE.COMPLETED \n"+event.getBodyString());
+                    // custom_id is set at subscription creation and is equal to the first paymentId of the subscription
+                    Payment firstPayment = Payment.whereId().is(resource.get("custom").getAsString()).get().get(0); // custom == custom_id (idk why they call it only custom)
+                    long amountPaid = new Converter().toSmallestCurrency(new Money()
+                            .value(resource.get("amount").getAsJsonObject().get("total").getAsString())
+                            .currencyCode(resource.get("amount").getAsJsonObject().get("currency").getAsString()));
+                    if (firstPayment.isPending()) {
+                        // First payment done on a subscritpion
+                        if (firstPayment.charge != amountPaid)
+                            throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.PAYPAL + ", expected paid amount of '" + firstPayment.charge + "' but got '" + amountPaid + "').");
+                        if (firstPayment.timestampAuthorized == 0) {
+                            firstPayment.timestampAuthorized = now;
+                            Payment.update(firstPayment);
+                            onPaymentAuthorized.execute(new PaymentEvent(Product.get(firstPayment.productId), firstPayment));
+                        }
+                    }
+                    else{ // Not the first payment
+                        Product product = Product.get(firstPayment.productId);
+                        if (product.charge != amountPaid)
+                            throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.PAYPAL + ", expected paid amount of '" + product.charge + "' but got '" + amountPaid + "').");
+                        Payment newPayment = Payment.create(firstPayment.userId, amountPaid, product.currency, product.paymentInterval);
+                        newPayment.paypalOrderId = firstPayment.paypalOrderId;
+                        newPayment.paypalCaptureId = firstPayment.paypalCaptureId;
+                        newPayment.paypalSubscriptionId = firstPayment.paypalSubscriptionId;
+                        newPayment.timestampAuthorized = now;
+                        Payment.add(newPayment);
+                        onPaymentAuthorized.execute(new PaymentEvent(Product.get(newPayment.productId), newPayment));
                     }
                     break;
                 }
@@ -872,7 +886,7 @@ public final class PayHook {
                     // the first payment/invoice for a subscription, because that MUST be handled by checkout.session.completed,
                     // because this event has no information about the checkout session id.
 
-                    List<Payment> authorizedPayments = Payment.getAuthorizedPayments("id = ?", subscriptionId);
+                    List<Payment> authorizedPayments = Payment.getAuthorizedPayments("stripeSubscriptionId = ?", subscriptionId);
                     if (authorizedPayments.isEmpty()) throw new WebHookValidationException(
                             "Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find authorized payments with stripeSubscriptionId '" + subscriptionId + "' in local database).");
                     Payment lastPayment = authorizedPayments.get(authorizedPayments.size()-1);

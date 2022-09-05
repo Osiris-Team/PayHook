@@ -13,10 +13,8 @@ import io.muserver.*;
 
 import java.awt.*;
 import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Scanner;
+import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainTest {
@@ -32,8 +30,7 @@ public class MainTest {
      * A general test that tests product creation/updating
      * for all currently supported payment processors
      * and payment creation/cancellation. (sandbox mode strictly) <br>
-     * Note that this will delete old
-     * webhooks that contain ngrok.io in their url. <br>
+     * Note that this will delete old sandbox webhooks that contain ngrok.io in their url. <br>
      */
     public static void main(String[] args) throws Exception {
 
@@ -139,27 +136,57 @@ public class MainTest {
         System.out.println("OK!");
 
         // Test payments
-        if(Desktop.isDesktopSupported()){
-            System.out.println("Enter a command from below to test payments.");
-            System.out.println("buy cool-cookie paypal");
-            System.out.println("buy cool-cookie stripe");
-            System.out.println("buy cool-subscription paypal");
-            System.out.println("buy cool-subscription stripe");
-            while (true){
-                String command = new Scanner(System.in).nextLine();
-                if(command.equals("buy cool-cookie paypal"))
-                    waitForPayment(pCoolCookie, PaymentProcessor.PAYPAL);
-                else if(command.equals("buy cool-cookie stripe"))
-                    waitForPayment(pCoolCookie, PaymentProcessor.STRIPE);
-                else if(command.equals("buy cool-subscription paypal"))
-                    waitForPayment(pCoolSubscription, PaymentProcessor.PAYPAL);
-                else if(command.equals("buy cool-subscription stripe"))
-                    waitForPayment(pCoolSubscription, PaymentProcessor.STRIPE);
-                else
-                    System.err.println("Unknown command '"+command+"', please enter a valid one.");
+        System.out.println("Listening for user input.");
+        System.out.println("You can test payments (buy products) for example. Enter 'help' to list all commands.");
+
+        while (true){
+            String command = new Scanner(System.in).nextLine().trim();
+            if(command.equals("help")){
+                System.out.println("Available commands:");
+                System.out.println("");
+                System.out.println("buy cool-cookie paypal");
+                System.out.println("buy cool-cookie stripe");
+                System.out.println("buy cool-subscription paypal");
+                System.out.println("buy cool-subscription stripe");
+                System.out.println("");
+                System.out.println("list payments");
+                System.out.println("list products");
+                System.out.println("");
+                System.out.println("delete payment <id>");
+                System.out.println("delete product <id>");
             }
-        } else{
-            System.out.println("Skipped payment test since GUI/desktop not available.");
+            else if(command.equals("buy cool-cookie paypal"))
+                waitForPayment(pCoolCookie, PaymentProcessor.PAYPAL);
+            else if(command.equals("buy cool-cookie stripe"))
+                waitForPayment(pCoolCookie, PaymentProcessor.STRIPE);
+            else if(command.equals("buy cool-subscription paypal"))
+                waitForPayment(pCoolSubscription, PaymentProcessor.PAYPAL);
+            else if(command.equals("buy cool-subscription stripe"))
+                waitForPayment(pCoolSubscription, PaymentProcessor.STRIPE);
+            else if(command.equals("list payments")){
+                List<Payment> payments = Payment.get();
+                System.out.println("Showing "+payments.size()+" payments:");
+                for (Payment payment : payments) {
+                    System.out.println(payment.toPrintString());
+                }
+            }
+            else if(command.equals("list products")){
+                List<Product> products = Product.get();
+                System.out.println("Showing "+products.size()+" products:");
+                for (Product product : products) {
+                    System.out.println(product.toPrintString());
+                }
+            }
+            else if(command.startsWith("delete payment")){
+                int id = Integer.parseInt(command.replace("delete payment ", "").trim());
+                Payment.whereId().is(id).remove();
+            }
+            else if(command.startsWith("delete product")){
+                int id = Integer.parseInt(command.replace("delete product ", "").trim());
+                Product.whereId().is(id).remove();
+            }
+            else
+                System.err.println("Unknown command '"+command+"', please enter a valid one.");
         }
     }
 
@@ -172,7 +199,8 @@ public class MainTest {
             isAuthorized.set(true);
         }, Throwable::printStackTrace);
         System.out.println("Authorize payment at: "+payment.url);
-        Desktop.getDesktop().browse(URI.create(payment.url));
+        if(Desktop.isDesktopSupported())
+            Desktop.getDesktop().browse(URI.create(payment.url));
         while (!isAuthorized.get()) Thread.sleep(100);
     }
 

@@ -1,7 +1,7 @@
 ### Aim
 
 Working with payments in Java is painful. If you want to expand to other
-third-party payment processors it's hell, that's why PayHook exists.
+third-party payment processors it's even worse, that's why PayHook exists.
 ```java
   /**
    * This can be anywhere in your application.
@@ -26,9 +26,8 @@ third-party payment processors it's hell, that's why PayHook exists.
   }
 ```
 PayHooks' main goal is simplicity, thus there are only 3 important Java objects (**PayHook** | **Product** | **Payment**)
-and as you can see above, creating payments can be done in one line.
-
-The PayHook class hower is the most important one and contains static methods to do basically anything.
+and as you can see above, creating payments can be done in one line. The PayHook class 
+contains most of the important methods.
 
 ### Features
 - Support for regular products and products with recurring payments (subscriptions).
@@ -56,6 +55,20 @@ which means that billing addresses are ignored.
 - Add support for more payment processors.
 - Run as server (payments-server) since currently this software is only meant for Java developers to integrate into their existing projects.
 
+### Testing
+
+You probably want to test this before running it in a production environment.
+You can do that easily from your current computer, just follow the steps below.
+
+- Clone this repository.
+- Make sure to have business accounts at your desired payment processors
+  and enter the sandbox/test credentials into `test-credentials.yml` (also create an
+  [ngrok](ngrok.com) account, which is needed to tunnel/forward the webhook events
+  from a public domain/ip to your current computer).
+- Run the [MainTest](https://github.com/Osiris-Team/PayHook/blob/main/src/test/java/com/osiris/payhook/MainTest.java)
+  class from your IDE.
+- Enter `help` for a list of available commands once initialised.
+
 ### Installation
 
 You can run PayHook as a standalone command line app (this is in todo),
@@ -74,6 +87,16 @@ in the code.
   (in todo) to create a `payhook` database with the existing information.
 - Copy, paste and customize (even better read and understand) all the code shown below, to make
 sure everything works as expected.
+- The provided PayPal client id/secret (app) must have permissions for using `Transaction Search`.
+Tick that box and save the change at your [developer dashboard](https://developer.paypal.com/developer/applications).
+Otherwise, it's not possible to find the subscription-id for a payment.
+- Webhook events are checked for validity/authenticity
+by doing an API request to the payment-processor.
+To avoid hitting API rate-limits make sure
+to protect against fake events by limiting the amount of events per ip by adding 
+timeouts for example.
+Also limit the maximum allowed size of a webhook event to avoid sending large amounts
+of data to the API (TODO FIND OUT BYTE-SIZE OF BIGGEST PAYPAL/STRIPE WEBHOOK-EVENT AND MENTION IT HERE).
 
 ```java
 package com.osiris.payhook;
@@ -197,6 +220,7 @@ public class ExampleConstants {
   }
 }
 ```
+
 *Webhooks:*
 
 Depending on your initialised payment processors, you have to
@@ -276,14 +300,3 @@ public class PayHookExample {
   }
 }
 ```
-*Testing:*
-
-You probably want to test this before running it on your production app.
-You can do that easily from your current computer, just follow the steps below.
-
-- Clone this repository and open a terminal in the root directory.
-- Make sure to have business accounts at the payment processors
-and enter the sandbox/test credentials into `test-credentials.txt` (also create an
-[ngrok](ngrok.com) account, which is needed to tunnel/forward the webhook events
-from a public domain/ip to your current computer).
-- Run `TODO` in your commandline to run all tests.

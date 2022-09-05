@@ -9,7 +9,10 @@
 package com.osiris.payhook.paypal;
 
 
-import com.google.gson.*;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
 import com.osiris.autoplug.core.json.exceptions.WrongJsonTypeException;
 import com.osiris.payhook.Product;
@@ -100,7 +103,7 @@ public class MyPayPal {
                 "        \"interval_count\": "+intervalDays+"\n" +
                 "      },\n" +
                 "      \"tenure_type\": \"REGULAR\",\n" +
-                "      \"sequence\": 2,\n" +
+                "      \"sequence\": 1,\n" + // Billing cycle sequence should start with `1` and be consecutive
                 "      \"total_cycles\": 0,\n" + // 0 == INFINITE
                 "      \"pricing_scheme\": {\n" +
                 "        \"fixed_price\": {\n" +
@@ -120,7 +123,7 @@ public class MyPayPal {
 
         PayPalPlan plan = new PayPalPlan(this, objResponse.get("id").getAsString(), productId, name, description,
                 utils.getPlanStatus(objResponse.get("status").getAsString()));
-        if(activate)
+        if(activate && plan.getStatus() != PayPalPlan.Status.ACTIVE)
             activatePlan(plan.getPlanId());
         return plan;
     }
@@ -169,9 +172,10 @@ public class MyPayPal {
      * Returns a string array like this: <br>
      * [subscriptionId, approveUrl]
      */
-    public String[] createSubscription(String brandName, String planId, String returnUrl, String cancelUrl) throws WrongJsonTypeException, IOException, HttpErrorException, PayPalRESTException {
+    public String[] createSubscription(String brandName, String planId, String customId, String returnUrl, String cancelUrl) throws WrongJsonTypeException, IOException, HttpErrorException, PayPalRESTException {
         JsonObject obj = new JsonObject();
         obj.addProperty("plan_id", planId);
+        obj.addProperty("custom_id", customId);
         SimpleDateFormat sf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
         sf.setTimeZone(TimeZone.getTimeZone("Etc/UTC"));
         obj.addProperty("start_time", sf.format(new Date(System.currentTimeMillis()+ 60000)));
@@ -193,24 +197,16 @@ public class MyPayPal {
         applicationContext.addProperty("cancel_url", cancelUrl);
 
 
-        System.out.println(new GsonBuilder().setPrettyPrinting().create().toJson(obj));
         JsonObject resultObj = utilsJson.postJsonAndGetResponse(BASE_V1_URL + "/billing/subscriptions", obj, this, 201)
                 .getAsJsonObject();
 
         String approveUrl = null;
-        String editUrl = null;
-        String selfUrl = null;
         for (JsonElement element :
                 resultObj.get("links").getAsJsonArray()) {
             if (element.getAsJsonObject().get("rel").getAsString().equals("approve"))
                 approveUrl = element.getAsJsonObject().get("href").getAsString();
-            if (element.getAsJsonObject().get("rel").getAsString().equals("edit"))
-                editUrl = element.getAsJsonObject().get("href").getAsString();
-            if (element.getAsJsonObject().get("rel").getAsString().equals("self"))
-                selfUrl = element.getAsJsonObject().get("href").getAsString();
-            else
-                throw new PayPalRESTException("Couldn't determine url type: " + element.getAsJsonObject().get("rel").getAsString());
         }
+        Objects.requireNonNull(approveUrl);
         return new String[]{resultObj.get("id").getAsString(), approveUrl};
     }
 
@@ -253,6 +249,7 @@ public class MyPayPal {
      * @return subscription id or null if not found in the transactions of the last 30 days.
      */
     public String findSubscriptionId(String transactionId) throws WrongJsonTypeException, IOException, HttpErrorException {
+        Objects.requireNonNull(transactionId);
         String subscriptionId = null;
         JsonArray arr = getTransactionsLast30Days(transactionId);
         for (JsonElement el : arr) {
@@ -266,10 +263,11 @@ public class MyPayPal {
     }
 
     public JsonArray getTransactionsLast30Days(String transactionId) throws WrongJsonTypeException, IOException, HttpErrorException {
-        Date endTime = new Date(System.currentTimeMillis() + (42 * 3600000)); // Plus 42h to make sure there is no UTC local time interfering
+        Date endTime = new Date(System.currentTimeMillis());
         Date startTime = new Date(System.currentTimeMillis() - (30L * 24 * 3600000)); // 30 days as milliseconds
         String pattern = "yyyy-MM-dd'T'HH:mm:ss'-0000'";
         DateFormat df = new SimpleDateFormat(pattern);
+        df.setTimeZone(TimeZone.getTimeZone("Etc/UTC"));
         String formattedEndTime = df.format(endTime);
         String formattedStartTime = df.format(startTime);
         return utilsJson.getJsonObject(BASE_V1_URL + "/reporting/transactions" +
