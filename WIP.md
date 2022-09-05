@@ -225,7 +225,7 @@ public class ExampleConstants {
 
 Depending on your initialised payment processors, you have to
 create links that listen for their webhook events too. For example like:
-`https://your-store.com/paypal-hook` or `https://your-store.com/stripe-hook`.
+`https://my-store.com/paypal-hook` or `https://my-store.com/stripe-hook`.
 I'm planing on making PayHook-Spring version that handles all that too.
 Here is an example on how to do that with Spring:
 
