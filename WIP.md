@@ -1,29 +1,4 @@
-### Progress
-
-#### 🟢 Tested and working
-- (paypal-authorize) Handle for checkout payment.
-- (paypal-authorize) Handle for subscription initial payment.
-- (stripe-authorize) Handle for checkout payment.
-- (stripe-authorize) Handle for subscription initial payment.
-
-#### 🔴 Tested and not working
-- (paypal-cancel) Handle for payment.
-- (paypal-cancel) Handle for subscription payment.
-
-#### 🟡 Not tested
-- (stripe-cancel) Handle for payment.
-- (stripe-cancel) Handle for subscription payment.
-- (paypal-authorize) Handle for subscription following payment.
-- (stripe-authorize) Handle for subscription following payment.
-
-#### ⚫ Not implemented
-- (paypal-refund) Handle for checkout payment.
-- (paypal-refund) Handle for subscription payment.
-- (stripe-refund) Handle for checkout payment.
-- (stripe-refund) Handle for subscription payment.
-
-
-### Aim
+## Aim
 
 Working with payments in Java is painful. If you want to expand to other
 third-party payment processors it's even worse, that's why PayHook exists.
@@ -54,7 +29,7 @@ PayHooks' main goal is simplicity, thus there are only 3 important Java objects 
 and as you can see above, creating payments can be done in one line. The PayHook class 
 contains most of the important methods.
 
-### Features
+## Features
 - Support for regular products and products with recurring payments (subscriptions).
 - Currently, works only via Webhooks.
 - Supported payment processors: [PayPal](https://paypal.com)
@@ -72,7 +47,7 @@ since all payments are at one place and not scattered over each payment processo
 - Different database in sandbox mode, to ensure live and sandbox actions are separated strictly.
 - Commandline tool to extract relevant data from the database and modify it.
 
-### Todo
+## Todo
 - Make webhook requirement optional by doing periodic checks.
 - Functionality to send payments. Currently, it's only possible to receive payments from customers.
 - Add support for real goods. Currently, the focus is on digital goods and services,
@@ -80,7 +55,7 @@ which means that billing addresses are ignored.
 - Add support for more payment processors.
 - Run as server (payments-server) since currently this software is only meant for Java developers to integrate into their existing projects.
 
-### Testing
+## Testing
 
 You probably want to test this before running it in a production environment.
 You can do that easily from your current computer, just follow the steps below.
@@ -94,7 +69,31 @@ You can do that easily from your current computer, just follow the steps below.
   from a public domain/ip to your current computer).
 - Enter `help` for a list of available commands once initialised.
 
-### Installation
+## Progress
+
+#### 🟢 Tested and working
+- (paypal-authorize) Handle for checkout payment.
+- (paypal-authorize) Handle for subscription initial payment.
+- (stripe-authorize) Handle for checkout payment.
+- (stripe-authorize) Handle for subscription initial payment.
+
+#### 🔴 Tested and not working
+- (paypal-cancel) Handle for payment.
+- (paypal-cancel) Handle for subscription payment.
+
+#### 🟡 Not tested
+- (stripe-cancel) Handle for payment.
+- (stripe-cancel) Handle for subscription payment.
+- (paypal-authorize) Handle for subscription following payment.
+- (stripe-authorize) Handle for subscription following payment.
+
+#### ⚫ Not implemented
+- (paypal-refund) Handle for checkout payment.
+- (paypal-refund) Handle for subscription payment.
+- (stripe-refund) Handle for checkout payment.
+- (stripe-refund) Handle for subscription payment.
+
+## Installation
 
 You can run PayHook as a standalone command line app (this is in todo),
 or integrate it into your Java app by adding it as a dependency via [Maven/Gradle/Sbt/Leinigen](https://jitpack.io/#Osiris-Team/PayHook/LATEST).
