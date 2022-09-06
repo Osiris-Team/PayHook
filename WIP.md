@@ -10,7 +10,7 @@
   - (paypal-cancel) Handle for payment.
   - (paypal-cancel) Handle for subscription payment.
   - 
-- **⚫Not tested⚫**
+- **🟡Not tested🟡**
   - (stripe-cancel) Handle for payment.
   - (stripe-cancel) Handle for subscription payment.
   - (paypal-authorize) Handle for subscription following payment.
