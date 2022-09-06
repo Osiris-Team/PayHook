@@ -135,70 +135,82 @@ public class MainTest {
         System.out.println("Created/Updated products.");
         System.out.println("OK!");
 
+        PayHook.onPaymentAuthorized.addAction((action, event) -> {
+            System.out.println("Did backend for authorized payment: "+event.product.name
+                    +" "+new Converter().toMoneyString(event.product)
+                    +" or "+event.payment.charge+" cents.");
+        }, Exception::printStackTrace);
+
         // Test payments
         System.out.println("Listening for user input.");
         System.out.println("You can test payments (buy products) for example. Enter 'help' to list all commands.");
 
         while (true){
             String command = new Scanner(System.in).nextLine().trim();
-            if(command.equals("help")){
-                System.out.println("Available commands:");
-                System.out.println("");
-                System.out.println("buy cool-cookie paypal");
-                System.out.println("buy cool-cookie stripe");
-                System.out.println("buy cool-subscription paypal");
-                System.out.println("buy cool-subscription stripe");
-                System.out.println("");
-                System.out.println("list payments");
-                System.out.println("list products");
-                System.out.println("");
-                System.out.println("delete payment <id>");
-                System.out.println("delete product <id>");
-            }
-            else if(command.equals("buy cool-cookie paypal"))
-                waitForPayment(pCoolCookie, PaymentProcessor.PAYPAL);
-            else if(command.equals("buy cool-cookie stripe"))
-                waitForPayment(pCoolCookie, PaymentProcessor.STRIPE);
-            else if(command.equals("buy cool-subscription paypal"))
-                waitForPayment(pCoolSubscription, PaymentProcessor.PAYPAL);
-            else if(command.equals("buy cool-subscription stripe"))
-                waitForPayment(pCoolSubscription, PaymentProcessor.STRIPE);
-            else if(command.equals("list payments")){
-                List<Payment> payments = Payment.get();
-                System.out.println("Showing "+payments.size()+" payments:");
-                for (Payment payment : payments) {
-                    System.out.println(payment.toPrintString());
+            try{
+                if(command.equals("help")){
+                    System.out.println("Available commands:");
+                    System.out.println("");
+                    System.out.println("buy cool-cookie paypal");
+                    System.out.println("buy cool-cookie stripe");
+                    System.out.println("buy cool-subscription paypal");
+                    System.out.println("buy cool-subscription stripe");
+                    System.out.println("");
+                    System.out.println("list payments");
+                    System.out.println("list products");
+                    System.out.println("");
+                    System.out.println("delete payment <id>");
+                    System.out.println("delete product <id>");
                 }
-            }
-            else if(command.equals("list products")){
-                List<Product> products = Product.get();
-                System.out.println("Showing "+products.size()+" products:");
-                for (Product product : products) {
-                    System.out.println(product.toPrintString());
+                else if(command.equals("buy cool-cookie paypal"))
+                    waitForPayment(pCoolCookie, PaymentProcessor.PAYPAL);
+                else if(command.equals("buy cool-cookie stripe"))
+                    waitForPayment(pCoolCookie, PaymentProcessor.STRIPE);
+                else if(command.equals("buy cool-subscription paypal"))
+                    waitForPayment(pCoolSubscription, PaymentProcessor.PAYPAL);
+                else if(command.equals("buy cool-subscription stripe"))
+                    waitForPayment(pCoolSubscription, PaymentProcessor.STRIPE);
+                else if(command.equals("list payments")){
+                    List<Payment> payments = Payment.get();
+                    System.out.println("Showing "+payments.size()+" payments:");
+                    for (Payment payment : payments) {
+                        System.out.println(payment.toPrintString());
+                    }
                 }
+                else if(command.equals("list products")){
+                    List<Product> products = Product.get();
+                    System.out.println("Showing "+products.size()+" products:");
+                    for (Product product : products) {
+                        System.out.println(product.toPrintString());
+                    }
+                }
+                else if(command.startsWith("delete payment")){
+                    int id = Integer.parseInt(command.replace("delete payment ", "").trim());
+                    Payment.whereId().is(id).remove();
+                }
+                else if(command.startsWith("delete product")){
+                    int id = Integer.parseInt(command.replace("delete product ", "").trim());
+                    Product.whereId().is(id).remove();
+                }
+                else
+                    System.err.println("Unknown command '"+command+"', please enter a valid one.");
+            } catch (Exception e) {
+                e.printStackTrace();
+                System.err.println("Something went wrong during command execution. See details above.");
             }
-            else if(command.startsWith("delete payment")){
-                int id = Integer.parseInt(command.replace("delete payment ", "").trim());
-                Payment.whereId().is(id).remove();
-            }
-            else if(command.startsWith("delete product")){
-                int id = Integer.parseInt(command.replace("delete product ", "").trim());
-                Product.whereId().is(id).remove();
-            }
-            else
-                System.err.println("Unknown command '"+command+"', please enter a valid one.");
         }
     }
 
     private static void waitForPayment(Product product, PaymentProcessor paymentProcessor) throws Exception {
-        System.out.println("Test buying "+product.name+" over "+paymentProcessor+", waiting for user authorization...");
+        System.out.println("Buying "+product.name+" over "+paymentProcessor+".");
         Payment payment = PayHook.createPayment("testUser", product, paymentProcessor);
         AtomicBoolean isAuthorized = new AtomicBoolean(false);
-        PayHook.onPaymentAuthorized.addAction((action, event) -> {
-            System.out.println("Received authorized payment for "+event.payment.productName+" "+new Converter().toMoneyString(product));
+        PayHook.onPaymentAuthorized.addOneTimeAction((action, event) -> {
+            System.out.println("Received authorized payment for "+event.payment.productName+" "+new Converter().toMoneyString(event.product));
             isAuthorized.set(true);
         }, Throwable::printStackTrace);
-        System.out.println("Authorize payment at: "+payment.url);
+        System.out.println("Authorize payment here: "+payment.url);
+        System.out.println("Waiting for user authorization...");
         if(Desktop.isDesktopSupported())
             Desktop.getDesktop().browse(URI.create(payment.url));
         while (!isAuthorized.get()) Thread.sleep(100);

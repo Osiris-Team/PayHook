@@ -222,10 +222,13 @@ public class MyPayPal {
     }
 
     public MyPayPal cancelSubscription(String paypalSubscriptionId) throws IOException, HttpErrorException {
-        JsonObject obj = new JsonObject();
-        obj.addProperty("reason", "No reason provided.");
-        utilsJson.postJsonAndGetResponse(BASE_V1_URL + "/billing/subscriptions/" + paypalSubscriptionId + "/cancel",
-                obj, this, 204);
+        String status = getSubscriptionDetails(paypalSubscriptionId).get("status").getAsString();
+        if(status.equalsIgnoreCase("active") || status.equalsIgnoreCase("suspended")){
+            JsonObject obj = new JsonObject();
+            obj.addProperty("reason", "No reason provided.");
+            utilsJson.postJsonAndGetResponse(BASE_V1_URL + "/billing/subscriptions/" + paypalSubscriptionId + "/cancel",
+                    obj, this, 204);
+        }
         return this;
     }
 
@@ -346,11 +349,10 @@ public class MyPayPal {
         return order.purchaseUnits().get(0).payments().captures().get(0).id();
     }
 
-    public JsonElement getSubscriptionDetails(String subscriptionId) throws IOException, HttpErrorException {
-        JsonObject response = utilsJson
+    public JsonObject getSubscriptionDetails(String subscriptionId) throws IOException, HttpErrorException {
+        return utilsJson
                 .getJsonElement(BASE_V1_URL + "/billing/subscriptions/" + subscriptionId, this)
                 .getAsJsonObject();
-        return response;
     }
 
     public JsonArray getSubscriptionTransactions(String subscriptionId, long subscriptionStart) throws IOException, HttpErrorException {

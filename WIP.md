@@ -1,3 +1,28 @@
+### Progress
+
+- **🟢Tested and working🟢**
+  - (paypal-authorize) Handle for checkout payment.
+  - (paypal-authorize) Handle for subscription initial payment.
+  - (stripe-authorize) Handle for checkout payment.
+  - (stripe-authorize) Handle for subscription initial payment.
+  - 
+- **🔴Tested and not working🔴**
+  - (paypal-cancel) Handle for payment.
+  - (paypal-cancel) Handle for subscription payment.
+  - 
+- **⚫Not tested⚫**
+  - (stripe-cancel) Handle for payment.
+  - (stripe-cancel) Handle for subscription payment.
+  - (paypal-authorize) Handle for subscription following payment.
+  - (stripe-authorize) Handle for subscription following payment.
+  - 
+- **⚫Not implemented⚫**
+  - (paypal-refund) Handle for checkout payment.
+  - (paypal-refund) Handle for subscription payment.
+  - (stripe-refund) Handle for checkout payment.
+  - (stripe-refund) Handle for subscription payment.
+  - 
+
 ### Aim
 
 Working with payments in Java is painful. If you want to expand to other
@@ -300,3 +325,5 @@ public class PayHookExample {
   }
 }
 ```
+
+
