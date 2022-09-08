@@ -20,8 +20,8 @@ public class ExampleConstants {
             PayHook.initBraintree("merchant_id", "public_key", "private_key", "https://my-shop.com/braintree-hook");
             PayHook.initStripe("secret_key", "https://my-shop.com/stripe-hook");
 
-            pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE);
-            pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Intervall.MONTHLY);
+            pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Interval.NONE);
+            pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Interval.MONTHLY);
 
             PayHook.onPaymentAuthorized.addAction(event -> {
                 // Additional backend business logic for all payments in here.
@@ -58,7 +58,7 @@ public class ExampleConstants {
      * This can be anywhere in your application.
      */
     void onBuyBtnClick() throws Exception {
-        Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL);
+        Payment payment = PayHook.expectPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL);
         // Forward your user to payment.url to complete/authorize the payment here...
 
         PayHook.onPaymentAuthorized.addAction((action, event) -> {
@@ -90,7 +90,7 @@ public class ExampleConstants {
      * This can be anywhere in your application.
      */
     void onAnotherBuyBtnClick() throws Exception {
-        Payment payment = PayHook.createPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE);
+        Payment payment = PayHook.expectPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE);
         // Forward your user to payment.url to complete/authorize the payment here...
 
         PayHook.onPaymentAuthorized.addAction((action, event) -> {

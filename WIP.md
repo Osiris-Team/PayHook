@@ -72,26 +72,26 @@ You can do that easily from your current computer, just follow the steps below.
 ## Progress
 
 #### 🟢 Tested and working
-- (paypal-authorize) Handle for checkout payment.
-- (paypal-authorize) Handle for subscription initial payment.
-- (stripe-authorize) Handle for checkout payment.
-- (stripe-authorize) Handle for subscription initial payment.
+- (paypal-authorize) checkout payment event.
+- (paypal-authorize) subscription initial payment event.
+- (stripe-authorize) checkout payment event.
+- (stripe-authorize) subscription initial payment event.
 
 #### 🔴 Tested and not working
-- (paypal-cancel) Handle for payment.
-- (paypal-cancel) Handle for subscription payment.
+- (paypal-cancel) payment event.
+- (paypal-cancel) subscription payment event.
 
 #### 🟡 Not tested
-- (stripe-cancel) Handle for payment.
-- (stripe-cancel) Handle for subscription payment.
-- (paypal-authorize) Handle for subscription following payment.
-- (stripe-authorize) Handle for subscription following payment.
+- (stripe-cancel) payment event.
+- (stripe-cancel) subscription payment event.
+- (paypal-authorize) subscription following payment event.
+- (stripe-authorize) subscription following payment event.
 
 #### ⚫ Not implemented
-- (paypal-refund) Handle for checkout payment.
-- (paypal-refund) Handle for subscription payment.
-- (stripe-refund) Handle for checkout payment.
-- (stripe-refund) Handle for subscription payment.
+- (paypal-refund) checkout payment event.
+- (paypal-refund) subscription payment event.
+- (stripe-refund) checkout payment event.
+- (stripe-refund) subscription payment event.
 
 ## Installation
 
@@ -111,9 +111,6 @@ in the code.
   (in todo) to create a `payhook` database with the existing information.
 - Copy, paste and customize (even better read and understand) all the code shown below, to make
 sure everything works as expected.
-- The provided PayPal client id/secret (app) must have permissions for using `Transaction Search`.
-Tick that box and save the change at your [developer dashboard](https://developer.paypal.com/developer/applications).
-Otherwise, it's not possible to find the subscription-id for a payment.
 - Webhook events are checked for validity/authenticity
 by doing an API request to the payment-processor.
 To avoid hitting API rate-limits make sure
@@ -145,8 +142,8 @@ public class ExampleConstants {
       PayHook.initBraintree("merchant_id", "public_key", "private_key", "https://my-shop.com/braintree-hook");
       PayHook.initStripe("secret_key", "https://my-shop.com/stripe-hook");
 
-      pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE);
-      pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Intervall.MONTHLY);
+      pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Interval.NONE);
+      pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Interval.MONTHLY);
 
       PayHook.onPaymentAuthorized.addAction(event -> {
         // Additional backend business logic for all payments in here.
@@ -183,7 +180,7 @@ public class ExampleConstants {
    * This can be anywhere in your application.
    */
   void onBuyBtnClick() throws Exception {
-    Payment payment = PayHook.createPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL);
+    Payment payment = PayHook.expectPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL);
     // Forward your user to payment.url to complete/authorize the payment here...
 
     PayHook.onPaymentAuthorized.addAction((action, event) -> {
@@ -215,7 +212,7 @@ public class ExampleConstants {
    * This can be anywhere in your application.
    */
   void onAnotherBuyBtnClick() throws Exception {
-    Payment payment = PayHook.createPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE);
+    Payment payment = PayHook.expectPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE);
     // Forward your user to payment.url to complete/authorize the payment here...
 
     PayHook.onPaymentAuthorized.addAction((action, event) -> {

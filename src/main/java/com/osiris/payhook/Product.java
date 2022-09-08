@@ -538,10 +538,6 @@ public class Product{
         return paypalProductId != null;
     }
 
-    public boolean isBraintreeSupported() {
-        return false; // TODO
-    }
-
     public boolean isStripeSupported() {
         return stripeProductId != null && stripePriceId != null;
     }

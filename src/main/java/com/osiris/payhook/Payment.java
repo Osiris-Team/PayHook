@@ -5,7 +5,6 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 
 /**
  Generated class by <a href="https://github.com/Osiris-Team/jSQL-Gen">jSQL-Gen</a>
@@ -643,6 +642,18 @@ public class Payment{
     ADDITIONAL CODE:
      */
 
+    public static List<Payment> getForUser(String userId){
+        return get("userId=?", userId);
+    }
+
+    public static List<Payment> getSubscriptionPaymentsForUser(String userId){
+        return whereUserId().is(userId)
+                .and(wherePaypalSubscriptionId().isNotNull())
+                .and(whereStripeSubscriptionId().isNotNull())
+                .get();
+        // TODO ADD NEW PAYMENT PROCESSOR
+    }
+
     /**
      * List of payments that haven't been authorized or cancelled (or expired) yet and are in the future.
      *
@@ -757,30 +768,6 @@ public class Payment{
         // TODO ADD NEW PROCESSORS
     }
 
-    /**
-     * Must be a recurring payment, otherwise just returns -1. <br>
-     * Note that this will always return the difference between the last two (latest and future) payments
-     * for this subscription and ignore this {@link Payment} object (also returns -1 when there is no future payment).
-     *
-     * @return the time left (in milliseconds) until the next due payment.
-     * Thus, you get a negative value, if the due payment date was already exceeded, which usually means
-     * that the subscription was cancelled.
-     * @throws NullPointerException when the future {@link Payment#timestampCreated} is null.
-     */
-    public long getMsLeftUntilNextPayment() throws Exception {
-        if (!isRecurring()) return -1;
-        long now = System.currentTimeMillis();
-        List<Payment> futurePayments;
-        if (isPayPalSupported())
-            futurePayments = Payment.getPendingFuturePayments("paypalSubscriptionId = ?", paypalSubscriptionId);
-        else if (isStripeSupported())
-            futurePayments = Payment.getPendingFuturePayments("stripeSubscriptionId = ?", stripeSubscriptionId);
-        else throw new IllegalArgumentException("Unknown/Invalid payment processor: " + getPaymentProcessor());
-        // TODO ADD NEW PROCESSORS
-        if (futurePayments.isEmpty()) return -1;
-        return Objects.requireNonNull(futurePayments.get(0)).timestampCreated - now;
-    }
-
     public boolean isPending() {
         return timestampAuthorized == 0 && timestampCancelled == 0;
     }
@@ -806,27 +793,27 @@ public class Payment{
     }
 
     /**
-     * Helper class to set the payments billing intervall in days.
+     * Helper class to set the payments billing interval in days.
      */
-    public static class Intervall {
+    public static class Interval {
         /**
-         * One time payment. Type 0.
+         * One time payment.
          */
         public static final int NONE = 0;
         /**
-         * Recurring payment every month (exactly 30 days). Type 1.
+         * Recurring payment every month (exactly 30 days).
          */
         public static final int MONTHLY = 30;
         /**
-         * Recurring payment every 3 months (exactly 90 days). Type 2.
+         * Recurring payment every 3 months (exactly 90 days).
          */
         public static final int TRI_MONTHLY = 90;
         /**
-         * Recurring payment every 6 months (exactly 180 days). Type 3.
+         * Recurring payment every 6 months (exactly 180 days).
          */
         public static final int HALF_YEARLY = 180;
         /**
-         * Recurring payment every 12 months (exactly 360 days). Type 4.
+         * Recurring payment every 12 months (exactly 360 days).
          */
         public static final int YEARLY = 360;
 

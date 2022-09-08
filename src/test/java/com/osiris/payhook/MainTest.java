@@ -130,8 +130,8 @@ public class MainTest {
 
 
         // Create/Update products
-        pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Intervall.NONE);
-        pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Intervall.MONTHLY);
+        pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Interval.NONE);
+        pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Interval.MONTHLY);
         System.out.println("Created/Updated products.");
         System.out.println("OK!");
 
@@ -203,7 +203,7 @@ public class MainTest {
 
     private static void waitForPayment(Product product, PaymentProcessor paymentProcessor) throws Exception {
         System.out.println("Buying "+product.name+" over "+paymentProcessor+".");
-        Payment payment = PayHook.createPayment("testUser", product, paymentProcessor);
+        Payment payment = PayHook.expectPayment("testUser", product, paymentProcessor);
         AtomicBoolean isAuthorized = new AtomicBoolean(false);
         PayHook.onPaymentAuthorized.addOneTimeAction((action, event) -> {
             System.out.println("Received authorized payment for "+event.payment.productName+" "+new Converter().toMoneyString(event.product));

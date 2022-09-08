@@ -41,7 +41,7 @@ import java.util.*;
 public final class PayHook {
     /**
      * Actions for this event are executed, when a payment is created
-     * via {@link PayHook#createPayments(String, List, PaymentProcessor)}.
+     * via {@link PayHook#expectPayments(String, List, PaymentProcessor)}.
      */
     public static final com.osiris.events.Event<PaymentEvent> paymentCreatedEvent = new com.osiris.events.Event<>();
     /**
@@ -130,7 +130,7 @@ public final class PayHook {
      */
     //TODO NOT NEEDED: REMOVE WHEN DONE WITH DATABASE: public static long recurringPaymentAddedTimeMs;
     private static Thread commandLineThread;
-    private static Thread expiredPaymentsCheckerThread;
+    private static Thread paymentsCheckerThread;
     /**
      * A secret key specific to the webhook that is used to validate it.
      */
@@ -181,10 +181,13 @@ public final class PayHook {
         Database.username = Objects.requireNonNull(databaseUsername);
         Database.password = Objects.requireNonNull(databasePassword);
 
-        expiredPaymentsCheckerThread = new Thread(() -> {
+        paymentsCheckerThread = new Thread(() -> {
             try {
                 while (true) {
                     long now = System.currentTimeMillis();
+
+                    // Cancel payments and execute payment cancelled event
+                    // for pending payments that haven't been authorized within the time limit.
                     for (Payment pendingPayment : Payment.getPendingPayments()) {
                         if (now > pendingPayment.timestampExpires) {
                             pendingPayment.timestampCancelled = now;
@@ -192,33 +195,27 @@ public final class PayHook {
                             onPaymentCancelled.execute(new PaymentEvent(Product.get(pendingPayment.productId), pendingPayment));
                         }
                     }
+
+                    // Create new cancelled payments for subscriptions
+                    // that are active but where the last payment exceeds the time-limit + puffer.
+                    for (Subscription sub : Subscription.getActive()) {
+                        if(sub.getMillisLeftWithPuffer() < 1){
+                            Payment newPayment = sub.getLastPayment();
+                            newPayment.id = Payment.create(null, 0, null, 0).id;
+                            newPayment.charge = 0;
+                            newPayment.timestampCancelled = now;
+                            Payment.add(newPayment);
+                            onPaymentCancelled.execute(new PaymentEvent(Product.get(newPayment.productId), newPayment));
+                        }
+                    }
+
                     Thread.sleep(3600000); // 1h
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         });
-        expiredPaymentsCheckerThread.start();
-
-        // Since we received an authorized payment for a subscription
-        // we create the future/next payment already to be able to
-        // catch it in the future.
-        onPaymentAuthorized.addAction((action, event) -> {
-            Payment currentPayment = event.payment;
-            if (currentPayment.isRecurring() && !currentPayment.isRefund()) {
-                long futureTime = System.currentTimeMillis() + Payment.Intervall.toMilliseconds(currentPayment.interval);
-                Payment futurePayment = currentPayment.clone();
-                futurePayment.id = Payment.create(currentPayment.userId, currentPayment.charge, currentPayment.currency, currentPayment.interval)
-                        .id;
-                futurePayment.timestampCreated = futureTime;
-                futurePayment.timestampExpires = futureTime + currentPayment.getUrlTimeoutMs();
-                futurePayment.timestampAuthorized = 0;
-                futurePayment.timestampCancelled = 0;
-                Payment.add(futurePayment);
-            }
-        }, ex -> {
-            throw new RuntimeException(ex);
-        });
+        paymentsCheckerThread.start();
 
         isInitialised = true;
     }
@@ -415,7 +412,7 @@ public final class PayHook {
      *                         in lowercase. Must be a <a href="https://stripe.com/docs/currencies">supported currency</a>.
      * @param name             The name of the product.
      * @param description      The products' description.
-     * @param paymentIntervall The payment intervall in days. Only relevant for recurring payments. See {@link Payment.Intervall} for useful defaults.
+     * @param paymentIntervall The payment intervall in days. Only relevant for recurring payments. See {@link Payment.Interval} for useful defaults.
      * @throws InvalidChangeException if you tried to change the payment type of the product.
      */
     public static Product putProduct(int id, long charge,
@@ -487,26 +484,26 @@ public final class PayHook {
     /**
      * Convenience method for creating a single {@link Payment} for a single {@link Product}. <br>
      *
-     * @see #createPayments(String, List, PaymentProcessor)
+     * @see #expectPayments(String, List, PaymentProcessor)
      */
-    public static Payment createPayment(String userId, Product product, PaymentProcessor paymentProcessor) throws Exception {
+    public static Payment expectPayment(String userId, Product product, PaymentProcessor paymentProcessor) throws Exception {
         List<Product> products = new ArrayList<>(1);
         products.add(product);
-        return createPayments(userId, products, paymentProcessor)
+        return expectPayments(userId, products, paymentProcessor)
                 .get(0);
     }
 
     /**
      * Convenience method for creating a single {@link Payment} for a single {@link Product}, with custom quantity. <br>
      *
-     * @see #createPayments(String, List, PaymentProcessor)
+     * @see #expectPayments(String, List, PaymentProcessor)
      */
-    public static Payment createPayment(String userId, Product product, int quantity, PaymentProcessor paymentProcessor) throws Exception {
+    public static Payment expectPayment(String userId, Product product, int quantity, PaymentProcessor paymentProcessor) throws Exception {
         List<Product> products = new ArrayList<>(quantity);
         for (int i = 0; i < quantity; i++) {
             products.add(product);
         }
-        return createPayments(userId, products, paymentProcessor)
+        return expectPayments(userId, products, paymentProcessor)
                 .get(0);
     }
 
@@ -524,7 +521,7 @@ public final class PayHook {
      *                         If the user wants the same {@link Product} twice for example, simply add it twice to this list.
      * @param paymentProcessor The users' desired {@link PaymentProcessor}.
      */
-    public static List<Payment> createPayments(String userId, List<Product> products, PaymentProcessor paymentProcessor) throws Exception {
+    public static List<Payment> expectPayments(String userId, List<Product> products, PaymentProcessor paymentProcessor) throws Exception {
         Converter converter = new Converter();
         Objects.requireNonNull(products);
         if (products.size() == 0) throw new Exception("Products array cannot be empty!");
@@ -537,8 +534,7 @@ public final class PayHook {
                 throw new Exception("Product with id '" + p.id + "' does not support " + PaymentProcessor.STRIPE + " because of empty fields in the database!");
             else if (paymentProcessor.equals(PaymentProcessor.PAYPAL) && !p.isPayPalSupported())
                 throw new Exception("Product with id '" + p.id + "' does not support " + PaymentProcessor.PAYPAL + " because of empty fields in the database!");
-            else if (paymentProcessor.equals(PaymentProcessor.BRAINTREE) && !p.isBraintreeSupported())
-                throw new Exception("Product with id '" + p.id + "' does not support " + PaymentProcessor.BRAINTREE + " because of empty fields in the database!");
+            //TODO ADD PAYMENT PROCESSOR
 
             if (p.isRecurring()) // Sort
                 productsRecurring.add(p);
@@ -857,7 +853,7 @@ public final class PayHook {
 
                         Payment firstPayment = paymentsWithSessionId.get(0);
                         firstPayment.stripeSubscriptionId = session.getSubscription();
-                        firstPayment.stripePaymentIntentId = Invoice.retrieve(Subscription.retrieve(session.getSubscription()).getLatestInvoice()).getPaymentIntent();
+                        firstPayment.stripePaymentIntentId = Invoice.retrieve(com.stripe.model.Subscription.retrieve(session.getSubscription()).getLatestInvoice()).getPaymentIntent();
                         firstPayment.timestampAuthorized = now;
 
                         Payment.update(firstPayment);
@@ -903,7 +899,7 @@ public final class PayHook {
                     break;
                 }
                 case "customer.subscription.deleted": { // Recurring payments
-                    Subscription subscription = (Subscription) stripeObject; // TODO check if this actually works
+                    com.stripe.model.Subscription subscription = (com.stripe.model.Subscription) stripeObject; // TODO check if this actually works
                     List<Payment> payments = Payment.whereStripeSubscriptionId().is(subscription.getId()).get();
                     if (payments.isEmpty()) throw new WebHookValidationException(
                             "Received invalid webhook event (" + PaymentProcessor.STRIPE + ", failed to find payments with stripe_subscription_id '" + subscription.getId() + "' in local database).");
@@ -962,7 +958,7 @@ public final class PayHook {
                     } else if (payment.isStripeSupported()) {
                         if (!Objects.equals(firstPayment.stripeSubscriptionId, payment.stripeSubscriptionId))
                             throw new Exception("All provided payments must have the same id! Failed at: " + payment);
-                        Subscription.retrieve(
+                        com.stripe.model.Subscription.retrieve(
                                         Objects.requireNonNull(firstPayment.stripeSubscriptionId))
                                 .cancel();
                     } else
