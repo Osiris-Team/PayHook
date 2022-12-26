@@ -289,6 +289,8 @@ public class PayHookExample {
 <details>
 <summary>How to validate a PayPal webhook notification/event?</summary>
 
+Note that validation is already done automatically by PayHook.
+This example shows how to do it manually.
 Its only a few lines:
 ```java
 MyPayPal paypal = new MyPayPal(clientId, clientSecret, MyPayPal.Mode.SANDBOX);
