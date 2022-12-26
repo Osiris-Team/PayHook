@@ -1,5 +1,7 @@
 package com.osiris.payhook;
 
+import com.osiris.jsqlgen.payhook.Database;
+
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;

@@ -1,6 +1,6 @@
 package com.osiris.payhook.utils;
 
-import com.osiris.payhook.Product;
+import com.osiris.jsqlgen.payhook.Product;
 import com.paypal.api.payments.Currency;
 import com.paypal.api.payments.MerchantPreferences;
 import com.paypal.api.payments.PaymentDefinition;
@@ -34,9 +34,14 @@ public class Converter {
         return new com.paypal.api.payments.Currency(product.currency, new BigDecimal(product.charge).divide(new BigDecimal(100)).toPlainString());
     }
 
-    public String toMoneyString(Product product){
+    public String toMoneyString(Product product) {
         Currency currency = toPayPalCurrency(product);
-        return currency.getValue()+" "+currency.getCurrency();
+        return currency.getValue() + " " + currency.getCurrency();
+    }
+
+    public String toMoneyString(String currency, long cents) {
+        Currency currency1 = toPayPalCurrency(currency, cents);
+        return currency1.getValue() + " " + currency1.getCurrency();
     }
 
     public Map<String, Object> toStripeProduct(Product product) {
@@ -67,12 +72,12 @@ public class Converter {
     public com.paypal.api.payments.Plan toPayPalPlan(Product product, String successUrl, String cancelUrl) {
         com.paypal.api.payments.Plan plan = new com.paypal.api.payments.Plan(product.name, product.description, "INFINITE");
         plan.setMerchantPreferences(new MerchantPreferences()
-                        .setReturnUrl(successUrl)
-                        .setCancelUrl(cancelUrl)
+                .setReturnUrl(successUrl)
+                .setCancelUrl(cancelUrl)
                 .setAutoBillAmount("YES"));
         List<PaymentDefinition> paymentDefinitions = new ArrayList<>(1);
         PaymentDefinition paymentDefinition = new PaymentDefinition()
-                .setName("Payment for "+product.name)
+                .setName("Payment for " + product.name)
                 .setAmount(toPayPalCurrency(product))
                 .setType("REGULAR");
         paymentDefinition.setFrequency("DAY");
@@ -86,7 +91,7 @@ public class Converter {
     }
 
     private void throwInvalidPaymentInterval(int paymentInterval) {
-        throw new IllegalArgumentException("Payment interval ("+paymentInterval+") cannot be <= 0 if product is meant to have recurring payments!");
+        throw new IllegalArgumentException("Payment interval (" + paymentInterval + ") cannot be <= 0 if product is meant to have recurring payments!");
     }
 
     public List<com.paypal.api.payments.Patch> toPayPalPlanPatch(Product product) {

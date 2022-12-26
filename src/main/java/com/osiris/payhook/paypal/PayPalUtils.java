@@ -15,7 +15,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
 import com.osiris.autoplug.core.json.exceptions.WrongJsonTypeException;
-import com.osiris.payhook.Product;
+import com.osiris.jsqlgen.payhook.Product;
 import com.osiris.payhook.exceptions.ParseBodyException;
 import com.osiris.payhook.exceptions.ParseHeaderException;
 import com.osiris.payhook.utils.Converter;
@@ -39,7 +39,7 @@ import java.util.*;
  * PayPals' Java SDKs don't cover the complete REST API. <br>
  * This class aims to close those gaps. <br>
  */
-public class MyPayPal {
+public class PayPalUtils {
     public static String BASE_V1_URL;
     public static String LIVE_V1_SANDBOX_BASE_URL = "https://api-m.sandbox.paypal.com/v1";
     public static String LIVE_V1_LIVE_BASE_URL = "https://api-m.paypal.com/v1";
@@ -50,7 +50,7 @@ public class MyPayPal {
     private final UtilsPayPalJson utilsJson = new UtilsPayPalJson();
     private String credBase64 = "";
 
-    public MyPayPal(String clientId, String clientSecret, Mode mode) {
+    public PayPalUtils(String clientId, String clientSecret, Mode mode) {
         this.clientId = clientId;
         this.clientSecret = clientSecret;
         credBase64 = Base64.encodeBase64String((clientId + ":" + clientSecret).getBytes());
@@ -68,10 +68,10 @@ public class MyPayPal {
         if (obj.get("description") != null)
             desc = obj.get("description").getAsString();
         String prodId = null;
-        if(obj.get("product_id") != null)
+        if (obj.get("product_id") != null)
             prodId = obj.get("product_id").getAsString();
         PayPalPlan.Status status = null;
-        if(obj.get("status") != null)
+        if (obj.get("status") != null)
             utils.getPlanStatus(obj.get("status").getAsString());
         else if (obj.get("state") != null)
             utils.getPlanStatus(obj.get("state").getAsString());
@@ -100,15 +100,15 @@ public class MyPayPal {
         cycles.add(JsonParser.parseString("{\n" +
                 "      \"frequency\": {\n" +
                 "        \"interval_unit\": \"DAY\",\n" +
-                "        \"interval_count\": "+intervalDays+"\n" +
+                "        \"interval_count\": " + intervalDays + "\n" +
                 "      },\n" +
                 "      \"tenure_type\": \"REGULAR\",\n" +
                 "      \"sequence\": 1,\n" + // Billing cycle sequence should start with `1` and be consecutive
                 "      \"total_cycles\": 0,\n" + // 0 == INFINITE
                 "      \"pricing_scheme\": {\n" +
                 "        \"fixed_price\": {\n" +
-                "          \"value\": \""+price.value()+"\",\n" +
-                "          \"currency_code\": \""+price.currencyCode()+"\"\n" +
+                "          \"value\": \"" + price.value() + "\",\n" +
+                "          \"currency_code\": \"" + price.currencyCode() + "\"\n" +
                 "        }\n" +
                 "      }\n" +
                 "    }"));
@@ -119,17 +119,17 @@ public class MyPayPal {
         // TODO setup_fee and taxes support. See https://developer.paypal.com/docs/api/subscriptions/v1/#plans_create
 
         JsonObject objResponse =
-                utilsJson.postJsonAndGetResponse(BASE_V1_URL+"/billing/plans", obj, this, 201).getAsJsonObject();
+                utilsJson.postJsonAndGetResponse(BASE_V1_URL + "/billing/plans", obj, this, 201).getAsJsonObject();
 
         PayPalPlan plan = new PayPalPlan(this, objResponse.get("id").getAsString(), productId, name, description,
                 utils.getPlanStatus(objResponse.get("status").getAsString()));
-        if(activate && plan.getStatus() != PayPalPlan.Status.ACTIVE)
+        if (activate && plan.getStatus() != PayPalPlan.Status.ACTIVE)
             activatePlan(plan.getPlanId());
         return plan;
     }
 
     public void activatePlan(String planId) throws IOException, HttpErrorException {
-        utilsJson.postJsonAndGetResponse(BASE_V1_URL+"/billing/plans/"+planId+"/activate", null, this, 204);
+        utilsJson.postJsonAndGetResponse(BASE_V1_URL + "/billing/plans/" + planId + "/activate", null, this, 204);
     }
 
     /**
@@ -151,7 +151,7 @@ public class MyPayPal {
      *
      * @throws NullPointerException when {@link Product#paypalProductId} is null.
      */
-    public MyPayPal updateProduct(Product product) throws IOException, HttpErrorException {
+    public PayPalUtils updateProduct(Product product) throws IOException, HttpErrorException {
         Objects.requireNonNull(product.paypalProductId);
         JsonArray arr = new JsonArray();
         JsonObject patchName = new JsonObject();
@@ -178,7 +178,7 @@ public class MyPayPal {
         obj.addProperty("custom_id", customId);
         SimpleDateFormat sf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
         sf.setTimeZone(TimeZone.getTimeZone("Etc/UTC"));
-        obj.addProperty("start_time", sf.format(new Date(System.currentTimeMillis()+ 60000)));
+        obj.addProperty("start_time", sf.format(new Date(System.currentTimeMillis() + 60000)));
         obj.addProperty("quantity", "1");
 
         JsonObject applicationContext = new JsonObject();
@@ -213,17 +213,17 @@ public class MyPayPal {
     /**
      * Can only be done in the first 14 days, thus the first transaction is fetched and a refund for that is tried.
      */
-    public MyPayPal refundSubscription(PayPalHttpClient client, String subscriptionId, long subscriptionStart,
-                                       Money amount, String note) throws IOException, HttpErrorException {
+    public PayPalUtils refundSubscription(PayPalHttpClient client, String subscriptionId, long subscriptionStart,
+                                          Money amount, String note) throws IOException, HttpErrorException {
         JsonArray transactions = getSubscriptionTransactions(subscriptionId, subscriptionStart);
         refundPayment(client, transactions.get(0).getAsJsonObject().get("id").getAsString(), // transactionId
                 amount, note);
         return this;
     }
 
-    public MyPayPal cancelSubscription(String paypalSubscriptionId) throws IOException, HttpErrorException {
+    public PayPalUtils cancelSubscription(String paypalSubscriptionId) throws IOException, HttpErrorException {
         String status = getSubscriptionDetails(paypalSubscriptionId).get("status").getAsString();
-        if(status.equalsIgnoreCase("active") || status.equalsIgnoreCase("suspended")){
+        if (status.equalsIgnoreCase("active") || status.equalsIgnoreCase("suspended")) {
             JsonObject obj = new JsonObject();
             obj.addProperty("reason", "No reason provided.");
             utilsJson.postJsonAndGetResponse(BASE_V1_URL + "/billing/subscriptions/" + paypalSubscriptionId + "/cancel",
@@ -349,6 +349,19 @@ public class MyPayPal {
         return order.purchaseUnits().get(0).payments().captures().get(0).id();
     }
 
+    public JsonObject captureSubscription(String subscriptionId, com.paypal.orders.Money moneyPaid) throws IOException, HttpErrorException {
+        JsonObject obj = new JsonObject();
+        obj.addProperty("note", "Capture of initial subscription payment.");
+        obj.addProperty("capture_type", "OUTSTANDING_BALANCE");
+        JsonObject amount = new JsonObject();
+        obj.add("amount", amount);
+        amount.addProperty("currency_code", moneyPaid.currencyCode());
+        amount.addProperty("value", moneyPaid.value());
+        return utilsJson
+                .postJsonAndGetResponse(BASE_V1_URL + "/billing/subscriptions/" + subscriptionId + "/capture", obj, this)
+                .getAsJsonObject();
+    }
+
     public JsonObject getSubscriptionDetails(String subscriptionId) throws IOException, HttpErrorException {
         return utilsJson
                 .getJsonElement(BASE_V1_URL + "/billing/subscriptions/" + subscriptionId, this)
@@ -384,11 +397,11 @@ public class MyPayPal {
                 .getAsJsonObject().getAsJsonArray("webhooks");
     }
 
-    public MyPayPal createWebhook(String webhookUrl, List<String> eventTypes) throws IOException, HttpErrorException {
+    public PayPalUtils createWebhook(String webhookUrl, List<String> eventTypes) throws IOException, HttpErrorException {
         return createWebhook(webhookUrl, eventTypes.toArray(new String[0]));
     }
 
-    public MyPayPal createWebhook(String webhookUrl, String... eventTypes) throws IOException, HttpErrorException {
+    public PayPalUtils createWebhook(String webhookUrl, String... eventTypes) throws IOException, HttpErrorException {
         JsonObject obj = new JsonObject();
         obj.addProperty("url", webhookUrl);
         JsonArray arr = new JsonArray();
@@ -440,7 +453,7 @@ public class MyPayPal {
             for (JsonElement singleElementEventType :
                     arrayEventType) {
                 JsonObject o = singleElementEventType.getAsJsonObject();
-                if (!validEventTypes.contains(o.get("name").getAsString())){
+                if (!validEventTypes.contains(o.get("name").getAsString())) {
                     //throw new WebHookValidationException("No valid type(" + o.get("name") + ") found in the valid types list: " + validEventTypes);
                     return false;
                 }
@@ -448,7 +461,7 @@ public class MyPayPal {
         } else {
             // This means we only have one event_type in the json and not an array.
             String webHookType = event.getBody().get("event_type").getAsString();
-            if (!validEventTypes.contains(webHookType)){
+            if (!validEventTypes.contains(webHookType)) {
                 //throw new WebHookValidationException("No valid type(" + webHookType + ") found in the valid types list: " + validEventTypes);
                 return false;
             }
@@ -464,7 +477,7 @@ public class MyPayPal {
         json.addProperty("transmission_sig", header.getTransmissionSignature());
         json.addProperty("webhook_id", header.getWebhookId());
         json.add("webhook_event", event.getBody());
-        event.setValid(utilsJson.postJsonAndGetResponse(BASE_V1_URL+"/notifications/verify-webhook-signature", json, this)
+        event.setValid(utilsJson.postJsonAndGetResponse(BASE_V1_URL + "/notifications/verify-webhook-signature", json, this)
                 .getAsJsonObject().get("verification_status").getAsString().equalsIgnoreCase("SUCCESS"));
         return event.isValid();
     }

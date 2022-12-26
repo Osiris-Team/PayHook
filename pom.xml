@@ -6,7 +6,7 @@
 
     <groupId>com.osiris.payhook</groupId>
     <artifactId>PayHook</artifactId>
-    <version>3.0</version>
+    <version>LATEST</version>
     <packaging>jar</packaging>
 
     <name>PayHook</name>
@@ -35,7 +35,7 @@
         <dependency>
             <groupId>com.github.Osiris-Team</groupId>
             <artifactId>Easy-Java-Events</artifactId>
-            <version>1.4.0</version>
+            <version>1.8.0</version>
         </dependency>
         <dependency>
             <groupId>com.google.code.gson</groupId>
@@ -95,7 +95,7 @@
         <dependency>
             <groupId>com.github.Osiris-Team</groupId>
             <artifactId>java-ngrok</artifactId>
-            <version>1.6.0</version>
+            <version>1.6.1</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -109,6 +109,11 @@
             <artifactId>HBrowser</artifactId>
             <version>2.4.1</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+            <version>2.10.10</version>
         </dependency>
     </dependencies>
 

@@ -1,0 +1,196 @@
+{
+  "name": "payhook",
+  "tables": [
+    {
+      "name": "Product",
+      "columns": [
+        {
+          "name": "id",
+          "nameQuoted": "`id`",
+          "definition": "INT NOT NULL PRIMARY KEY"
+        },
+        {
+          "name": "charge",
+          "nameQuoted": "`charge`",
+          "definition": "BIGINT NOT NULL"
+        },
+        {
+          "name": "currency",
+          "nameQuoted": "`currency`",
+          "definition": "CHAR(3) NOT NULL"
+        },
+        {
+          "name": "name",
+          "nameQuoted": "`name`",
+          "definition": "TEXT(65532) NOT NULL"
+        },
+        {
+          "name": "description",
+          "nameQuoted": "`description`",
+          "definition": "TEXT(65532) NOT NULL"
+        },
+        {
+          "name": "paymentInterval",
+          "nameQuoted": "`paymentInterval`",
+          "definition": "INT NOT NULL"
+        },
+        {
+          "name": "paypalProductId",
+          "nameQuoted": "`paypalProductId`",
+          "definition": "TEXT(65532) DEFAULT NULL"
+        },
+        {
+          "name": "paypalPlanId",
+          "nameQuoted": "`paypalPlanId`",
+          "definition": "TEXT(65532) DEFAULT NULL"
+        },
+        {
+          "name": "stripeProductId",
+          "nameQuoted": "`stripeProductId`",
+          "definition": "TEXT(65532) DEFAULT NULL"
+        },
+        {
+          "name": "stripePriceId",
+          "nameQuoted": "`stripePriceId`",
+          "definition": "TEXT(65532) DEFAULT NULL"
+        }
+      ],
+      "isDebug": false,
+      "isNoExceptions": true,
+      "isCache": false
+    },
+    {
+      "name": "Payment",
+      "columns": [
+        {
+          "name": "id",
+          "nameQuoted": "`id`",
+          "definition": "INT NOT NULL PRIMARY KEY"
+        },
+        {
+          "name": "userId",
+          "nameQuoted": "`userId`",
+          "definition": "TEXT(65532) NOT NULL"
+        },
+        {
+          "name": "charge",
+          "nameQuoted": "`charge`",
+          "definition": "BIGINT NOT NULL",
+          "comment": "The total charged amount in the smallest form of money. Example: 100 cents \u003d\u003d 1EUR.If not authorized yet, the money was not yet received.When refunded this normally is 0, or something greater on a partial refund.Note that cancelled does not mean refunded."
+        },
+        {
+          "name": "currency",
+          "nameQuoted": "`currency`",
+          "definition": "CHAR(3) NOT NULL"
+        },
+        {
+          "name": "interval",
+          "nameQuoted": "`interval`",
+          "definition": "INT NOT NULL"
+        },
+        {
+          "name": "url",
+          "nameQuoted": "`url`",
+          "definition": "TEXT(65532) DEFAULT NULL"
+        },
+        {
+          "name": "productId",
+          "nameQuoted": "`productId`",
+          "definition": "INT DEFAULT NULL"
+        },
+        {
+          "name": "productName",
+          "nameQuoted": "`productName`",
+          "definition": "TEXT(65532) DEFAULT NULL"
+        },
+        {
+          "name": "productQuantity",
+          "nameQuoted": "`productQuantity`",
+          "definition": "INT DEFAULT NULL"
+        },
+        {
+          "name": "timestampCreated",
+          "nameQuoted": "`timestampCreated`",
+          "definition": "BIGINT DEFAULT NULL"
+        },
+        {
+          "name": "timestampExpires",
+          "nameQuoted": "`timestampExpires`",
+          "definition": "BIGINT DEFAULT NULL"
+        },
+        {
+          "name": "timestampAuthorized",
+          "nameQuoted": "`timestampAuthorized`",
+          "definition": "BIGINT DEFAULT NULL"
+        },
+        {
+          "name": "timestampCancelled",
+          "nameQuoted": "`timestampCancelled`",
+          "definition": "BIGINT DEFAULT NULL"
+        },
+        {
+          "name": "timestampRefunded",
+          "nameQuoted": "`timestampRefunded`",
+          "definition": "BIGINT DEFAULT NULL"
+        },
+        {
+          "name": "stripeSessionId",
+          "nameQuoted": "`stripeSessionId`",
+          "definition": "TEXT(65532) DEFAULT NULL"
+        },
+        {
+          "name": "stripeSubscriptionId",
+          "nameQuoted": "`stripeSubscriptionId`",
+          "definition": "TEXT(65532) DEFAULT NULL"
+        },
+        {
+          "name": "stripePaymentIntentId",
+          "nameQuoted": "`stripePaymentIntentId`",
+          "definition": "TEXT(65532) DEFAULT NULL"
+        },
+        {
+          "name": "paypalOrderId",
+          "nameQuoted": "`paypalOrderId`",
+          "definition": "TEXT(65532) DEFAULT NULL"
+        },
+        {
+          "name": "paypalSubscriptionId",
+          "nameQuoted": "`paypalSubscriptionId`",
+          "definition": "TEXT(65532) DEFAULT NULL"
+        },
+        {
+          "name": "paypalCaptureId",
+          "nameQuoted": "`paypalCaptureId`",
+          "definition": "TEXT(65532) DEFAULT NULL"
+        }
+      ],
+      "isDebug": false,
+      "isNoExceptions": true,
+      "isCache": false
+    },
+    {
+      "name": "PaymentWarning",
+      "columns": [
+        {
+          "name": "id",
+          "nameQuoted": "`id`",
+          "definition": "INT NOT NULL PRIMARY KEY"
+        },
+        {
+          "name": "paymentId",
+          "nameQuoted": "`paymentId`",
+          "definition": "INT NOT NULL"
+        },
+        {
+          "name": "message",
+          "nameQuoted": "`message`",
+          "definition": "TEXT(65532) DEFAULT NULL"
+        }
+      ],
+      "isDebug": false,
+      "isNoExceptions": true,
+      "isCache": false
+    }
+  ],
+  "javaProjectDir": "D:\\Coding\\JAVA\\PayHook"
+}

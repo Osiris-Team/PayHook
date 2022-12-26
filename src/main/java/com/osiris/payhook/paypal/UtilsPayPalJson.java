@@ -21,13 +21,13 @@ import java.util.List;
 
 public class UtilsPayPalJson {
 
-    public JsonElement jsonFromUrl(String requestMethod, String url, JsonElement elementToSend, MyPayPal myPayPal, Integer... successCodes) throws IOException, HttpErrorException {
+    public JsonElement jsonFromUrl(String requestMethod, String url, JsonElement elementToSend, PayPalUtils payPalUtils, Integer... successCodes) throws IOException, HttpErrorException {
         HttpURLConnection con = null;
         try {
             con = (HttpURLConnection) new URL(url).openConnection();
             con.addRequestProperty("User-Agent", "PayHook");
             con.addRequestProperty("Content-Type", "application/json");
-            con.addRequestProperty("Authorization", "Basic " + myPayPal.getCredBase64());
+            con.addRequestProperty("Authorization", "Basic " + payPalUtils.getCredBase64());
             con.addRequestProperty("return", "representation");
             con.setConnectTimeout(1000);
             con.setRequestMethod(requestMethod);
@@ -72,27 +72,27 @@ public class UtilsPayPalJson {
         return null;
     }
 
-    public JsonElement postJsonAndGetResponse(String url, JsonElement element, MyPayPal context) throws IOException, HttpErrorException {
+    public JsonElement postJsonAndGetResponse(String url, JsonElement element, PayPalUtils context) throws IOException, HttpErrorException {
         return jsonFromUrl("POST", url, element, context, (Integer[]) null);
     }
 
-    public JsonElement postJsonAndGetResponse(String url, JsonElement element, MyPayPal context, Integer... successCodes) throws IOException, HttpErrorException {
+    public JsonElement postJsonAndGetResponse(String url, JsonElement element, PayPalUtils context, Integer... successCodes) throws IOException, HttpErrorException {
         return jsonFromUrl("POST", url, element, context, successCodes);
     }
 
-    public JsonElement patchJsonAndGetResponse(String url, JsonElement element, MyPayPal context) throws IOException, HttpErrorException {
+    public JsonElement patchJsonAndGetResponse(String url, JsonElement element, PayPalUtils context) throws IOException, HttpErrorException {
         return jsonFromUrl("PATCH", url, element, context, (Integer[]) null);
     }
 
-    public JsonElement patchJsonAndGetResponse(String url, JsonElement element, MyPayPal context, Integer... successCodes) throws IOException, HttpErrorException {
+    public JsonElement patchJsonAndGetResponse(String url, JsonElement element, PayPalUtils context, Integer... successCodes) throws IOException, HttpErrorException {
         return jsonFromUrl("PATCH", url, element, context, successCodes);
     }
 
-    public JsonElement deleteAndGetResponse(String url, MyPayPal context) throws IOException, HttpErrorException {
+    public JsonElement deleteAndGetResponse(String url, PayPalUtils context) throws IOException, HttpErrorException {
         return jsonFromUrl("DELETE", url, null, context, 204);
     }
 
-    public JsonElement deleteAndGetResponse(String url, MyPayPal context, Integer... successCodes) throws IOException, HttpErrorException {
+    public JsonElement deleteAndGetResponse(String url, PayPalUtils context, Integer... successCodes) throws IOException, HttpErrorException {
         return jsonFromUrl("DELETE", url, null, context, successCodes);
     }
 
@@ -103,11 +103,11 @@ public class UtilsPayPalJson {
      * @return JsonElement
      * @throws Exception When status code other than 200.
      */
-    public JsonElement getJsonElement(String input_url, MyPayPal context) throws IOException, HttpErrorException {
+    public JsonElement getJsonElement(String input_url, PayPalUtils context) throws IOException, HttpErrorException {
         return jsonFromUrl("GET", input_url, null, context, (Integer[]) null);
     }
 
-    public JsonArray getJsonArray(String url, MyPayPal context) throws IOException, HttpErrorException, WrongJsonTypeException {
+    public JsonArray getJsonArray(String url, PayPalUtils context) throws IOException, HttpErrorException, WrongJsonTypeException {
         JsonElement element = getJsonElement(url, context);
         if (element != null && element.isJsonArray()) {
             return element.getAsJsonArray();
@@ -122,7 +122,7 @@ public class UtilsPayPalJson {
      * @param url The url where to find the json file.
      * @return A list with JsonObjects or null if there was a error with the url.
      */
-    public List<JsonObject> getJsonArrayAsList(String url, MyPayPal context) throws IOException, HttpErrorException, WrongJsonTypeException {
+    public List<JsonObject> getJsonArrayAsList(String url, PayPalUtils context) throws IOException, HttpErrorException, WrongJsonTypeException {
         List<JsonObject> objectList = new ArrayList<>();
         JsonElement element = getJsonElement(url, context);
         if (element != null && element.isJsonArray()) {
@@ -143,7 +143,7 @@ public class UtilsPayPalJson {
      * @param url The url where to find the json file.
      * @return A JsonObject or null if there was a error with the url.
      */
-    public JsonObject getJsonObject(String url, MyPayPal context) throws IOException, HttpErrorException, WrongJsonTypeException {
+    public JsonObject getJsonObject(String url, PayPalUtils context) throws IOException, HttpErrorException, WrongJsonTypeException {
         JsonElement element = getJsonElement(url, context);
         if (element != null && element.isJsonObject()) {
             return element.getAsJsonObject();

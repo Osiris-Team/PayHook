@@ -9,14 +9,14 @@
 package com.osiris.payhook.paypal;
 
 public class PayPalPlan {
-    private final MyPayPal context;
+    private final PayPalUtils context;
     private final String planId;
     private final String productId;
     private final String name;
     private final String description;
     private final Status status;
 
-    public PayPalPlan(MyPayPal context, String planId, String productId, String name, String description, Status status) {
+    public PayPalPlan(PayPalUtils context, String planId, String productId, String name, String description, Status status) {
         this.context = context;
         this.planId = planId;
         this.productId = productId;

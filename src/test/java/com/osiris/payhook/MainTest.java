@@ -7,6 +7,9 @@ import com.github.alexdlaird.ngrok.protocol.Tunnel;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.osiris.dyml.Yaml;
+import com.osiris.jsqlgen.payhook.Database;
+import com.osiris.jsqlgen.payhook.Payment;
+import com.osiris.jsqlgen.payhook.Product;
 import com.osiris.payhook.utils.Converter;
 import com.stripe.model.WebhookEndpoint;
 import io.muserver.*;
@@ -118,12 +121,12 @@ public class MainTest {
         }
 
         // Delete old webhook endpoints that have ngrok.io in their url // PAYPAL
-        for (JsonElement el : PayHook.myPayPal.getWebhooks()) {
+        for (JsonElement el : PayHook.paypalUtils.getWebhooks()) {
             JsonObject webhook = el.getAsJsonObject();
             String url = webhook.get("url").getAsString();
-            if(!url.equals(paypalWebhookUrl) && url.contains("ngrok.io")){
+            if (!url.equals(paypalWebhookUrl) && url.contains("ngrok.io")) {
                 String id = webhook.get("id").getAsString();
-                PayHook.myPayPal.deleteWebhook(id);
+                PayHook.paypalUtils.deleteWebhook(id);
             }
         }
         System.out.println("Payment processors initialised with webhooks above.");
@@ -135,65 +138,100 @@ public class MainTest {
         System.out.println("Created/Updated products.");
         System.out.println("OK!");
 
-        PayHook.onPaymentAuthorized.addAction((action, event) -> {
-            System.out.println("Did backend for authorized payment: "+event.product.name
-                    +" "+new Converter().toMoneyString(event.product)
-                    +" or "+event.payment.charge+" cents.");
+        List<Subscription> listSubscriptionsToCancel = new ArrayList<>();
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            for (Subscription subscription : listSubscriptionsToCancel) {
+                try {
+                    subscription.cancel(); // Cancel all subscriptions created in this session on exit
+                    System.out.println("Cancelled subscription: " + subscription.toPrintString());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }));
+        PayHook.onPaymentAuthorized.addAction((action, payment) -> {
+            System.out.println("BACKEND: " + payment.toPrintString());
+            if (payment.isRecurring()) {
+                listSubscriptionsToCancel.add(new Subscription(payment));
+            }
         }, Exception::printStackTrace);
 
+        // Check for active subscriptions and cancel them:
+        for (Subscription sub : Subscription.getNotCancelled()) {
+            sub.cancel();
+            System.out.println("Cancelled active subscription: "+ sub.toPrintString());
+        }
+
         // Test payments
+        System.out.println("===========================================================================================");
+        System.out.println("===========================================================================================");
+        System.out.println("===========================================================================================");
+        printHelp();
+        System.out.println("===========================================================================================");
         System.out.println("Listening for user input.");
         System.out.println("You can test payments (buy products) for example. Enter 'help' to list all commands.");
+        System.out.println("Note that receiving PayPal webhook events can take up to a few minutes.");
+        System.out.println("This is probably due to the test environment.");
 
-        while (true){
+        while (true) {
             String command = new Scanner(System.in).nextLine().trim();
-            try{
-                if(command.equals("help")){
-                    System.out.println("Available commands:");
-                    System.out.println("");
-                    System.out.println("buy cool-cookie paypal");
-                    System.out.println("buy cool-cookie stripe");
-                    System.out.println("buy cool-subscription paypal");
-                    System.out.println("buy cool-subscription stripe");
-                    System.out.println("");
-                    System.out.println("list payments");
-                    System.out.println("list products");
-                    System.out.println("");
-                    System.out.println("delete payment <id>");
-                    System.out.println("delete product <id>");
-                }
-                else if(command.equals("buy cool-cookie paypal"))
+            try {
+                if (command.equals("help")) {
+                    printHelp();
+                } else if (command.equals("buy cool-cookie paypal"))
                     waitForPayment(pCoolCookie, PaymentProcessor.PAYPAL);
-                else if(command.equals("buy cool-cookie stripe"))
+                else if (command.equals("buy cool-cookie stripe"))
                     waitForPayment(pCoolCookie, PaymentProcessor.STRIPE);
-                else if(command.equals("buy cool-subscription paypal"))
+                else if (command.equals("buy cool-subscription paypal"))
                     waitForPayment(pCoolSubscription, PaymentProcessor.PAYPAL);
-                else if(command.equals("buy cool-subscription stripe"))
+                else if (command.equals("buy cool-subscription stripe"))
                     waitForPayment(pCoolSubscription, PaymentProcessor.STRIPE);
-                else if(command.equals("list payments")){
+                else if (command.startsWith("cancel ")) {
+                    String paymentId = command.replace("cancel ", "").trim();
+                    List<Payment> payments = Payment.whereId().is(Integer.parseInt(paymentId)).get();
+                    if (payments.isEmpty())
+                        System.err.println("Payment with id '" + paymentId + "' not found in database!");
+                    else {
+                        PayHook.cancelPayment(payments.get(0));
+                        System.out.println("Cancelled payment!");
+                    }
+                } else if (command.startsWith("refund ")) {
+                    String paymentId = command.replace("refund ", "").trim();
+                    List<Payment> payments = Payment.whereId().is(Integer.parseInt(paymentId)).get();
+                    if (payments.isEmpty())
+                        System.err.println("Payment with id '" + paymentId + "' not found in database!");
+                    else {
+                        PayHook.refundPayments(payments.get(0));
+                        System.out.println("Refunded payment!");
+                    }
+                } else if (command.equals("print payments")) {
                     List<Payment> payments = Payment.get();
-                    System.out.println("Showing "+payments.size()+" payments:");
+                    System.out.println("Showing " + payments.size() + " payments:");
                     for (Payment payment : payments) {
                         System.out.println(payment.toPrintString());
                     }
-                }
-                else if(command.equals("list products")){
+                } else if (command.equals("print products")) {
                     List<Product> products = Product.get();
-                    System.out.println("Showing "+products.size()+" products:");
+                    System.out.println("Showing " + products.size() + " products:");
                     for (Product product : products) {
                         System.out.println(product.toPrintString());
                     }
-                }
-                else if(command.startsWith("delete payment")){
+                } else if (command.equals("print subscriptions")) {
+                    for (Subscription sub : Subscription.paymentsToSubscriptions(Payment.get())) {
+                        System.out.println(sub.toPrintString());
+                    }
+                } else if (command.equals("print active subscriptions")) {
+                    for (Subscription sub : Subscription.getNotCancelled()) {
+                        System.out.println(sub.toPrintString());
+                    }
+                } else if (command.startsWith("delete payment")) {
                     int id = Integer.parseInt(command.replace("delete payment ", "").trim());
                     Payment.whereId().is(id).remove();
-                }
-                else if(command.startsWith("delete product")){
+                } else if (command.startsWith("delete product")) {
                     int id = Integer.parseInt(command.replace("delete product ", "").trim());
                     Product.whereId().is(id).remove();
-                }
-                else
-                    System.err.println("Unknown command '"+command+"', please enter a valid one.");
+                } else
+                    System.err.println("Unknown command '" + command + "', please enter a valid one.");
             } catch (Exception e) {
                 e.printStackTrace();
                 System.err.println("Something went wrong during command execution. See details above.");
@@ -201,17 +239,51 @@ public class MainTest {
         }
     }
 
+    private static void printHelp() {
+        System.out.println("Available commands:");
+        System.out.println();
+        System.out.println("buy cool-cookie paypal");
+        System.out.println("buy cool-cookie stripe");
+        System.out.println("buy cool-subscription paypal");
+        System.out.println("buy cool-subscription stripe");
+        System.out.println();
+        System.out.println("refund <payment-id>");
+        System.out.println("cancel <payment-id>");
+        System.out.println();
+        System.out.println("print payments");
+        System.out.println("print products");
+        System.out.println("print subscriptions");
+        System.out.println("print active subscriptions");
+        System.out.println();
+        System.out.println("delete payment <id>");
+        System.out.println("delete product <id>");
+    }
+
     private static void waitForPayment(Product product, PaymentProcessor paymentProcessor) throws Exception {
-        System.out.println("Buying "+product.name+" over "+paymentProcessor+".");
-        Payment payment = PayHook.expectPayment("testUser", product, paymentProcessor);
         AtomicBoolean isAuthorized = new AtomicBoolean(false);
-        PayHook.onPaymentAuthorized.addOneTimeAction((action, event) -> {
-            System.out.println("Received authorized payment for "+event.payment.productName+" "+new Converter().toMoneyString(event.product));
+        System.out.println("Buying " + product.name + " over " + paymentProcessor + ".");
+        Payment payment = PayHook.expectPayment("testUser", product, paymentProcessor,
+                authorizedPayment -> {
             isAuthorized.set(true);
-        }, Throwable::printStackTrace);
-        System.out.println("Authorize payment here: "+payment.url);
-        System.out.println("Waiting for user authorization...");
-        if(Desktop.isDesktopSupported())
+                    // OPTIONAL --
+                    // Insert ONLY additional UI code here (make sure to have access to the UI thread).
+                    // Code that does backend, aka important stuff does not belong here!
+                    // Gets executed when the payment was authorized.
+                    System.out.println("Received authorized payment for " +
+                            authorizedPayment.productName + " " + new Converter().toMoneyString(authorizedPayment.currency, authorizedPayment.charge));
+                },
+                cancelledPayment -> {
+                    // OPTIONAL --
+                    // Insert ONLY additional UI code here (make sure to have access to the UI thread).
+                    // Code that does backend, aka important stuff does not belong here!
+                    // Gets executed when the payment was cancelled.
+                    System.out.println("Cancelled payment for " +
+                            cancelledPayment.productName + " " + new Converter().toMoneyString(cancelledPayment.currency, cancelledPayment.charge));
+                });
+
+        System.out.println("Authorize payment here: " + payment.url);
+        System.out.println("Waiting for you to authorize the payment...");
+        if (Desktop.isDesktopSupported())
             Desktop.getDesktop().browse(URI.create(payment.url));
         while (!isAuthorized.get()) Thread.sleep(100);
     }
