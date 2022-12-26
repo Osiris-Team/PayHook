@@ -20,7 +20,7 @@ Working with payments in Java is painful. If you want to expand to other
 third-party payment processors it's hell, that's why PayHook exists.
 ```java
   void onBuyBtnClick() throws Exception {
-    Payment payment = PayHook.expectPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL,
+    Payment payment = PayHook.expectPayment("USER_ID", myProduct, PaymentProcessor.PAYPAL,
           authorizedPayment -> {
             // Executed when payment was authorized by buyer
           });
