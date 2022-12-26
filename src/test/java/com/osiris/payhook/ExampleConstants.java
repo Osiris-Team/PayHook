@@ -37,20 +37,9 @@ public class ExampleConstants {
                 // Gets executed every time a payment was cancelled.
                 // If something goes wrong in here a RuntimeException is thrown.
             });
-
-
-
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    /**
-     * This can be anywhere in your application.
-     */
-    void onBuyBtnClick() throws Exception {
-        Payment payment = PayHook.expectPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL);
-        // Forward your user to payment.url to complete/authorize the payment here...
     }
 
     /**

@@ -101,6 +101,9 @@ or integrate it into your Java app by adding it as a dependency via [Maven/Gradl
 ```java
 package com.osiris.payhook;
 
+import com.osiris.jsqlgen.payhook.Payment;
+import com.osiris.jsqlgen.payhook.Product;
+
 public class ExampleConstants {
   public static Product pCoolCookie;
   public static Product pCoolSubscription;
@@ -124,32 +127,17 @@ public class ExampleConstants {
       pCoolCookie = PayHook.putProduct(0, 500, "EUR", "Cool-Cookie", "A really yummy cookie.", Payment.Interval.NONE);
       pCoolSubscription = PayHook.putProduct(1, 999, "EUR", "Cool-Subscription", "A really creative description.", Payment.Interval.MONTHLY);
 
-      PayHook.onPaymentAuthorized.addAction(event -> {
+      PayHook.onPaymentAuthorized.addAction(payment -> {
         // Additional backend business logic for all payments in here.
         // Gets executed every time a payment is authorized/completed.
         // If something goes wrong in here a RuntimeException is thrown.
-        Product product = event.product;
-        Payment payment = event.payment;
       });
 
-      PayHook.onPaymentCancelled.addAction(event -> {
+      PayHook.onPaymentCancelled.addAction(payment -> {
         // Additional backend business logic for all payments in here.
         // Gets executed every time a payment was cancelled.
         // If something goes wrong in here a RuntimeException is thrown.
-        Product product = event.product;
-        Payment payment = event.payment;
       });
-
-      // The cleaner thread is only needed
-      // to remove the added actions from further below, since those may not get executed once.
-      // Remove them after 6-7 hours.
-      PayHook.onPaymentAuthorized.initCleaner(3600000, obj -> { // Check every hour
-        return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
-      }, Exception::printStackTrace);
-      PayHook.onPaymentCancelled.initCleaner(3600000, obj -> { // Check every hour
-        return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
-      }, Exception::printStackTrace);
-
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
@@ -158,73 +146,24 @@ public class ExampleConstants {
   /**
    * This can be anywhere in your application.
    */
-  void onBuyBtnClick() throws Exception {
-    Payment payment = PayHook.expectPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL);
-    // Forward your user to payment.url to complete/authorize the payment here...
-
-    PayHook.onPaymentAuthorized.addAction((action, event) -> {
-      if (event.payment.id == payment.id) {
-        action.remove(); // To make sure it only gets executed once, for this payment.
-        Product product = event.product;
-        Payment authorizedPayment = event.payment;
-        // Insert ONLY additional UI code here (make sure to have access to the UI thread).
-        // Code that does backend, aka important stuff does not belong here!
-      }
-    }, e -> {
-      e.printStackTrace();
-    }).object = System.currentTimeMillis();
-
-    PayHook.onPaymentCancelled.addAction((action, event) -> {
-      if (event.payment.id == payment.id) {
-        action.remove(); // To make sure it only gets executed once, for this payment.
-        Product product = event.product;
-        Payment cancelledPayment = event.payment;
-        // Insert ONLY additional UI code here (make sure to have access to the UI thread).
-        // Code that does backend, aka important stuff does not belong here!
-      }
-    }, e -> {
-      e.printStackTrace();
-    }).object = System.currentTimeMillis();
-  }
-
-  /**
-   * This can be anywhere in your application.
-   */
   void onAnotherBuyBtnClick() throws Exception {
-    Payment payment = PayHook.expectPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE);
+    Payment payment = PayHook.expectPayment("USER_ID", pCoolSubscription, PaymentProcessor.STRIPE,
+            authorizedPayment -> {
+              // Insert ONLY additional UI code here (make sure to have access to the UI thread).
+              // Code that does backend, aka important stuff does not belong here!
+            }, cancelledPayment -> {
+              // Insert ONLY additional UI code here (make sure to have access to the UI thread).
+              // Code that does backend, aka important stuff does not belong here!
+            });
     // Forward your user to payment.url to complete/authorize the payment here...
-
-    PayHook.onPaymentAuthorized.addAction((action, event) -> {
-      if (event.payment.id == payment.id) {
-        action.remove(); // To make sure it only gets executed once, for this payment.
-        Product product = event.product;
-        Payment authorizedPayment = event.payment;
-        // Insert ONLY additional UI code here (make sure to have access to the UI thread).
-        // Code that does backend, aka important stuff does not belong here!
-      }
-    }, e -> {
-      e.printStackTrace();
-    }).object = System.currentTimeMillis();
-
-    PayHook.onPaymentCancelled.addAction((action, event) -> {
-      if (event.payment.id == payment.id) {
-        action.remove(); // To make sure it only gets executed once, for this payment.
-        Product product = event.product;
-        Payment cancelledPayment = event.payment;
-        // Insert ONLY additional UI code here (make sure to have access to the UI thread).
-        // Code that does backend, aka important stuff does not belong here!
-      }
-    }, e -> {
-      e.printStackTrace();
-    }).object = System.currentTimeMillis();
   }
 }
 ```
 
 ### Webhooks
 
-Depending on your initialised payment processors, you have to
-create links that listen for their webhook events too. For example like:
+You must create links that listen for webhook events for each of your
+payment processors. These could look like this:
 `https://my-store.com/paypal-hook` or `https://my-store.com/stripe-hook`.
 I'm planing on making PayHook-Spring version that handles all that too.
 Here is an example on how to do that with SpringBoot:
