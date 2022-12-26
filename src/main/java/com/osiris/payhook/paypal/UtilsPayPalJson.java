@@ -9,8 +9,8 @@
 package com.osiris.payhook.paypal;
 
 import com.google.gson.*;
-import com.osiris.autoplug.core.json.exceptions.HttpErrorException;
-import com.osiris.autoplug.core.json.exceptions.WrongJsonTypeException;
+import com.osiris.jlib.json.exceptions.HttpErrorException;
+import com.osiris.jlib.json.exceptions.WrongJsonTypeException;
 
 import java.io.*;
 import java.net.HttpURLConnection;
