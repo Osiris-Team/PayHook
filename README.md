@@ -20,7 +20,7 @@ Working with payments in Java is painful. If you want to expand to other
 third-party payment processors it's hell, that's why PayHook exists.
 ```java
   void onBuyBtnClick() throws Exception {
-    Payment payment = PayHook.expectPayment("USER_ID", pCoolCookie, PaymentProcessor.PAYPAL,
+    Payment payment = PayHook.expectPayment("USER_ID", myProduct, PaymentProcessor.PAYPAL,
           authorizedPayment -> {
             // Executed when payment was authorized by buyer
           });
@@ -289,6 +289,8 @@ public class PayHookExample {
 <details>
 <summary>How to validate a PayPal webhook notification/event?</summary>
 
+Note that validation is already done automatically by PayHook.
+This example shows how to do it manually.
 Its only a few lines:
 ```java
 MyPayPal paypal = new MyPayPal(clientId, clientSecret, MyPayPal.Mode.SANDBOX);
