@@ -67,11 +67,11 @@ public final class PayHook {
         return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
     }, Exception::printStackTrace);
     /**
-     * Actions for this event are executed,
-     * when a payment was created, but never actually paid (authorized)
-     * within the time period the {@link Payment#url} was valid, or when
-     * a webhook notification was received that states a missed payment on an already running subscription,
-     * or that the subscription was cancelled/refunded, or that a product was refunded. <br>
+     * Actions for this event are executed when... <br>
+     * ... a payment was created, but never actually paid (authorized) within the time period the {@link Payment#url} was valid. <br>
+     * ... the next payment of a subscription was not received in time (authorized). In this case PayHook cancels the subscription
+     * and {@link Subscription#getMillisLeftWithPuffer()} will be smaller than 1.<br>
+     * ... a webhook event was received that the subscription was cancelled. <br>
      */
     public static final com.osiris.events.Event<Payment> onPaymentCancelled = new com.osiris.events.Event<Payment>().initCleaner(3600000, obj -> { // Check every hour
         return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
@@ -228,8 +228,8 @@ public final class PayHook {
                         }
                     }
 
-                    // Create new cancelled payments for subscriptions
-                    // that are active but where the last payment exceeds the time limit + puffer.
+                    // Cancel subscriptions that are active
+                    // but where the last payment exceeds the time limit + puffer.
                     for (Subscription sub : Subscription.getNotCancelled()) {
                         if (sub.getMillisLeftWithPuffer() < 1) {
                             sub.cancel();

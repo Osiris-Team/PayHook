@@ -1,5 +1,8 @@
 package com.osiris.jsqlgen.payhook;
 
+import com.osiris.events.BetterConsumer;
+import com.osiris.payhook.PayHook;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -659,5 +662,54 @@ private Product(){}
     public String getFormattedPrice() {
         return charge + " " + currency;
     }
+
+    /**
+     * Util method for adding an action that gets executed when a payment was created for this product.
+     */
+    public Product onPaymentCreated(BetterConsumer<Payment> action, Consumer<Exception> actionOnException){
+        BetterConsumer<Payment> finalAction = payment -> {
+            if(payment.productId == this.id)
+                action.accept(payment);
+        };
+        PayHook.onPaymentCreated.addAction(finalAction, actionOnException);
+        return this;
+    }
+
+    /**
+     * Util method for adding an action that gets executed when a payment was authorized for this product.
+     */
+    public Product onPaymentAuthorized(BetterConsumer<Payment> action, Consumer<Exception> actionOnException){
+        BetterConsumer<Payment> finalAction = payment -> {
+            if(payment.productId == this.id)
+                action.accept(payment);
+        };
+        PayHook.onPaymentAuthorized.addAction(finalAction, actionOnException);
+        return this;
+    }
+
+    /**
+     * Util method for adding an action that gets executed when a payment was refunded for this product.
+     */
+    public Product onPaymentRefunded(BetterConsumer<Payment> action, Consumer<Exception> actionOnException){
+        BetterConsumer<Payment> finalAction = payment -> {
+            if(payment.productId == this.id)
+                action.accept(payment);
+        };
+        PayHook.onPaymentRefunded.addAction(finalAction, actionOnException);
+        return this;
+    }
+
+    /**
+     * Util method for adding an action that gets executed when a payment was cancelled for this product.
+     */
+    public Product onPaymentCancelled(BetterConsumer<Payment> action, Consumer<Exception> actionOnException){
+        BetterConsumer<Payment> finalAction = payment -> {
+            if(payment.productId == this.id)
+                action.accept(payment);
+        };
+        PayHook.onPaymentCancelled.addAction(finalAction, actionOnException);
+        return this;
+    }
+
 // Additional code end <- 
 }

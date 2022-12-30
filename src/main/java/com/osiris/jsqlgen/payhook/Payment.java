@@ -919,6 +919,10 @@ private Payment(){}
         return charge == 0;
     }
 
+    public boolean isFullyRefunded(){
+        return isRefund() && isFree();
+    }
+
     /**
      * Helper class to set the payments billing interval in days.
      */
