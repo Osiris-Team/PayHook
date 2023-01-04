@@ -1,8 +1,5 @@
 package com.osiris.jsqlgen.payhook;
 
-import com.osiris.events.BetterConsumer;
-import com.osiris.payhook.PayHook;
-
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -13,41 +10,27 @@ import java.util.function.Consumer;
 
 /**
 Generated class by <a href="https://github.com/Osiris-Team/jSQL-Gen">jSQL-Gen</a>
-that contains static methods for fetching/updating data from the "Product" table.
+that contains static methods for fetching/updating data from the "PendingPaymentCancel" table.
 A single object/instance of this class represents a single row in the table
 and data can be accessed via its public fields. <p>
 Its not recommended to modify this class but it should be OK to add new methods to it.
 If modifications are really needed create a pull request directly to jSQL-Gen instead. <br>
 NO EXCEPTIONS is enabled which makes it possible to use this methods outside of try/catch blocks because SQL errors will be caught and thrown as runtime exceptions instead. <br>
 */
-public class Product{
+public class PendingPaymentCancel{
 private static java.util.concurrent.atomic.AtomicInteger idCounter = new java.util.concurrent.atomic.AtomicInteger(0);
 static {
 try{
 Connection con = Database.getCon();
 try{
 try (Statement s = con.createStatement()) {
-s.executeUpdate("CREATE TABLE IF NOT EXISTS `product` (`id` INT NOT NULL PRIMARY KEY)");
-try{s.executeUpdate("ALTER TABLE `product` ADD COLUMN `charge` BIGINT NOT NULL");}catch(Exception ignored){}
-s.executeUpdate("ALTER TABLE `product` MODIFY COLUMN `charge` BIGINT NOT NULL");
-try{s.executeUpdate("ALTER TABLE `product` ADD COLUMN `currency` CHAR(3) NOT NULL");}catch(Exception ignored){}
-s.executeUpdate("ALTER TABLE `product` MODIFY COLUMN `currency` CHAR(3) NOT NULL");
-try{s.executeUpdate("ALTER TABLE `product` ADD COLUMN `name` TEXT(65532) NOT NULL");}catch(Exception ignored){}
-s.executeUpdate("ALTER TABLE `product` MODIFY COLUMN `name` TEXT(65532) NOT NULL");
-try{s.executeUpdate("ALTER TABLE `product` ADD COLUMN `description` TEXT(65532) NOT NULL");}catch(Exception ignored){}
-s.executeUpdate("ALTER TABLE `product` MODIFY COLUMN `description` TEXT(65532) NOT NULL");
-try{s.executeUpdate("ALTER TABLE `product` ADD COLUMN `paymentInterval` INT NOT NULL");}catch(Exception ignored){}
-s.executeUpdate("ALTER TABLE `product` MODIFY COLUMN `paymentInterval` INT NOT NULL");
-try{s.executeUpdate("ALTER TABLE `product` ADD COLUMN `paypalProductId` TEXT(65532) DEFAULT NULL");}catch(Exception ignored){}
-s.executeUpdate("ALTER TABLE `product` MODIFY COLUMN `paypalProductId` TEXT(65532) DEFAULT NULL");
-try{s.executeUpdate("ALTER TABLE `product` ADD COLUMN `paypalPlanId` TEXT(65532) DEFAULT NULL");}catch(Exception ignored){}
-s.executeUpdate("ALTER TABLE `product` MODIFY COLUMN `paypalPlanId` TEXT(65532) DEFAULT NULL");
-try{s.executeUpdate("ALTER TABLE `product` ADD COLUMN `stripeProductId` TEXT(65532) DEFAULT NULL");}catch(Exception ignored){}
-s.executeUpdate("ALTER TABLE `product` MODIFY COLUMN `stripeProductId` TEXT(65532) DEFAULT NULL");
-try{s.executeUpdate("ALTER TABLE `product` ADD COLUMN `stripePriceId` TEXT(65532) DEFAULT NULL");}catch(Exception ignored){}
-s.executeUpdate("ALTER TABLE `product` MODIFY COLUMN `stripePriceId` TEXT(65532) DEFAULT NULL");
+s.executeUpdate("CREATE TABLE IF NOT EXISTS `pendingpaymentcancel` (`id` INT NOT NULL PRIMARY KEY)");
+try{s.executeUpdate("ALTER TABLE `pendingpaymentcancel` ADD COLUMN `paymentId` INT NOT NULL");}catch(Exception ignored){}
+s.executeUpdate("ALTER TABLE `pendingpaymentcancel` MODIFY COLUMN `paymentId` INT NOT NULL");
+try{s.executeUpdate("ALTER TABLE `pendingpaymentcancel` ADD COLUMN `timestampCancel` BIGINT NOT NULL");}catch(Exception ignored){}
+s.executeUpdate("ALTER TABLE `pendingpaymentcancel` MODIFY COLUMN `timestampCancel` BIGINT NOT NULL");
 }
-try (PreparedStatement ps = con.prepareStatement("SELECT id FROM `product` ORDER BY id DESC LIMIT 1")) {
+try (PreparedStatement ps = con.prepareStatement("SELECT id FROM `pendingpaymentcancel` ORDER BY id DESC LIMIT 1")) {
 ResultSet rs = ps.executeQuery();
 if (rs.next()) idCounter.set(rs.getInt(1) + 1);
 }
@@ -56,7 +39,7 @@ catch(Exception e){ throw new RuntimeException(e); }
 finally {Database.freeCon(con);}
 }catch(Exception e){
 e.printStackTrace();
-System.err.println("Something went really wrong during table (Product) initialisation, thus the program will exit!");System.exit(1);}
+System.err.println("Something went really wrong during table (PendingPaymentCancel) initialisation, thus the program will exit!");System.exit(1);}
 }
 
 /**
@@ -64,16 +47,8 @@ Use the static create method instead of this constructor,
 if you plan to add this object to the database in the future, since
 that method fetches and sets/reserves the {@link #id}.
 */
-public Product (int id, long charge, String currency, String name, String description, int paymentInterval){
-this.id = id;this.charge = charge;this.currency = currency;this.name = name;this.description = description;this.paymentInterval = paymentInterval;
-}
-/**
-Use the static create method instead of this constructor,
-if you plan to add this object to the database in the future, since
-that method fetches and sets/reserves the {@link #id}.
-*/
-public Product (int id, long charge, String currency, String name, String description, int paymentInterval, String paypalProductId, String paypalPlanId, String stripeProductId, String stripePriceId){
-this.id = id;this.charge = charge;this.currency = currency;this.name = name;this.description = description;this.paymentInterval = paymentInterval;this.paypalProductId = paypalProductId;this.paypalPlanId = paypalPlanId;this.stripeProductId = stripeProductId;this.stripePriceId = stripePriceId;
+public PendingPaymentCancel (int id, int paymentId, long timestampCancel){
+this.id = id;this.paymentId = paymentId;this.timestampCancel = timestampCancel;
 }
 /**
 Database field/value. Not null. <br>
@@ -82,60 +57,20 @@ public int id;
 /**
 Database field/value. Not null. <br>
 */
-public long charge;
+public int paymentId;
 /**
 Database field/value. Not null. <br>
 */
-public String currency;
-/**
-Database field/value. Not null. <br>
-*/
-public String name;
-/**
-Database field/value. Not null. <br>
-*/
-public String description;
-/**
-Database field/value. Not null. <br>
-*/
-public int paymentInterval;
-/**
-Database field/value. <br>
-*/
-public String paypalProductId;
-/**
-Database field/value. <br>
-*/
-public String paypalPlanId;
-/**
-Database field/value. <br>
-*/
-public String stripeProductId;
-/**
-Database field/value. <br>
-*/
-public String stripePriceId;
+public long timestampCancel;
 /**
 Creates and returns an object that can be added to this table.
 Increments the id (thread-safe) and sets it for this object (basically reserves a space in the database).
 Note that the parameters of this method represent "NOT NULL" fields in the table and thus should not be null.
 Also note that this method will NOT add the object to the table.
 */
-public static Product create( long charge, String currency, String name, String description, int paymentInterval) {
+public static PendingPaymentCancel create( int paymentId, long timestampCancel) {
 int id = idCounter.getAndIncrement();
-Product obj = new Product(id, charge, currency, name, description, paymentInterval);
-return obj;
-}
-
-/**
-Creates and returns an object that can be added to this table.
-Increments the id (thread-safe) and sets it for this object (basically reserves a space in the database).
-Note that this method will NOT add the object to the table.
-*/
-public static Product create( long charge, String currency, String name, String description, int paymentInterval, String paypalProductId, String paypalPlanId, String stripeProductId, String stripePriceId)  {
-int id = idCounter.getAndIncrement();
-Product obj = new Product();
-obj.id=id; obj.charge=charge; obj.currency=currency; obj.name=name; obj.description=description; obj.paymentInterval=paymentInterval; obj.paypalProductId=paypalProductId; obj.paypalPlanId=paypalPlanId; obj.stripeProductId=stripeProductId; obj.stripePriceId=stripePriceId; 
+PendingPaymentCancel obj = new PendingPaymentCancel(id, paymentId, timestampCancel);
 return obj;
 }
 
@@ -143,20 +78,9 @@ return obj;
 Convenience method for creating and directly adding a new object to the table.
 Note that the parameters of this method represent "NOT NULL" fields in the table and thus should not be null.
 */
-public static Product createAndAdd( long charge, String currency, String name, String description, int paymentInterval)  {
+public static PendingPaymentCancel createAndAdd( int paymentId, long timestampCancel)  {
 int id = idCounter.getAndIncrement();
-Product obj = new Product(id, charge, currency, name, description, paymentInterval);
-add(obj);
-return obj;
-}
-
-/**
-Convenience method for creating and directly adding a new object to the table.
-*/
-public static Product createAndAdd( long charge, String currency, String name, String description, int paymentInterval, String paypalProductId, String paypalPlanId, String stripeProductId, String stripePriceId)  {
-int id = idCounter.getAndIncrement();
-Product obj = new Product();
-obj.id=id; obj.charge=charge; obj.currency=currency; obj.name=name; obj.description=description; obj.paymentInterval=paymentInterval; obj.paypalProductId=paypalProductId; obj.paypalPlanId=paypalPlanId; obj.stripeProductId=stripeProductId; obj.stripePriceId=stripePriceId; 
+PendingPaymentCancel obj = new PendingPaymentCancel(id, paymentId, timestampCancel);
 add(obj);
 return obj;
 }
@@ -164,12 +88,12 @@ return obj;
 /**
 @return a list containing all objects in this table.
 */
-public static List<Product> get()  {return get(null);}
+public static List<PendingPaymentCancel> get()  {return get(null);}
 /**
 @return object with the provided id or null if there is no object with the provided id in this table.
 @throws Exception on SQL issues.
 */
-public static Product get(int id)  {
+public static PendingPaymentCancel get(int id)  {
 try{
 return get("WHERE id = "+id).get(0);
 }catch(IndexOutOfBoundsException ignored){}
@@ -184,12 +108,12 @@ get("WHERE username=? AND age=?", "Peter", 33);  <br>
 @return a list containing only objects that match the provided SQL WHERE statement (no matches = empty list).
 if that statement is null, returns all the contents of this table.
 */
-public static List<Product> get(String where, Object... whereValues)  {
+public static List<PendingPaymentCancel> get(String where, Object... whereValues)  {
 Connection con = Database.getCon();
-String sql = "SELECT `id`,`charge`,`currency`,`name`,`description`,`paymentInterval`,`paypalProductId`,`paypalPlanId`,`stripeProductId`,`stripePriceId`" +
-" FROM `product`" +
+String sql = "SELECT `id`,`paymentId`,`timestampCancel`" +
+" FROM `pendingpaymentcancel`" +
 (where != null ? where : "");
-List<Product> list = new ArrayList<>();
+List<PendingPaymentCancel> list = new ArrayList<>();
 try (PreparedStatement ps = con.prepareStatement(sql)) {
 if(where!=null && whereValues!=null)
 for (int i = 0; i < whereValues.length; i++) {
@@ -198,18 +122,11 @@ ps.setObject(i+1, val);
 }
 ResultSet rs = ps.executeQuery();
 while (rs.next()) {
-Product obj = new Product();
+PendingPaymentCancel obj = new PendingPaymentCancel();
 list.add(obj);
 obj.id = rs.getInt(1);
-obj.charge = rs.getLong(2);
-obj.currency = rs.getString(3);
-obj.name = rs.getString(4);
-obj.description = rs.getString(5);
-obj.paymentInterval = rs.getInt(6);
-obj.paypalProductId = rs.getString(7);
-obj.paypalPlanId = rs.getString(8);
-obj.stripeProductId = rs.getString(9);
-obj.stripePriceId = rs.getString(10);
+obj.paymentId = rs.getInt(2);
+obj.timestampCancel = rs.getLong(3);
 }
 }catch(Exception e){throw new RuntimeException(e);}
 finally{Database.freeCon(con);}
@@ -219,25 +136,25 @@ return list;
     /**
      * See {@link #getLazy(Consumer, Consumer, int, WHERE)} for details.
      */
-    public static void getLazy(Consumer<List<Product>> onResultReceived){
+    public static void getLazy(Consumer<List<PendingPaymentCancel>> onResultReceived){
         getLazy(onResultReceived, null, 500, null);
     }
     /**
      * See {@link #getLazy(Consumer, Consumer, int, WHERE)} for details.
      */
-    public static void getLazy(Consumer<List<Product>> onResultReceived, int limit){
+    public static void getLazy(Consumer<List<PendingPaymentCancel>> onResultReceived, int limit){
         getLazy(onResultReceived, null, limit, null);
     }
     /**
      * See {@link #getLazy(Consumer, Consumer, int, WHERE)} for details.
      */
-    public static void getLazy(Consumer<List<Product>> onResultReceived, Consumer<Long> onFinish){
+    public static void getLazy(Consumer<List<PendingPaymentCancel>> onResultReceived, Consumer<Long> onFinish){
         getLazy(onResultReceived, onFinish, 500, null);
     }
     /**
      * See {@link #getLazy(Consumer, Consumer, int, WHERE)} for details.
      */
-    public static void getLazy(Consumer<List<Product>> onResultReceived, Consumer<Long> onFinish, int limit){
+    public static void getLazy(Consumer<List<PendingPaymentCancel>> onResultReceived, Consumer<Long> onFinish, int limit){
         getLazy(onResultReceived, onFinish, limit, null);
     }
     /**
@@ -248,12 +165,12 @@ return list;
      * @param limit the maximum amount of elements for each fetch.
      * @param where can be null. This WHERE is not allowed to contain LIMIT and should not contain order by id.
      */
-    public static void getLazy(Consumer<List<Product>> onResultReceived, Consumer<Long> onFinish, int limit, WHERE where) {
+    public static void getLazy(Consumer<List<PendingPaymentCancel>> onResultReceived, Consumer<Long> onFinish, int limit, WHERE where) {
         new Thread(() -> {
             WHERE finalWhere;
             if(where == null) finalWhere = new WHERE("");
             else finalWhere = where;
-            List<Product> results;
+            List<PendingPaymentCancel> results;
             int lastId = -1;
             long count = 0;
             while(true){
@@ -268,7 +185,7 @@ return list;
     }
 
 public static int count(String where, Object... whereValues)  {
-String sql = "SELECT COUNT(`id`) AS recordCount FROM `product`" +
+String sql = "SELECT COUNT(`id`) AS recordCount FROM `pendingpaymentcancel`" +
 (where != null ? where : ""); 
 Connection con = Database.getCon();
 try (PreparedStatement ps = con.prepareStatement(sql)) {
@@ -289,20 +206,13 @@ Searches the provided object in the database (by its id),
 and updates all its fields.
 @throws Exception when failed to find by id or other SQL issues.
 */
-public static void update(Product obj)  {
+public static void update(PendingPaymentCancel obj)  {
 Connection con = Database.getCon();
 try (PreparedStatement ps = con.prepareStatement(
-                "UPDATE `product` SET `id`=?,`charge`=?,`currency`=?,`name`=?,`description`=?,`paymentInterval`=?,`paypalProductId`=?,`paypalPlanId`=?,`stripeProductId`=?,`stripePriceId`=? WHERE id="+obj.id)) {
+                "UPDATE `pendingpaymentcancel` SET `id`=?,`paymentId`=?,`timestampCancel`=? WHERE id="+obj.id)) {
 ps.setInt(1, obj.id);
-ps.setLong(2, obj.charge);
-ps.setString(3, obj.currency);
-ps.setString(4, obj.name);
-ps.setString(5, obj.description);
-ps.setInt(6, obj.paymentInterval);
-ps.setString(7, obj.paypalProductId);
-ps.setString(8, obj.paypalPlanId);
-ps.setString(9, obj.stripeProductId);
-ps.setString(10, obj.stripePriceId);
+ps.setInt(2, obj.paymentId);
+ps.setLong(3, obj.timestampCancel);
 ps.executeUpdate();
 }catch(Exception e){throw new RuntimeException(e);}
 finally{Database.freeCon(con);}
@@ -311,20 +221,13 @@ finally{Database.freeCon(con);}
 /**
 Adds the provided object to the database (note that the id is not checked for duplicates).
 */
-public static void add(Product obj)  {
+public static void add(PendingPaymentCancel obj)  {
 Connection con = Database.getCon();
 try (PreparedStatement ps = con.prepareStatement(
-                "INSERT INTO `product` (`id`,`charge`,`currency`,`name`,`description`,`paymentInterval`,`paypalProductId`,`paypalPlanId`,`stripeProductId`,`stripePriceId`) VALUES (?,?,?,?,?,?,?,?,?,?)")) {
+                "INSERT INTO `pendingpaymentcancel` (`id`,`paymentId`,`timestampCancel`) VALUES (?,?,?)")) {
 ps.setInt(1, obj.id);
-ps.setLong(2, obj.charge);
-ps.setString(3, obj.currency);
-ps.setString(4, obj.name);
-ps.setString(5, obj.description);
-ps.setInt(6, obj.paymentInterval);
-ps.setString(7, obj.paypalProductId);
-ps.setString(8, obj.paypalPlanId);
-ps.setString(9, obj.stripeProductId);
-ps.setString(10, obj.stripePriceId);
+ps.setInt(2, obj.paymentId);
+ps.setLong(3, obj.timestampCancel);
 ps.executeUpdate();
 }catch(Exception e){throw new RuntimeException(e);}
 finally{Database.freeCon(con);}
@@ -333,7 +236,7 @@ finally{Database.freeCon(con);}
 /**
 Deletes the provided object from the database.
 */
-public static void remove(Product obj)  {
+public static void remove(PendingPaymentCancel obj)  {
 remove("WHERE id = "+obj.id);
 }
 /**
@@ -345,7 +248,7 @@ Deletes the objects that are found by the provided SQL WHERE statement, from the
 */
 public static void remove(String where, Object... whereValues)  {
 java.util.Objects.requireNonNull(where);
-String sql = "DELETE FROM `product` "+where;
+String sql = "DELETE FROM `pendingpaymentcancel` "+where;
 Connection con = Database.getCon();
 try (PreparedStatement ps = con.prepareStatement(sql)) {
 if(whereValues != null)
@@ -361,47 +264,26 @@ finally{Database.freeCon(con);}
 public static void removeAll()  {
         Connection con = Database.getCon();
         try (PreparedStatement ps = con.prepareStatement(
-                "DELETE FROM `product`")) {
+                "DELETE FROM `pendingpaymentcancel`")) {
             ps.executeUpdate();
 }catch(Exception e){throw new RuntimeException(e);}
         finally{Database.freeCon(con);}
     }
 
-public Product clone(){
-return new Product(this.id,this.charge,this.currency,this.name,this.description,this.paymentInterval,this.paypalProductId,this.paypalPlanId,this.stripeProductId,this.stripePriceId);
+public PendingPaymentCancel clone(){
+return new PendingPaymentCancel(this.id,this.paymentId,this.timestampCancel);
 }
 public String toPrintString(){
-return  ""+"id="+this.id+" "+"charge="+this.charge+" "+"currency="+this.currency+" "+"name="+this.name+" "+"description="+this.description+" "+"paymentInterval="+this.paymentInterval+" "+"paypalProductId="+this.paypalProductId+" "+"paypalPlanId="+this.paypalPlanId+" "+"stripeProductId="+this.stripeProductId+" "+"stripePriceId="+this.stripePriceId+" ";
+return  ""+"id="+this.id+" "+"paymentId="+this.paymentId+" "+"timestampCancel="+this.timestampCancel+" ";
 }
 public static WHERE whereId() {
 return new WHERE("`id`");
 }
-public static WHERE whereCharge() {
-return new WHERE("`charge`");
+public static WHERE wherePaymentId() {
+return new WHERE("`paymentId`");
 }
-public static WHERE whereCurrency() {
-return new WHERE("`currency`");
-}
-public static WHERE whereName() {
-return new WHERE("`name`");
-}
-public static WHERE whereDescription() {
-return new WHERE("`description`");
-}
-public static WHERE wherePaymentInterval() {
-return new WHERE("`paymentInterval`");
-}
-public static WHERE wherePaypalProductId() {
-return new WHERE("`paypalProductId`");
-}
-public static WHERE wherePaypalPlanId() {
-return new WHERE("`paypalPlanId`");
-}
-public static WHERE whereStripeProductId() {
-return new WHERE("`stripeProductId`");
-}
-public static WHERE whereStripePriceId() {
-return new WHERE("`stripePriceId`");
+public static WHERE whereTimestampCancel() {
+return new WHERE("`timestampCancel`");
 }
 public static class WHERE {
         /**
@@ -428,15 +310,15 @@ public static class WHERE {
          * Executes the generated SQL statement
          * and returns a list of objects matching the query.
          */
-        public List<Product> get()  {
+        public List<PendingPaymentCancel> get()  {
             String where = sqlBuilder.toString();
             if(!where.isEmpty()) where = " WHERE " + where;
             String orderBy = orderByBuilder.toString();
             if(!orderBy.isEmpty()) orderBy = " ORDER BY "+orderBy.substring(0, orderBy.length()-2)+" ";
             if(!whereObjects.isEmpty())
-                return Product.get(where+orderBy+limitBuilder.toString(), whereObjects.toArray());
+                return PendingPaymentCancel.get(where+orderBy+limitBuilder.toString(), whereObjects.toArray());
             else
-                return Product.get(where+orderBy+limitBuilder.toString(), (Object[]) null);
+                return PendingPaymentCancel.get(where+orderBy+limitBuilder.toString(), (Object[]) null);
         }
 
         /**
@@ -449,9 +331,9 @@ public static class WHERE {
             String orderBy = orderByBuilder.toString();
             if(!orderBy.isEmpty()) orderBy = " ORDER BY "+orderBy.substring(0, orderBy.length()-2)+" ";
             if(!whereObjects.isEmpty())
-                return Product.count(where+orderBy+limitBuilder.toString(), whereObjects.toArray());
+                return PendingPaymentCancel.count(where+orderBy+limitBuilder.toString(), whereObjects.toArray());
             else
-                return Product.count(where+orderBy+limitBuilder.toString(), (Object[]) null);
+                return PendingPaymentCancel.count(where+orderBy+limitBuilder.toString(), (Object[]) null);
         }
 
         /**
@@ -464,9 +346,9 @@ public static class WHERE {
             String orderBy = orderByBuilder.toString();
             if(!orderBy.isEmpty()) orderBy = " ORDER BY "+orderBy.substring(0, orderBy.length()-2)+" ";
             if(!whereObjects.isEmpty())
-                Product.remove(where+orderBy+limitBuilder.toString(), whereObjects.toArray());
+                PendingPaymentCancel.remove(where+orderBy+limitBuilder.toString(), whereObjects.toArray());
             else
-                Product.remove(where+orderBy+limitBuilder.toString(), (Object[]) null);
+                PendingPaymentCancel.remove(where+orderBy+limitBuilder.toString(), (Object[]) null);
         }
 
         /**
@@ -646,74 +528,6 @@ public static class WHERE {
     }
 // The code below will not be removed when re-generating this class.
 // Additional code start -> 
-private Product(){}
-    public boolean isPayPalSupported() {
-        return paypalProductId != null;
-    }
-
-    public boolean isStripeSupported() {
-        return stripeProductId != null && stripePriceId != null;
-    }
-
-    public boolean isRecurring() { // For example a subscription
-        return paymentInterval != 0;
-    }
-
-    public String getFormattedPrice() {
-        return charge + " " + currency;
-    }
-
-    /**
-     * Util method for adding an action that gets executed when a payment was created for this product.
-     * @see PayHook#onPaymentCreated
-     */
-    public Product onPaymentCreated(BetterConsumer<Payment> action, Consumer<Exception> actionOnException){
-        BetterConsumer<Payment> finalAction = payment -> {
-            if(payment.productId == this.id)
-                action.accept(payment);
-        };
-        PayHook.onPaymentCreated.addAction(finalAction, actionOnException);
-        return this;
-    }
-
-    /**
-     * Util method for adding an action that gets executed when a payment was authorized for this product.
-     * @see PayHook#onPaymentAuthorized
-     */
-    public Product onPaymentAuthorized(BetterConsumer<Payment> action, Consumer<Exception> actionOnException){
-        BetterConsumer<Payment> finalAction = payment -> {
-            if(payment.productId == this.id)
-                action.accept(payment);
-        };
-        PayHook.onPaymentAuthorized.addAction(finalAction, actionOnException);
-        return this;
-    }
-
-    /**
-     * Util method for adding an action that gets executed when a payment was refunded for this product.
-     * @see PayHook#onPaymentRefunded
-     */
-    public Product onPaymentRefunded(BetterConsumer<Payment> action, Consumer<Exception> actionOnException){
-        BetterConsumer<Payment> finalAction = payment -> {
-            if(payment.productId == this.id)
-                action.accept(payment);
-        };
-        PayHook.onPaymentRefunded.addAction(finalAction, actionOnException);
-        return this;
-    }
-
-    /**
-     * Util method for adding an action that gets executed when a payment was cancelled for this product.
-     * @see PayHook#onPaymentCancelled
-     */
-    public Product onPaymentCancelled(BetterConsumer<Payment> action, Consumer<Exception> actionOnException){
-        BetterConsumer<Payment> finalAction = payment -> {
-            if(payment.productId == this.id)
-                action.accept(payment);
-        };
-        PayHook.onPaymentCancelled.addAction(finalAction, actionOnException);
-        return this;
-    }
-
+private PendingPaymentCancel(){}
 // Additional code end <- 
 }

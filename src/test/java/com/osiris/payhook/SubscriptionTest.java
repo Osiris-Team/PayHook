@@ -28,7 +28,7 @@ class SubscriptionTest {
         assertTrue(sub.getLastPayment() == payment);
         assertTrue(sub.getMillisLeft() >= UtilsTime.MS_MONTH - UtilsTime.MS_MINUTE);
         assertTrue(sub.getMillisLeftWithPuffer() > sub.getMillisLeft() && sub.getMillisLeftWithPuffer() > UtilsTime.MS_MONTH);
-        assertTrue(sub.isPaid());
+        assertTrue(sub.isTimeLeft());
         assertFalse(sub.isCancelled());
     }
 }

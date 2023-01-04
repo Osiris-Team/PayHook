@@ -8,6 +8,7 @@ import com.osiris.jlib.json.exceptions.HttpErrorException;
 import com.osiris.jlib.json.exceptions.WrongJsonTypeException;
 import com.osiris.jsqlgen.payhook.Database;
 import com.osiris.jsqlgen.payhook.Payment;
+import com.osiris.jsqlgen.payhook.PendingPaymentCancel;
 import com.osiris.jsqlgen.payhook.Product;
 import com.osiris.payhook.exceptions.InvalidChangeException;
 import com.osiris.payhook.exceptions.WebHookValidationException;
@@ -72,6 +73,9 @@ public final class PayHook {
      * ... the next payment of a subscription was not received in time (authorized). In this case PayHook cancels the subscription
      * and {@link Subscription#getMillisLeftWithPuffer()} will be smaller than 1.<br>
      * ... a webhook event was received that the subscription was cancelled. <br>
+     * Note that if a subscription was cancelled but there is still time left this event is executed twice.
+     * First when the customer/person issued the cancellation (here {@link Subscription#getMillisLeftWithPuffer()} will be bigger than 1). <br>
+     * Second when {@link Subscription#getMillisLeftWithPuffer()} is smaller than 1.
      */
     public static final com.osiris.events.Event<Payment> onPaymentCancelled = new com.osiris.events.Event<Payment>().initCleaner(3600000, obj -> { // Check every hour
         return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
@@ -233,6 +237,14 @@ public final class PayHook {
                     for (Subscription sub : Subscription.getNotCancelled()) {
                         if (sub.getMillisLeftWithPuffer() < 1) {
                             sub.cancel();
+                        }
+                    }
+
+                    for (PendingPaymentCancel pendingCancel : PendingPaymentCancel.get()) {
+                        long msLeft = now - pendingCancel.timestampCancel;
+                        if(msLeft < 1){
+                            PendingPaymentCancel.remove(pendingCancel);
+                            onPaymentCancelled.execute(Payment.get(pendingCancel.paymentId));
                         }
                     }
                 }
@@ -1121,7 +1133,7 @@ public final class PayHook {
      *                   {@link Payment#url}.
      * @see PayHook#onPaymentCancelled
      */
-    public static void cancelPayment(Payment payment) throws Exception {
+    public static synchronized void cancelPayment(Payment payment) throws Exception {
         if (payment.isCancelled()) return;
         long now = System.currentTimeMillis();
 
@@ -1139,6 +1151,15 @@ public final class PayHook {
         payment.timestampCancelled = now;
         Payment.update(payment);
         onPaymentCancelled.execute(payment);
+
+        // Add future cancel event if there is still time left for this subscription.
+        if(payment.isRecurring()){
+            Subscription sub = new Subscription(payment);
+            long millisLeft = sub.getMillisLeftWithPuffer();
+            if(millisLeft > 0 && PendingPaymentCancel.whereId().is(payment.id).get().isEmpty()){
+                PendingPaymentCancel.createAndAdd(payment.id, System.currentTimeMillis() + millisLeft);
+            }
+        }
     }
 
     /**

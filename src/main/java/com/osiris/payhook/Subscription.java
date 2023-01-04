@@ -38,19 +38,9 @@ public class Subscription {
 
     public static List<Subscription> getNotCancelled() {
         //TODO ADD PAYMENT PROCESSOR
-        List<Payment> payments = Payment.get("WHERE paypalSubscriptionId IS NOT NULL OR stripeSubscriptionId IS NOT NULL");
-        List<Subscription> subs = paymentsToSubscriptions(payments);
-        List<Subscription> subsToRemove = new ArrayList<>();
-        for (Subscription sub : subs) {
-            if (sub.isCancelled())
-                subsToRemove.add(sub);
-            else if (sub.getMillisLeft() < 0)
-                subsToRemove.add(sub);
-        }
-        for (Subscription sub : subsToRemove) {
-            subs.remove(sub);
-        }
-        return subs;
+        List<Payment> payments = Payment.get("WHERE (paypalSubscriptionId IS NOT NULL OR stripeSubscriptionId IS NOT NULL)" +
+                " AND timestampCancelled = 0");
+        return paymentsToSubscriptions(payments);
     }
 
     public static List<Subscription> paymentsToSubscriptions(List<Payment> payments) {
@@ -129,8 +119,13 @@ public class Subscription {
         return getLastPayment().timestampCancelled != 0;
     }
 
-    public boolean isPaid() {
-        return getMillisLeft() > 0;
+    /**
+     * True if {@link #getMillisLeftWithPuffer()} is > 0. <br>
+     * Does not check if the subscription was cancelled. Only checks the last payment
+     * and returns true if there is still time left.
+     */
+    public boolean isTimeLeft() {
+        return getMillisLeftWithPuffer() > 0;
     }
 
     public Payment getLastAuthorizedPayment() {

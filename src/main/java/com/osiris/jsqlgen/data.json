@@ -1,0 +1,928 @@
+{
+  "window": {
+    "x": 551.0,
+    "y": 44.0,
+    "width": 848.0,
+    "height": 852.0,
+    "isMaximized": false
+  },
+  "databases": [
+    {
+      "name": "aaa",
+      "tables": []
+    },
+    {
+      "name": "payhook",
+      "tables": [
+        {
+          "name": "Product",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "charge",
+              "nameQuoted": "`charge`",
+              "definition": "BIGINT NOT NULL"
+            },
+            {
+              "name": "currency",
+              "nameQuoted": "`currency`",
+              "definition": "CHAR(3) NOT NULL"
+            },
+            {
+              "name": "name",
+              "nameQuoted": "`name`",
+              "definition": "TEXT(65532) NOT NULL"
+            },
+            {
+              "name": "description",
+              "nameQuoted": "`description`",
+              "definition": "TEXT(65532) NOT NULL"
+            },
+            {
+              "name": "paymentInterval",
+              "nameQuoted": "`paymentInterval`",
+              "definition": "INT NOT NULL"
+            },
+            {
+              "name": "paypalProductId",
+              "nameQuoted": "`paypalProductId`",
+              "definition": "TEXT(65532) DEFAULT NULL"
+            },
+            {
+              "name": "paypalPlanId",
+              "nameQuoted": "`paypalPlanId`",
+              "definition": "TEXT(65532) DEFAULT NULL"
+            },
+            {
+              "name": "stripeProductId",
+              "nameQuoted": "`stripeProductId`",
+              "definition": "TEXT(65532) DEFAULT NULL"
+            },
+            {
+              "name": "stripePriceId",
+              "nameQuoted": "`stripePriceId`",
+              "definition": "TEXT(65532) DEFAULT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "Payment",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "userId",
+              "nameQuoted": "`userId`",
+              "definition": "TEXT(65532) NOT NULL"
+            },
+            {
+              "name": "charge",
+              "nameQuoted": "`charge`",
+              "definition": "BIGINT NOT NULL",
+              "comment": "The total charged amount in the smallest form of money. Example: 100 cents \u003d\u003d 1EUR.If not authorized yet, the money was not yet received.When refunded this normally is 0, or something greater on a partial refund.Note that cancelled does not mean refunded."
+            },
+            {
+              "name": "currency",
+              "nameQuoted": "`currency`",
+              "definition": "CHAR(3) NOT NULL"
+            },
+            {
+              "name": "interval",
+              "nameQuoted": "`interval`",
+              "definition": "INT NOT NULL"
+            },
+            {
+              "name": "url",
+              "nameQuoted": "`url`",
+              "definition": "TEXT(65532) DEFAULT NULL"
+            },
+            {
+              "name": "productId",
+              "nameQuoted": "`productId`",
+              "definition": "INT DEFAULT NULL"
+            },
+            {
+              "name": "productName",
+              "nameQuoted": "`productName`",
+              "definition": "TEXT(65532) DEFAULT NULL"
+            },
+            {
+              "name": "productQuantity",
+              "nameQuoted": "`productQuantity`",
+              "definition": "INT DEFAULT NULL"
+            },
+            {
+              "name": "timestampCreated",
+              "nameQuoted": "`timestampCreated`",
+              "definition": "BIGINT DEFAULT NULL"
+            },
+            {
+              "name": "timestampExpires",
+              "nameQuoted": "`timestampExpires`",
+              "definition": "BIGINT DEFAULT NULL"
+            },
+            {
+              "name": "timestampAuthorized",
+              "nameQuoted": "`timestampAuthorized`",
+              "definition": "BIGINT DEFAULT NULL"
+            },
+            {
+              "name": "timestampCancelled",
+              "nameQuoted": "`timestampCancelled`",
+              "definition": "BIGINT DEFAULT NULL"
+            },
+            {
+              "name": "timestampRefunded",
+              "nameQuoted": "`timestampRefunded`",
+              "definition": "BIGINT DEFAULT NULL"
+            },
+            {
+              "name": "stripeSessionId",
+              "nameQuoted": "`stripeSessionId`",
+              "definition": "TEXT(65532) DEFAULT NULL"
+            },
+            {
+              "name": "stripeSubscriptionId",
+              "nameQuoted": "`stripeSubscriptionId`",
+              "definition": "TEXT(65532) DEFAULT NULL"
+            },
+            {
+              "name": "stripePaymentIntentId",
+              "nameQuoted": "`stripePaymentIntentId`",
+              "definition": "TEXT(65532) DEFAULT NULL"
+            },
+            {
+              "name": "paypalOrderId",
+              "nameQuoted": "`paypalOrderId`",
+              "definition": "TEXT(65532) DEFAULT NULL"
+            },
+            {
+              "name": "paypalSubscriptionId",
+              "nameQuoted": "`paypalSubscriptionId`",
+              "definition": "TEXT(65532) DEFAULT NULL"
+            },
+            {
+              "name": "paypalCaptureId",
+              "nameQuoted": "`paypalCaptureId`",
+              "definition": "TEXT(65532) DEFAULT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "PaymentWarning",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "paymentId",
+              "nameQuoted": "`paymentId`",
+              "definition": "INT NOT NULL"
+            },
+            {
+              "name": "message",
+              "nameQuoted": "`message`",
+              "definition": "TEXT(65532) DEFAULT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "PendingPaymentCancel",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "paymentId",
+              "nameQuoted": "`paymentId`",
+              "definition": "INT NOT NULL"
+            },
+            {
+              "name": "timestampCancel",
+              "nameQuoted": "`timestampCancel`",
+              "definition": "BIGINT NOT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        }
+      ],
+      "javaProjectDir": "D:\\Coding\\JAVA\\PayHook"
+    },
+    {
+      "name": "velocityauth",
+      "tables": [
+        {
+          "name": "RegisteredUser",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "username",
+              "nameQuoted": "`username`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "password",
+              "nameQuoted": "`password`",
+              "definition": "TEXT NOT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "Session",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "userId",
+              "nameQuoted": "`userId`",
+              "definition": "INT NOT NULL"
+            },
+            {
+              "name": "ipAddress",
+              "nameQuoted": "`ipAddress`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "timestampExpires",
+              "nameQuoted": "`timestampExpires`",
+              "definition": "BIGINT NOT NULL"
+            },
+            {
+              "name": "isActive",
+              "nameQuoted": "`isActive`",
+              "definition": "TINYINT"
+            },
+            {
+              "name": "username",
+              "nameQuoted": "`username`",
+              "definition": "TEXT NOT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "BannedUser",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "username",
+              "nameQuoted": "`username`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "ipAddress",
+              "nameQuoted": "`ipAddress`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "timestampExpires",
+              "nameQuoted": "`timestampExpires`",
+              "definition": "BIGINT NOT NULL"
+            },
+            {
+              "name": "reason",
+              "nameQuoted": "`reason`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "uuid",
+              "nameQuoted": "`uuid`",
+              "definition": "TEXT NOT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "FailedLogin",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "username",
+              "nameQuoted": "`username`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "ipAddress",
+              "nameQuoted": "`ipAddress`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "timestamp",
+              "nameQuoted": "`timestamp`",
+              "definition": "BIGINT NOT NULL"
+            },
+            {
+              "name": "reason",
+              "nameQuoted": "`reason`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "uuid",
+              "nameQuoted": "`uuid`",
+              "definition": "TEXT NOT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "FailedLogin",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "username",
+              "nameQuoted": "`username`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "ipAddress",
+              "nameQuoted": "`ipAddress`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "timestamp",
+              "nameQuoted": "`timestamp`",
+              "definition": "BIGINT NOT NULL"
+            },
+            {
+              "name": "reason",
+              "nameQuoted": "`reason`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "uuid",
+              "nameQuoted": "`uuid`",
+              "definition": "TEXT NOT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        }
+      ]
+    },
+    {
+      "name": "autoplug",
+      "tables": [
+        {
+          "name": "UserServersStaff",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "user_id",
+              "nameQuoted": "`user_id`",
+              "definition": "CHAR(6) NOT NULL"
+            },
+            {
+              "name": "server_id",
+              "nameQuoted": "`server_id`",
+              "definition": "CHAR(6) NOT NULL"
+            },
+            {
+              "name": "group_id",
+              "nameQuoted": "`group_id`",
+              "definition": "CHAR(6)"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "MinecraftPluginSum",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "name",
+              "nameQuoted": "`name`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "author",
+              "nameQuoted": "`author`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "usages",
+              "nameQuoted": "`usages`",
+              "definition": "BIGINT NOT NULL DEFAULT 0"
+            },
+            {
+              "name": "spigotId",
+              "nameQuoted": "`spigotId`",
+              "definition": "TEXT DEFAULT \\\"[]\\\"",
+              "comment": "JSON ARRAY: [{\"key\":\"info\", \"usage\": 10},...] Key \u003d\u003d this field and value \u003d\u003d usage count."
+            },
+            {
+              "name": "bukkitId",
+              "nameQuoted": "`bukkitId`",
+              "definition": "TEXT",
+              "comment": "JSON ARRAY: [{\"key\":\"info\", \"usage\": 10},...] Key \u003d\u003d this field and value \u003d\u003d usage count."
+            },
+            {
+              "name": "githubRepoName",
+              "nameQuoted": "`githubRepoName`",
+              "definition": "TEXT",
+              "comment": "JSON ARRAY: [{\"key\":\"info\", \"usage\": 10},...] Key \u003d\u003d this field and value \u003d\u003d usage count."
+            },
+            {
+              "name": "githubAssetName",
+              "nameQuoted": "`githubAssetName`",
+              "definition": "TEXT",
+              "comment": "JSON ARRAY: [{\"key\":\"info\", \"usage\": 10},...] Key \u003d\u003d this field and value \u003d\u003d usage count."
+            },
+            {
+              "name": "jenkinsProjectUrl",
+              "nameQuoted": "`jenkinsProjectUrl`",
+              "definition": "TEXT",
+              "comment": "JSON ARRAY: [{\"key\":\"info\", \"usage\": 10},...] Key \u003d\u003d this field and value \u003d\u003d usage count."
+            },
+            {
+              "name": "jenkinsArtifactName",
+              "nameQuoted": "`jenkinsArtifactName`",
+              "definition": "TEXT",
+              "comment": "JSON ARRAY: [{\"key\":\"info\", \"usage\": 10},...] Key \u003d\u003d this field and value \u003d\u003d usage count."
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "MinecraftPlugin",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "serverId",
+              "nameQuoted": "`serverId`",
+              "definition": "CHAR(6) NOT NULL"
+            },
+            {
+              "name": "name",
+              "nameQuoted": "`name`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "author",
+              "nameQuoted": "`author`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "version",
+              "nameQuoted": "`version`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "updateResult",
+              "nameQuoted": "`updateResult`",
+              "definition": "TINYINT NOT NULL"
+            },
+            {
+              "name": "timestamp",
+              "nameQuoted": "`timestamp`",
+              "definition": "LONG NOT NULL"
+            },
+            {
+              "name": "latestVersion",
+              "nameQuoted": "`latestVersion`",
+              "definition": "TEXT"
+            },
+            {
+              "name": "downloadUrl",
+              "nameQuoted": "`downloadUrl`",
+              "definition": "TEXT"
+            },
+            {
+              "name": "spigotId",
+              "nameQuoted": "`spigotId`",
+              "definition": "TEXT"
+            },
+            {
+              "name": "bukkitId",
+              "nameQuoted": "`bukkitId`",
+              "definition": "TEXT"
+            },
+            {
+              "name": "githubRepoName",
+              "nameQuoted": "`githubRepoName`",
+              "definition": "TEXT",
+              "comment": "Example: Author/Name"
+            },
+            {
+              "name": "githubAssetName",
+              "nameQuoted": "`githubAssetName`",
+              "definition": "TEXT"
+            },
+            {
+              "name": "jenkinsProjectUrl",
+              "nameQuoted": "`jenkinsProjectUrl`",
+              "definition": "TEXT"
+            },
+            {
+              "name": "jenkinsArtifactName",
+              "nameQuoted": "`jenkinsArtifactName`",
+              "definition": "TEXT"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "UserTemp",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "user_id",
+              "nameQuoted": "`user_id`",
+              "definition": "CHAR(6) NOT NULL"
+            },
+            {
+              "name": "role",
+              "nameQuoted": "`role`",
+              "definition": "TINYINT NOT NULL"
+            },
+            {
+              "name": "name",
+              "nameQuoted": "`name`",
+              "definition": "VARCHAR(20) NOT NULL"
+            },
+            {
+              "name": "email",
+              "nameQuoted": "`email`",
+              "definition": "VARCHAR(255) NOT NULL"
+            },
+            {
+              "name": "enc_password",
+              "nameQuoted": "`enc_password`",
+              "definition": "VARCHAR(255) NULL"
+            },
+            {
+              "name": "last_sent_commands",
+              "nameQuoted": "`last_sent_commands`",
+              "definition": "TEXT DEFAULT \\\"[]\\\""
+            },
+            {
+              "name": "timestamp",
+              "nameQuoted": "`timestamp`",
+              "definition": "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+            },
+            {
+              "name": "verify_code",
+              "nameQuoted": "`verify_code`",
+              "definition": "CHAR(6) NOT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "User",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "user_id",
+              "nameQuoted": "`user_id`",
+              "definition": "CHAR(6) NOT NULL"
+            },
+            {
+              "name": "role",
+              "nameQuoted": "`role`",
+              "definition": "TINYINT NOT NULL"
+            },
+            {
+              "name": "name",
+              "nameQuoted": "`name`",
+              "definition": "VARCHAR(20) NOT NULL"
+            },
+            {
+              "name": "email",
+              "nameQuoted": "`email`",
+              "definition": "VARCHAR(255) NOT NULL"
+            },
+            {
+              "name": "enc_password",
+              "nameQuoted": "`enc_password`",
+              "definition": "VARCHAR(255)"
+            },
+            {
+              "name": "last_sent_commands",
+              "nameQuoted": "`last_sent_commands`",
+              "definition": "TEXT DEFAULT \\\"[]\\\""
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "BannedIp",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "address",
+              "nameQuoted": "`address`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "reason",
+              "nameQuoted": "`reason`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "timestamp",
+              "nameQuoted": "`timestamp`",
+              "definition": "LONG NOT NULL"
+            },
+            {
+              "name": "hoursBanned",
+              "nameQuoted": "`hoursBanned`",
+              "definition": "INT NOT NULL"
+            },
+            {
+              "name": "city",
+              "nameQuoted": "`city`",
+              "definition": "TEXT"
+            },
+            {
+              "name": "country",
+              "nameQuoted": "`country`",
+              "definition": "TEXT"
+            },
+            {
+              "name": "longitude",
+              "nameQuoted": "`longitude`",
+              "definition": "TEXT"
+            },
+            {
+              "name": "latitude",
+              "nameQuoted": "`latitude`",
+              "definition": "TEXT"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "Daily_Stats",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "date",
+              "nameQuoted": "`date`",
+              "definition": "date NOT NULL"
+            },
+            {
+              "name": "total_users",
+              "nameQuoted": "`total_users`",
+              "definition": "int NOT NULL"
+            },
+            {
+              "name": "total_new_users",
+              "nameQuoted": "`total_new_users`",
+              "definition": "int NOT NULL"
+            },
+            {
+              "name": "total_removed_users",
+              "nameQuoted": "`total_removed_users`",
+              "definition": "int NOT NULL"
+            },
+            {
+              "name": "total_premium_users",
+              "nameQuoted": "`total_premium_users`",
+              "definition": "int NOT NULL"
+            },
+            {
+              "name": "total_servers",
+              "nameQuoted": "`total_servers`",
+              "definition": "int NOT NULL"
+            },
+            {
+              "name": "total_active_servers",
+              "nameQuoted": "`total_active_servers`",
+              "definition": "int NOT NULL"
+            },
+            {
+              "name": "total_premium_servers",
+              "nameQuoted": "`total_premium_servers`",
+              "definition": "int NOT NULL"
+            },
+            {
+              "name": "total_public_servers",
+              "nameQuoted": "`total_public_servers`",
+              "definition": "int NOT NULL"
+            },
+            {
+              "name": "total_private_servers",
+              "nameQuoted": "`total_private_servers`",
+              "definition": "int NOT NULL"
+            },
+            {
+              "name": "total_unique_visitors",
+              "nameQuoted": "`total_unique_visitors`",
+              "definition": "int NOT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "All_Featured_User_Servers",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "feature_id",
+              "nameQuoted": "`feature_id`",
+              "definition": "INT NOT NULL",
+              "comment": "\u003d\u003d id in featured_user_servers"
+            },
+            {
+              "name": "user_id",
+              "nameQuoted": "`user_id`",
+              "definition": "char(6) NOT NULL"
+            },
+            {
+              "name": "server_id",
+              "nameQuoted": "`server_id`",
+              "definition": "char(6) NOT NULL"
+            },
+            {
+              "name": "feature_hours",
+              "nameQuoted": "`feature_hours`",
+              "definition": "int(3) NOT NULL"
+            },
+            {
+              "name": "timestamp",
+              "nameQuoted": "`timestamp`",
+              "definition": "timestamp NOT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "Featured_User_Servers",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "user_id",
+              "nameQuoted": "`user_id`",
+              "definition": "char(6) NOT NULL"
+            },
+            {
+              "name": "server_id",
+              "nameQuoted": "`server_id`",
+              "definition": "char(6) NOT NULL"
+            },
+            {
+              "name": "payment_id",
+              "nameQuoted": "`payment_id`",
+              "definition": "INT NOT NULL"
+            },
+            {
+              "name": "isAuthorized",
+              "nameQuoted": "`isAuthorized`",
+              "definition": "SMALLINT NOT NULL"
+            },
+            {
+              "name": "feature_hours",
+              "nameQuoted": "`feature_hours`",
+              "definition": "int(3) NOT NULL"
+            },
+            {
+              "name": "timestamp_feature_start",
+              "nameQuoted": "`timestamp_feature_start`",
+              "definition": "timestamp NOT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "StaffAction",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "user_id",
+              "nameQuoted": "`user_id`",
+              "definition": "char(6) NOT NULL"
+            },
+            {
+              "name": "server_id",
+              "nameQuoted": "`server_id`",
+              "definition": "char(6) NOT NULL"
+            },
+            {
+              "name": "action",
+              "nameQuoted": "`action`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "timestamp",
+              "nameQuoted": "`timestamp`",
+              "definition": "BIGINT NOT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        }
+      ],
+      "javaProjectDir": "D:\\Coding\\JAVA\\AutoPlug-Full\\autoplug-webserver"
+    }
+  ]
+}
