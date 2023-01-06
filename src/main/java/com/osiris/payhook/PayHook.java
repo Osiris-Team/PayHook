@@ -390,8 +390,15 @@ public final class PayHook {
                 params2.put("url", webhookUrl);
                 params2.put("enabled_events", stripeWebhookEventTypes);
                 targetWebhook = WebhookEndpoint.create(params2);
+                stripeWebhookSecret = targetWebhook.getSecret();
+                List<com.osiris.jsqlgen.payhook.WebhookEndpoint> webhookEndpoints = com.osiris.jsqlgen.payhook.WebhookEndpoint.whereUrl().is(webhookUrl).get();
+                for (com.osiris.jsqlgen.payhook.WebhookEndpoint webhookEndpoint : webhookEndpoints) {
+                    com.osiris.jsqlgen.payhook.WebhookEndpoint.remove(webhookEndpoint);
+                }
+                com.osiris.jsqlgen.payhook.WebhookEndpoint.createAndAdd(webhookUrl, stripeWebhookSecret);
             }
-            stripeWebhookSecret = targetWebhook.getSecret();
+            stripeWebhookSecret = com.osiris.jsqlgen.payhook.WebhookEndpoint.
+                    whereUrl().is(targetWebhook.getUrl()).get().get(0).stripeWebhookSecret;
         }
         Objects.requireNonNull(stripeWebhookSecret);
     }

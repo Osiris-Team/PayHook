@@ -226,6 +226,29 @@
           "isDebug": false,
           "isNoExceptions": true,
           "isCache": false
+        },
+        {
+          "name": "WebhookEndpoint",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "url",
+              "nameQuoted": "`url`",
+              "definition": "TEXT NOT NULL"
+            },
+            {
+              "name": "stripeWebhookSecret",
+              "nameQuoted": "`stripeWebhookSecret`",
+              "definition": "TEXT NOT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
         }
       ],
       "javaProjectDir": "D:\\Coding\\JAVA\\PayHook"
@@ -915,6 +938,34 @@
               "name": "timestamp",
               "nameQuoted": "`timestamp`",
               "definition": "BIGINT NOT NULL"
+            }
+          ],
+          "isDebug": false,
+          "isNoExceptions": true,
+          "isCache": false
+        },
+        {
+          "name": "AutoPlugWebLicense",
+          "columns": [
+            {
+              "name": "id",
+              "nameQuoted": "`id`",
+              "definition": "INT NOT NULL PRIMARY KEY"
+            },
+            {
+              "name": "user_id",
+              "nameQuoted": "`user_id`",
+              "definition": "CHAR(6) NOT NULL"
+            },
+            {
+              "name": "payment_id",
+              "nameQuoted": "`payment_id`",
+              "definition": "INT NOT NULL"
+            },
+            {
+              "name": "key",
+              "nameQuoted": "`key`",
+              "definition": "CHAR(250) NOT NULL"
             }
           ],
           "isDebug": false,
