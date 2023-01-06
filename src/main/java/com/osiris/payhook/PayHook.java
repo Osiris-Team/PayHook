@@ -6,7 +6,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.osiris.jlib.json.exceptions.HttpErrorException;
 import com.osiris.jlib.json.exceptions.WrongJsonTypeException;
-import com.osiris.jsqlgen.payhook.Database;
 import com.osiris.jsqlgen.payhook.Payment;
 import com.osiris.jsqlgen.payhook.PendingPaymentCancel;
 import com.osiris.jsqlgen.payhook.Product;
@@ -234,7 +233,7 @@ public final class PayHook {
         PayHook.databaseName = Objects.requireNonNull(databaseName);
         PayHook.databaseUsername = Objects.requireNonNull(databaseUsername);
         PayHook.databasePassword = Objects.requireNonNull(databasePassword);
-        Database.create();
+        com.osiris.jsqlgen.payhook.Database.create();
         // Reset values since they aren't needed anymore
         PayHook.databaseUrl = null;
         PayHook.databaseName = null;
