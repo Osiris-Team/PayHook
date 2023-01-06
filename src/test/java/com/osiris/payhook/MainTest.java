@@ -100,6 +100,7 @@ public class MainTest {
         PayHook.init(
                 "Test-Brand-Name",
                 MainTest.dbUrl,
+                dbServer.getName(),
                 MainTest.dbUsername,
                 MainTest.dbPassword,
                 true,

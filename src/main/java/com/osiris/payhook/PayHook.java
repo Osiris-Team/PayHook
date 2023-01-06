@@ -185,6 +185,23 @@ public final class PayHook {
     private static boolean isPayPalWebhookActive = false;
 
     /**
+     * Always null, except when doing init of database.
+     */
+    public static String databaseUrl = null;
+    /**
+     * Always null, except when doing init of database.
+     */
+    public static String databaseName = null;
+    /**
+     * Always null, except when doing init of database.
+     */
+    public static String databaseUsername = null;
+    /**
+     * Always null, except when doing init of database.
+     */
+    public static String databasePassword = null;
+
+    /**
      * If {@link #isSandbox} = true then the "payhook_sandbox" database will get created/used, otherwise
      * the default "payhook" database.
      * Remember to set your {@link PaymentProcessor} credentials, before
@@ -197,10 +214,11 @@ public final class PayHook {
      * @param isSandbox        Set false in production, set true when testing.
      * @param successUrl       See {@link #successUrl}.
      * @param cancelUrl        See {@link #cancelUrl}.
-     * @throws SQLException     When the databaseUrl does not contain "db_name" or another error happens during database initialisation.
+     * @throws SQLException     When the database name contains "test" when running in production or another error happens during database initialisation.
      * @throws RuntimeException when there is an error in the thread, which checks for missed payments in a regular interval.
      */
-    public static synchronized void init(String brandName, String databaseUrl, String databaseUsername, String databasePassword, boolean isSandbox,
+    public static synchronized void init(String brandName, String databaseUrl, String databaseName,
+                                         String databaseUsername, String databasePassword, boolean isSandbox,
                                          String successUrl, String cancelUrl) throws SQLException {
         if (isInitialised) return;
         PayHook.brandName = Objects.requireNonNull(brandName);
@@ -212,9 +230,16 @@ public final class PayHook {
             throw new SQLException("You are NOT running in sandbox mode, thus your database-url/name CANNOT contain 'sandbox' or 'test'!");
         if (isSandbox && (!databaseUrl.contains("sandbox") && !databaseUrl.contains("test")))
             throw new SQLException("You are running in sandbox mode, thus your database-url/name must contain 'sandbox' or 'test'!");
-        Database.url = databaseUrl;
-        Database.username = Objects.requireNonNull(databaseUsername);
-        Database.password = Objects.requireNonNull(databasePassword);
+        PayHook.databaseUrl = databaseUrl;
+        PayHook.databaseName = Objects.requireNonNull(databaseName);
+        PayHook.databaseUsername = Objects.requireNonNull(databaseUsername);
+        PayHook.databasePassword = Objects.requireNonNull(databasePassword);
+        Database.create();
+        // Reset values since they aren't needed anymore
+        PayHook.databaseUrl = null;
+        PayHook.databaseName = null;
+        PayHook.databaseUsername = null;
+        PayHook.databasePassword = null;
 
         paymentsCheckerThread = new Thread(() -> {
             try {

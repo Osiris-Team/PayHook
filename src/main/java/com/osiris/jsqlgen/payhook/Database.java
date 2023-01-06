@@ -17,10 +17,10 @@ All tables use the cached connection pool in this class which has following adva
 - Connection status is checked before doing a query (since it could be closed or timed out and thus result in errors).*/
 public class Database{
 public static String rawUrl = "jdbc:mysql://localhost/";
-public static String url = "jdbc:mysql://localhost/payhook";
-public static String name = "payhook";
-public static String username = "";
-public static String password = "";
+public static String url = com.osiris.payhook.PayHook.databaseUrl;
+public static String name = com.osiris.payhook.PayHook.databaseName;
+public static String username = com.osiris.payhook.PayHook.databaseUsername;
+public static String password = com.osiris.payhook.PayHook.databasePassword;
 private static final List<Connection> availableConnections = new ArrayList<>();
 
     static{create();} // Create database if not exists

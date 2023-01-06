@@ -14,6 +14,7 @@ public class ExampleConstants {
             PayHook.init(
                     "Brand-Name",
                     "db_url",
+                    "db_name",
                     "db_username",
                     "db_password",
                     true,
