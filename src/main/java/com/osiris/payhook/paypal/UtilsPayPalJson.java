@@ -46,7 +46,7 @@ public class UtilsPayPalJson {
                 if (body == null) return null;
                 else return JsonParser.parseString(body.string());
             } else {
-                throw new HttpErrorException(code, null, "\nurl: " + url + " \nmessage: " + response.message() + "\njson: \n"
+                throw new HttpErrorException(code, null, "\nurl: " + url + "\ncode: "+code+" \nmessage: " + response.message() + "\njson: \n"
                         + (body != null ? body.string() : ""));
             }
         }

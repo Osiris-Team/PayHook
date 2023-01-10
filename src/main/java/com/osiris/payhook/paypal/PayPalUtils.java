@@ -164,7 +164,7 @@ public class PayPalUtils {
         patchDesc.addProperty("path", "/description");
         patchDesc.addProperty("value", product.description);
         arr.add(patchDesc);
-        utilsJson.patchJsonAndGetResponse(BASE_V1_URL + "/catalogs/products/" + product.paypalProductId, arr, this);
+        utilsJson.patchJsonAndGetResponse(BASE_V1_URL + "/catalogs/products/" + product.paypalProductId, arr, this, 204);
         return this;
     }
 
