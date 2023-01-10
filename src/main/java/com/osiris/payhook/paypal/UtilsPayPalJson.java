@@ -17,9 +17,6 @@ import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
 import java.net.ProtocolException;
 import java.net.URL;
-import java.security.AccessController;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -35,7 +32,7 @@ public class UtilsPayPalJson {
             con.addRequestProperty("Authorization", "Basic " + payPalUtils.getCredBase64());
             con.addRequestProperty("return", "representation");
             con.setConnectTimeout(1000);
-            setRequestMethodViaJreBugWorkaround(con, requestMethod);
+            setRequestVerb(con, requestMethod);
             con.setDoOutput(true);
             con.setDoInput(true);
             con.connect();
@@ -163,69 +160,32 @@ public class UtilsPayPalJson {
      * when the method is other than the HTTP/1.1 default methods. So to use {@code PATCH}
      * and others, we must apply this workaround.
      *
-     * See issue http://java.net/jira/browse/JERSEY-639 <br>
-     * TAKEN FROM PAYPAL SDK 1: https://github.com/paypal/sdk-core-java/blob/42e793eeafae2fd1cb90fe2cc81a8ba22be830da/src/main/java/com/paypal/core/DefaultHttpConnection.java
+     * See issue https://bugs.openjdk.java.net/browse/JDK-7016595 <br>
+     * TAKEN FROM: https://github.com/paypal/paypalhttp_java/blob/master/paypalhttp/src/main/java/com/paypal/http/HttpClient.java#L150
      */
-    public static void setRequestMethodViaJreBugWorkaround(final HttpURLConnection httpURLConnection, final String method) {
+    private void setRequestVerb(HttpURLConnection connection, String verb) {
         try {
-            httpURLConnection.setRequestMethod(method); // Check whether we are running on a buggy JRE
-        } catch (final ProtocolException pe) {
+            connection.setRequestMethod(verb.toUpperCase());
+        } catch (ProtocolException ignored) {
             try {
-                AccessController
-                        .doPrivileged((PrivilegedExceptionAction<Object>) () -> {
-                            try {
-                                httpURLConnection.setRequestMethod(method);
-                                // Check whether we are running on a buggy
-                                // JRE
-                            } catch (final ProtocolException pe1) {
-                                Class<?> connectionClass = httpURLConnection
-                                        .getClass();
-                                Field delegateField;
-                                try {
-                                    delegateField = connectionClass
-                                            .getDeclaredField("delegate");
-                                    delegateField.setAccessible(true);
-                                    HttpURLConnection delegateConnection = (HttpURLConnection) delegateField
-                                            .get(httpURLConnection);
-                                    setRequestMethodViaJreBugWorkaround(
-                                            delegateConnection, method);
-                                } catch (NoSuchFieldException e) {
-                                    // Ignore for now, keep going
-                                } catch (IllegalArgumentException e) {
-                                    throw new RuntimeException(e);
-                                } catch (IllegalAccessException e) {
-                                    throw new RuntimeException(e);
-                                }
-                                try {
-                                    Field methodField;
-                                    while (connectionClass != null) {
-                                        try {
-                                            methodField = connectionClass
-                                                    .getDeclaredField("method");
-                                        } catch (NoSuchFieldException e) {
-                                            connectionClass = connectionClass
-                                                    .getSuperclass();
-                                            continue;
-                                        }
-                                        methodField.setAccessible(true);
-                                        methodField.set(httpURLConnection,
-                                                method);
-                                        break;
-                                    }
-                                } catch (final Exception e) {
-                                    throw new RuntimeException(e);
-                                }
-                            }
-                            return null;
-                        });
-            } catch (final PrivilegedActionException e) {
-                final Throwable cause = e.getCause();
-                if (cause instanceof RuntimeException) {
-                    throw (RuntimeException) cause;
-                } else {
-                    throw new RuntimeException(cause);
+                Field delegateField = connection.getClass().getDeclaredField("delegate");
+                delegateField.setAccessible(true);
+                HttpURLConnection delegateConnection = (HttpURLConnection) delegateField.get(connection);
+
+                setRequestVerb(delegateConnection, verb);
+            } catch (NoSuchFieldException e) {
+                Field methodField = null;
+                Class connectionClass = connection.getClass();
+                while (methodField == null) {
+                    try {
+                        methodField = connectionClass.getDeclaredField("method");
+                        methodField.setAccessible(true);
+                        methodField.set(connection, "PATCH");
+                    } catch (IllegalAccessException | NoSuchFieldException _ignored) {
+                        connectionClass = connectionClass.getSuperclass();
+                    }
                 }
-            }
+            } catch (IllegalAccessException ignoredIllegalAccess) {}
         }
     }
 
