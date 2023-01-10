@@ -137,22 +137,38 @@ public class MainTest {
         System.out.println("Created/Updated products.");
         System.out.println("OK!");
 
+
+        /*
+        // The below doesn't work, instead cancel the subscription in the next
+        // run of the program
         List<Subscription> listSubscriptionsToCancel = new ArrayList<>();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             for (Subscription subscription : listSubscriptionsToCancel) {
                 try {
                     subscription.cancel(); // Cancel all subscriptions created in this session on exit
-                    System.out.println("Cancelled subscription: " + subscription.toPrintString());
+                    System.out.println("Waiting for cancel confirmation of subscription: " + subscription.toPrintString());
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
             }
         }));
+         */
+
+        // Register event listeners
         PayHook.onPaymentAuthorized.addAction((action, payment) -> {
-            System.out.println("BACKEND: " + payment.toPrintString());
-            if (payment.isRecurring()) {
-                listSubscriptionsToCancel.add(new Subscription(payment));
-            }
+            System.out.println("(BACKEND) AUTHORIZED PAYMENT: " + payment.toPrintString());
+            //if (payment.isRecurring()) {
+            //    listSubscriptionsToCancel.add(new Subscription(payment));
+            //}
+        }, Exception::printStackTrace);
+        PayHook.onPaymentCancelled.addAction((action, payment) -> {
+            System.out.println("(BACKEND) CANCELLED PAYMENT: " + payment.toPrintString());
+        }, Exception::printStackTrace);
+        PayHook.onPaymentRefunded.addAction((action, payment) -> {
+            System.out.println("(BACKEND) REFUNDED PAYMENT: " + payment.toPrintString());
+        }, Exception::printStackTrace);
+        PayHook.onPaymentExpired.addAction((action, payment) -> {
+            System.out.println("(BACKEND) EXPIRED PAYMENT: " + payment.toPrintString());
         }, Exception::printStackTrace);
 
         // Check for active subscriptions and cancel them:
