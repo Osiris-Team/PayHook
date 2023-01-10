@@ -11,67 +11,45 @@ package com.osiris.payhook.paypal;
 import com.google.gson.*;
 import com.osiris.jlib.json.exceptions.HttpErrorException;
 import com.osiris.jlib.json.exceptions.WrongJsonTypeException;
+import okhttp3.*;
 
-import java.io.*;
-import java.lang.reflect.Field;
-import java.net.HttpURLConnection;
-import java.net.ProtocolException;
-import java.net.URL;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+
 public class UtilsPayPalJson {
+    // Use OkHttp because I couldn't find a way of
+    // sending PATCH http requests to PayPal
+    // without Java throwing exceptions...
+    public static MediaType JSON = MediaType.get("application/json; charset=utf-8");
+    public static OkHttpClient CLIENT = new OkHttpClient();
 
     public JsonElement jsonFromUrl(String requestMethod, String url, JsonElement elementToSend, PayPalUtils payPalUtils, Integer... successCodes) throws IOException, HttpErrorException {
-        HttpURLConnection con = null;
-        try {
-            con = (HttpURLConnection) new URL(url).openConnection();
-            con.addRequestProperty("User-Agent", "PayHook");
-            con.addRequestProperty("Content-Type", "application/json");
-            con.addRequestProperty("Authorization", "Basic " + payPalUtils.getCredBase64());
-            con.addRequestProperty("return", "representation");
-            con.setConnectTimeout(1000);
-            setRequestVerb(con, requestMethod);
-            con.setDoOutput(true);
-            con.setDoInput(true);
-            con.connect();
-
-            if (elementToSend != null) {
-                OutputStream out = con.getOutputStream();
-                try (OutputStreamWriter outWrt = new OutputStreamWriter(out)) {
-                    try (BufferedReader inr = new BufferedReader(new StringReader(new Gson().toJson(elementToSend)))) {
-                        String l = null;
-                        while ((l = inr.readLine()) != null) {
-                            outWrt.write(l);
-                        }
-                    }
-                }
-            } // After POST finishes get RESPONSE:
-
-            int code = con.getResponseCode();
-            if (code == 200 || (successCodes != null && Arrays.asList(successCodes).contains(code))) {
-                InputStream in = con.getInputStream();
-                if (in != null)
-                    try (InputStreamReader inr = new InputStreamReader(in)) {
-                        return JsonParser.parseReader(inr);
-                    }
-            } else {
-                JsonElement response = null;
-                InputStream in = con.getErrorStream();
-                if (in != null)
-                    try (InputStreamReader inr = new InputStreamReader(in)) {
-                        response = JsonParser.parseReader(inr);
-                    }
-                throw new HttpErrorException(code, null, "\nurl: " + url + " \nmessage: " + con.getResponseMessage() + "\njson: \n" + new GsonBuilder().setPrettyPrinting().create().toJson(response));
-            }
-        } catch (IOException | HttpErrorException e) {
-            if (con != null) con.disconnect();
-            throw e;
-        } finally {
-            if (con != null) con.disconnect();
+        Request.Builder requestBuilder = new Request.Builder()
+                .url(url)
+                .header("User-Agent", "PayHook")
+                .header("Content-Type", "application/json")
+                .header("Authorization", "Basic " + payPalUtils.getCredBase64())
+                .header("return", "representation");
+        if (elementToSend != null) {
+            RequestBody body = RequestBody.create(new Gson().toJson(elementToSend), JSON);
+            requestBuilder.method(requestMethod, body);
+        } else {
+            requestBuilder.method(requestMethod, null);
         }
-        return null;
+        try (Response response = CLIENT.newCall(requestBuilder.build()).execute()) {
+            int code = response.code();
+            ResponseBody body = response.body();
+            if (code == 200 || (successCodes != null && Arrays.asList(successCodes).contains(code))) {
+                if (body == null) return null;
+                else return JsonParser.parseString(body.string());
+            } else {
+                throw new HttpErrorException(code, null, "\nurl: " + url + " \nmessage: " + response.message() + "\njson: \n"
+                        + (body != null ? body.string() : ""));
+            }
+        }
     }
 
     public JsonElement postJsonAndGetResponse(String url, JsonElement element, PayPalUtils context) throws IOException, HttpErrorException {
@@ -153,40 +131,4 @@ public class UtilsPayPalJson {
             throw new WrongJsonTypeException("Its not a json object! Check it out -> " + url);
         }
     }
-
-    /**
-     * Workaround for a bug in {@code HttpURLConnection.setRequestMethod(String)}
-     * The implementation of Sun/Oracle is throwing a {@code ProtocolException}
-     * when the method is other than the HTTP/1.1 default methods. So to use {@code PATCH}
-     * and others, we must apply this workaround.
-     *
-     * See issue https://bugs.openjdk.java.net/browse/JDK-7016595 <br>
-     * TAKEN FROM: https://github.com/paypal/paypalhttp_java/blob/master/paypalhttp/src/main/java/com/paypal/http/HttpClient.java#L150
-     */
-    private void setRequestVerb(HttpURLConnection connection, String verb) {
-        try {
-            connection.setRequestMethod(verb.toUpperCase());
-        } catch (ProtocolException ignored) {
-            try {
-                Field delegateField = connection.getClass().getDeclaredField("delegate");
-                delegateField.setAccessible(true);
-                HttpURLConnection delegateConnection = (HttpURLConnection) delegateField.get(connection);
-
-                setRequestVerb(delegateConnection, verb);
-            } catch (NoSuchFieldException e) {
-                Field methodField = null;
-                Class connectionClass = connection.getClass();
-                while (methodField == null) {
-                    try {
-                        methodField = connectionClass.getDeclaredField("method");
-                        methodField.setAccessible(true);
-                        methodField.set(connection, "PATCH");
-                    } catch (IllegalAccessException | NoSuchFieldException _ignored) {
-                        connectionClass = connectionClass.getSuperclass();
-                    }
-                }
-            } catch (IllegalAccessException ignoredIllegalAccess) {}
-        }
-    }
-
 }
