@@ -18,7 +18,9 @@ public class UtilsStripe {
             throws JsonSyntaxException, SignatureVerificationException { // Invalid payload // Invalid signature
         String sigHeader = headers.get("Stripe-Signature");
         if (sigHeader == null) {
-            throw new SignatureVerificationException("No Stripe-Signature header present!", "---");
+            sigHeader = headers.get("stripe-signature"); // try lowercase
+            if(sigHeader == null)
+                throw new SignatureVerificationException("No Stripe-Signature/stripe-signature header present!", "---");
         }
         return Webhook.constructEvent(body, sigHeader, endpointSecret);
     }
