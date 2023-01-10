@@ -14,17 +14,13 @@ public class UtilsStripe {
      *
      * @return null, if not valid.
      */
-    public Event checkWebhookEvent(String body, Map<String, String> headers, String endpointSecret) {
+    public Event checkWebhookEvent(String body, Map<String, String> headers, String endpointSecret)
+            throws JsonSyntaxException, SignatureVerificationException { // Invalid payload // Invalid signature
         String sigHeader = headers.get("Stripe-Signature");
-        if (sigHeader == null) return null;
-
-        Event event = null;
-        try {
-            event = Webhook.constructEvent(body, sigHeader, endpointSecret);
-        } catch (JsonSyntaxException | SignatureVerificationException e) {
-            return null; // Invalid payload // Invalid signature
+        if (sigHeader == null) {
+            throw new SignatureVerificationException("No Stripe-Signature header present!", "---");
         }
-        return event;
+        return Webhook.constructEvent(body, sigHeader, endpointSecret);
     }
 
 }

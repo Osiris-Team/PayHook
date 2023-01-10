@@ -7,7 +7,6 @@ import com.github.alexdlaird.ngrok.protocol.Tunnel;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.osiris.dyml.Yaml;
-import com.osiris.jsqlgen.payhook.Database;
 import com.osiris.jsqlgen.payhook.Payment;
 import com.osiris.jsqlgen.payhook.Product;
 import com.osiris.payhook.utils.Converter;
@@ -91,7 +90,6 @@ public class MainTest {
         System.out.println("Starting database...");
         dbServer = SQLTestServer.buildAndRun();
         dbUrl = dbServer.getUrl();
-        Database.create();
         System.out.println("Url: " + dbUrl);
         System.out.println("OK!");
 
@@ -159,8 +157,12 @@ public class MainTest {
 
         // Check for active subscriptions and cancel them:
         for (Subscription sub : Subscription.getNotCancelled()) {
-            sub.cancel();
-            System.out.println("Cancelled active subscription: "+ sub.toPrintString());
+            try{
+                sub.cancel();
+                System.out.println("Cancelled active subscription: "+ sub.toPrintString());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
         // Test payments

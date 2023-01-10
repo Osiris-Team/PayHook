@@ -13,8 +13,13 @@ import com.osiris.jlib.json.exceptions.HttpErrorException;
 import com.osiris.jlib.json.exceptions.WrongJsonTypeException;
 
 import java.io.*;
+import java.lang.reflect.Field;
 import java.net.HttpURLConnection;
+import java.net.ProtocolException;
 import java.net.URL;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,7 +35,7 @@ public class UtilsPayPalJson {
             con.addRequestProperty("Authorization", "Basic " + payPalUtils.getCredBase64());
             con.addRequestProperty("return", "representation");
             con.setConnectTimeout(1000);
-            con.setRequestMethod(requestMethod);
+            setRequestMethodViaJreBugWorkaround(con, requestMethod);
             con.setDoOutput(true);
             con.setDoInput(true);
             con.connect();
@@ -149,6 +154,78 @@ public class UtilsPayPalJson {
             return element.getAsJsonObject();
         } else {
             throw new WrongJsonTypeException("Its not a json object! Check it out -> " + url);
+        }
+    }
+
+    /**
+     * Workaround for a bug in {@code HttpURLConnection.setRequestMethod(String)}
+     * The implementation of Sun/Oracle is throwing a {@code ProtocolException}
+     * when the method is other than the HTTP/1.1 default methods. So to use {@code PATCH}
+     * and others, we must apply this workaround.
+     *
+     * See issue http://java.net/jira/browse/JERSEY-639 <br>
+     * TAKEN FROM PAYPAL SDK 1: https://github.com/paypal/sdk-core-java/blob/42e793eeafae2fd1cb90fe2cc81a8ba22be830da/src/main/java/com/paypal/core/DefaultHttpConnection.java
+     */
+    public static void setRequestMethodViaJreBugWorkaround(final HttpURLConnection httpURLConnection, final String method) {
+        try {
+            httpURLConnection.setRequestMethod(method); // Check whether we are running on a buggy JRE
+        } catch (final ProtocolException pe) {
+            try {
+                AccessController
+                        .doPrivileged((PrivilegedExceptionAction<Object>) () -> {
+                            try {
+                                httpURLConnection.setRequestMethod(method);
+                                // Check whether we are running on a buggy
+                                // JRE
+                            } catch (final ProtocolException pe1) {
+                                Class<?> connectionClass = httpURLConnection
+                                        .getClass();
+                                Field delegateField;
+                                try {
+                                    delegateField = connectionClass
+                                            .getDeclaredField("delegate");
+                                    delegateField.setAccessible(true);
+                                    HttpURLConnection delegateConnection = (HttpURLConnection) delegateField
+                                            .get(httpURLConnection);
+                                    setRequestMethodViaJreBugWorkaround(
+                                            delegateConnection, method);
+                                } catch (NoSuchFieldException e) {
+                                    // Ignore for now, keep going
+                                } catch (IllegalArgumentException e) {
+                                    throw new RuntimeException(e);
+                                } catch (IllegalAccessException e) {
+                                    throw new RuntimeException(e);
+                                }
+                                try {
+                                    Field methodField;
+                                    while (connectionClass != null) {
+                                        try {
+                                            methodField = connectionClass
+                                                    .getDeclaredField("method");
+                                        } catch (NoSuchFieldException e) {
+                                            connectionClass = connectionClass
+                                                    .getSuperclass();
+                                            continue;
+                                        }
+                                        methodField.setAccessible(true);
+                                        methodField.set(httpURLConnection,
+                                                method);
+                                        break;
+                                    }
+                                } catch (final Exception e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                            return null;
+                        });
+            } catch (final PrivilegedActionException e) {
+                final Throwable cause = e.getCause();
+                if (cause instanceof RuntimeException) {
+                    throw (RuntimeException) cause;
+                } else {
+                    throw new RuntimeException(cause);
+                }
+            }
         }
     }
 

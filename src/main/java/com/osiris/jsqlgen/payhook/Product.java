@@ -715,5 +715,18 @@ private Product(){}
         return this;
     }
 
+    /**
+     * Util method for adding an action that gets executed when a payment expired for this product.
+     * @see PayHook#onPaymentExpired
+     */
+    public Product onPaymentExpired(BetterConsumer<Payment> action, Consumer<Exception> actionOnException){
+        BetterConsumer<Payment> finalAction = payment -> {
+            if(payment.productId == this.id)
+                action.accept(payment);
+        };
+        PayHook.onPaymentExpired.addAction(finalAction, actionOnException);
+        return this;
+    }
+
 // Additional code end <- 
 }

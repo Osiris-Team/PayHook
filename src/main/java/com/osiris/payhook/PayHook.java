@@ -55,7 +55,7 @@ public final class PayHook {
      * via {@link PayHook#expectPayments(String, List, PaymentProcessor, Consumer, Consumer)}.
      */
     public static final com.osiris.events.Event<Payment> onPaymentCreated = new com.osiris.events.Event<Payment>().initCleaner(3600000, obj -> { // Check every hour
-        return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
+        return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6 hours
     }, Exception::printStackTrace);
     /**
      * Actions for this event are executed,
@@ -64,20 +64,19 @@ public final class PayHook {
      * or when an automatic payment happens on an already running subscription.
      */
     public static final com.osiris.events.Event<Payment> onPaymentAuthorized = new com.osiris.events.Event<Payment>().initCleaner(3600000, obj -> { // Check every hour
-        return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
+        return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6 hours
     }, Exception::printStackTrace);
     /**
      * Actions for this event are executed when... <br>
      * ... a payment was created, but never actually paid (authorized) within the time period the {@link Payment#url} was valid. <br>
-     * ... the next payment of a subscription was not received in time (authorized). In this case PayHook cancels the subscription
-     * and {@link Subscription#getMillisLeftWithPuffer()} will be smaller than 1.<br>
+     * ... the next payment of a subscription was not received in time (authorized).
      * ... a webhook event was received that the subscription was cancelled. <br>
      * Note that if a subscription was cancelled but there is still time left this event is executed twice.
      * First when the customer/person issued the cancellation (here {@link Subscription#getMillisLeftWithPuffer()} will be bigger than 1). <br>
      * Second when {@link Subscription#getMillisLeftWithPuffer()} is smaller than 1.
      */
     public static final com.osiris.events.Event<Payment> onPaymentCancelled = new com.osiris.events.Event<Payment>().initCleaner(3600000, obj -> { // Check every hour
-        return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
+        return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6 hours
     }, Exception::printStackTrace);
 
     /**
@@ -86,7 +85,20 @@ public final class PayHook {
      * a refund webhook notification was received. <br>
      */
     public static final com.osiris.events.Event<Payment> onPaymentRefunded = new com.osiris.events.Event<Payment>().initCleaner(3600000, obj -> { // Check every hour
-        return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6hours
+        return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6 hours
+    }, Exception::printStackTrace);
+
+    /**
+     * Actions for this event are executed,
+     * when a payment was not paid in time so when {@link Payment#timestampExpires} is greater than the current time
+     * and {@link Payment#timestampAuthorized} and {@link Payment#timestampCancelled} are null/0. <br>
+     * Note that this event can be executed multiple times for a single payment if you don't handle it by, for example
+     * setting the {@link Payment#timestampCancelled} to the current time. <br>
+     * Also remember that in the case of a subscription,
+     * {@link Subscription#getMillisLeftWithPuffer()} will be smaller than 1.<br>
+     */
+    public static final com.osiris.events.Event<Payment> onPaymentExpired = new com.osiris.events.Event<Payment>().initCleaner(3600000, obj -> { // Check every hour
+        return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6 hours
     }, Exception::printStackTrace);
 
     /**
@@ -246,13 +258,10 @@ public final class PayHook {
                     Thread.sleep(3600000); // 1h
                     long now = System.currentTimeMillis();
 
-                    // Cancel payments and execute payment cancelled event
-                    // for pending payments that haven't been authorized within the time limit.
+                    // Pending payments that haven't been authorized within the time limit.
                     for (Payment pendingPayment : Payment.getPendingPayments()) {
                         if (now > pendingPayment.timestampExpires) {
-                            pendingPayment.timestampCancelled = now;
-                            Payment.update(pendingPayment);
-                            onPaymentCancelled.execute(pendingPayment);
+                            onPaymentExpired.execute(pendingPayment);
                         }
                     }
 

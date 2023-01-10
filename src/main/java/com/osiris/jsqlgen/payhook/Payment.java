@@ -809,9 +809,8 @@ private Payment(){}
      * {@link Payment#timestampCancelled} is null, and {@link Payment#timestampCreated} is smaller than now and {@link Payment#timestampExpires} is bigger than now.
      */
     public static List<Payment> getPendingPayments(String where, Object... objs) throws Exception {
-        long now = System.currentTimeMillis();
-        return get("timestampAuthorized = 0 AND timestampCancelled = 0 AND timestampCreated < " + now
-                + " AND timestampCreated > " + now + " " + (where != null ? " AND " + where : ""), objs);
+        return get("timestampAuthorized = 0 AND timestampCancelled = 0 "
+                 + (where != null ? " AND " + where : ""), objs);
     }
 
     /**
@@ -869,7 +868,7 @@ private Payment(){}
      * @return list of payments, where {@link Payment#charge} is smaller than 0.
      */
     public static List<Payment> getRefundedPayments(String where, Object... objs) throws Exception {
-        return get("charge < 0 " + (where != null ? " AND " + where : ""), objs);
+        return get("charge <= 0 " + (where != null ? " AND " + where : ""), objs);
     }
 
     public PaymentProcessor getPaymentProcessor() {
