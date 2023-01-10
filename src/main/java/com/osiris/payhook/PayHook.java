@@ -67,13 +67,10 @@ public final class PayHook {
         return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6 hours
     }, Exception::printStackTrace);
     /**
-     * Actions for this event are executed when... <br>
-     * ... a payment was created, but never actually paid (authorized) within the time period the {@link Payment#url} was valid. <br>
-     * ... the next payment of a subscription was not received in time (authorized).
-     * ... a webhook event was received that the subscription was cancelled. <br>
-     * Note that if a subscription was cancelled but there is still time left this event is executed twice.
-     * First when the customer/person issued the cancellation (here {@link Subscription#getMillisLeftWithPuffer()} will be bigger than 1). <br>
-     * Second when {@link Subscription#getMillisLeftWithPuffer()} is smaller than 1.
+     * Actions for this event are executed when a webhook event was received that the subscription was cancelled. <br>
+     * Note that if a subscription was cancelled by you or the customer, but there is still time left this event is executed twice. <br>
+     * First when the person issued the cancellation (here {@link Subscription#getMillisLeftWithPuffer()} will be bigger than 1). <br>
+     * Second when the subscriptions time runs out and {@link Subscription#getMillisLeftWithPuffer()} is smaller than 1.
      */
     public static final com.osiris.events.Event<Payment> onPaymentCancelled = new com.osiris.events.Event<Payment>().initCleaner(3600000, obj -> { // Check every hour
         return obj != null && System.currentTimeMillis() - ((Long) obj) > 21600000; // 6 hours
@@ -265,14 +262,15 @@ public final class PayHook {
                         }
                     }
 
-                    // Cancel subscriptions that are active
+                    // Execute expired payment event for subscriptions that are active
                     // but where the last payment exceeds the time limit + puffer.
                     for (Subscription sub : Subscription.getNotCancelled()) {
                         if (sub.getMillisLeftWithPuffer() < 1) {
-                            sub.cancel();
+                            onPaymentExpired.execute(sub.getLastPayment());
                         }
                     }
 
+                    // Execute PendingPaymentCancel
                     for (PendingPaymentCancel pendingCancel : PendingPaymentCancel.get()) {
                         long msLeft = now - pendingCancel.timestampCancel;
                         if(msLeft < 1){
