@@ -546,8 +546,18 @@ public final class PayHook {
             if (Stripe.apiKey != null) {
                 com.stripe.model.Product stripeProduct = com.stripe.model.Product.retrieve(product.stripeProductId);
                 stripeProduct.update(converter.toStripeProduct(product));
-                com.stripe.model.Price stripePrice = com.stripe.model.Price.retrieve(product.stripePriceId);
-                stripePrice.update(converter.toStripePrice(product));
+                // Is there a price change?
+                if(newProduct.charge != product.charge){
+                    // Sadly prices cannot be updated in stripe
+                    // thus the old one must be deactivated first (can't delete it either)
+                    com.stripe.model.Price oldPrice = com.stripe.model.Price.retrieve(product.stripePriceId);
+                    // Deactivate old
+                    Map<String, Object> params = new HashMap<>();
+                    params.put("active", false);
+                    oldPrice.update(params);
+                    // Activate/Create new
+                    com.stripe.model.Price.create(converter.toStripePrice(newProduct));
+                }
             }
 
             Product.update(product);
