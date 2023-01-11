@@ -179,7 +179,8 @@ public class SpringBootExample {
   public void receiveAndRespondPayPal(HttpServletRequest request, HttpServletResponse response) {
     try {
       response.setStatus(HttpServletResponse.SC_OK); // Directly set status code
-      PayHook.receiveWebhookEvent(PaymentProcessor.PAYPAL, getHeadersAsMap(request), getBodyAsString(request));
+      PayHook.receiveWebhookEvent(PaymentProcessor.PAYPAL, getHeadersAsMap(request),
+              IOUtils.toString(request.getInputStream(), StandardCharsets.UTF_8)); // Apache Utils
     } catch (Exception e) {
       AL.warn(e);
     }
@@ -191,7 +192,8 @@ public class SpringBootExample {
   public void receiveAndRespondStripe(HttpServletRequest request, HttpServletResponse response) {
     try {
       response.setStatus(HttpServletResponse.SC_OK); // Directly set status code
-      PayHook.receiveWebhookEvent(PaymentProcessor.STRIPE, getHeadersAsMap(request), getBodyAsString(request));
+      PayHook.receiveWebhookEvent(PaymentProcessor.STRIPE, getHeadersAsMap(request),
+              IOUtils.toString(request.getInputStream(), StandardCharsets.UTF_8)); // Apache Utils
     } catch (Exception e) {
       AL.warn(e);
     }
@@ -208,17 +210,6 @@ public class SpringBootExample {
       map.put(key, value);
     }
     return map;
-  }
-
-  // Simple helper method to fetch request data as a string from HttpServletRequest object.
-  private String getBodyAsString(HttpServletRequest request) throws IOException {
-    StringBuilder stringBuilder = new StringBuilder();
-    try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))){
-      int c;
-      while ((c = reader.read()) != -1)
-        stringBuilder.append(c);
-    }
-    return stringBuilder.toString();
   }
 }
 
