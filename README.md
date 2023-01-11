@@ -1,7 +1,7 @@
 # PayHook [![](https://jitpack.io/v/Osiris-Team/PayHook.svg)](https://jitpack.io/#Osiris-Team/PayHook)
-The simplest payment processing Java library in the world.
-Supports PayPal and Stripe, both regular payments and subscriptions, 
-in one unified API, with NO need of handling json and requests yourself.
+The simplest payment processing Java library in the world. Unifies PayPal and Stripe into one API. 
+Supports both regular payments and subscriptions,
+with NO need of handling json, requests, storage into a database yourself.
 [Click here for maven/gradle/sbt/leinigen instructions.](https://jitpack.io/#Osiris-Team/PayHook/LATEST)
 Java 8+ required.
 Make sure to watch this repository to get notified of future updates.
