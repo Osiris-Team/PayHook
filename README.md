@@ -171,46 +171,32 @@ Here is an example on how to do that with SpringBoot:
 
 ```java
 @RestController
-public class PayHookExample {
+public class SpringBootExample {
 
   // This listens at https://.../paypal-hook
-  // for PayPal webhook events and returns a "OK" text as response.
+  // for PayPal webhook events
   @RequestMapping(value = "paypal-hook", method = RequestMethod.POST)
-  @GetMapping(produces = "text/plain")
-  public String receiveAndRespondPayPal(HttpServletRequest request, HttpServletResponse response) {
+  public void receiveAndRespondPayPal(HttpServletRequest request, HttpServletResponse response) {
     try {
-        response.setStatusCode(HttpStatus.OK); // Directly set status code
-        response.flush();
-        PayHook.receiveWebhookEvent(
-                PaymentProcessor.PAYPAL,
-                getHeadersAsMap(request),
-                getBodyAsString(request));
+      response.setStatus(HttpServletResponse.SC_OK); // Directly set status code
+      PayHook.receiveWebhookEvent(PaymentProcessor.PAYPAL, getHeadersAsMap(request), getBodyAsString(request));
     } catch (Exception e) {
-      e.printStackTrace();
-      // TODO handle exception
+      AL.warn(e);
     }
-    return "OK"; // Always return status code 200 with an "OK" text no matter what the result to annoy attackers.
   }
 
   // This listens at https://.../stripe-hook
-  // for Stripe webhook events and returns a "OK" text as response.
+  // for Stripe webhook events
   @RequestMapping(value = "stripe-hook", method = RequestMethod.POST)
-  @GetMapping(produces = "text/plain")
-  public String receiveAndRespondStripe(HttpServletRequest request, HttpServletResponse response) {
+  public void receiveAndRespondStripe(HttpServletRequest request, HttpServletResponse response) {
     try {
-      response.setStatusCode(HttpStatus.OK); // Directly set status code
-      response.flush();
-      PayHook.receiveWebhookEvent(
-              PaymentProcessor.STRIPE,
-              getHeadersAsMap(request),
-              getBodyAsString(request));
+      response.setStatus(HttpServletResponse.SC_OK); // Directly set status code
+      PayHook.receiveWebhookEvent(PaymentProcessor.STRIPE, getHeadersAsMap(request), getBodyAsString(request));
     } catch (Exception e) {
-      e.printStackTrace();
-      // TODO handle exception
+      AL.warn(e);
     }
-    return "OK"; // Always return status code 200 with an "OK" text no matter what the result to annoy attackers.
   }
-  
+
   // Simple helper method to help you extract the headers from HttpServletRequest object.
   private Map<String, String> getHeadersAsMap(HttpServletRequest request) {
     Map<String, String> map = new HashMap<String, String>();
@@ -228,13 +214,14 @@ public class PayHookExample {
   private String getBodyAsString(HttpServletRequest request) throws IOException {
     StringBuilder stringBuilder = new StringBuilder();
     try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))){
-      String line = "";
-      while ((line=reader.readLine())!=null)
-        stringBuilder.append(line);
+      int c;
+      while ((c = reader.read()) != -1)
+        stringBuilder.append(c);
     }
     return stringBuilder.toString();
   }
 }
+
 ```
 
 ## Progress
