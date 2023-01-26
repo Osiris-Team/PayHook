@@ -65,7 +65,7 @@ You can do that easily from your current computer, just follow the steps below.
 
 - Clone this repository.
 - Run the [MainTest](https://github.com/Osiris-Team/PayHook/blob/main/src/test/java/com/osiris/payhook/MainTest.java)
-  class from your IDE (this class is a full example of a working application that integrates PayHook).
+  class from your IDE (full example of a working application that integrates PayHook).
 - Make sure to have business accounts at your desired payment processors
   and enter the sandbox/test credentials into `test-credentials.yml` (also create an
   [ngrok](ngrok.com) account, which is needed to tunnel/forward the webhook events
