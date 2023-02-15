@@ -1,8 +1,8 @@
 # PayHook [![](https://jitpack.io/v/Osiris-Team/PayHook.svg)](https://jitpack.io/#Osiris-Team/PayHook)
-The simplest payment processing Java library in the world.
-Supports PayPal and Stripe, both regular payments and subscriptions, 
-in one unified API, with NO need of handling json and requests yourself.
-[Click here for maven/gradle/sbt/leinigen instructions.](https://jitpack.io/#Osiris-Team/PayHook/LATEST)
+The simplest payment processing Java library in the world. Unifies PayPal and Stripe into one API. 
+Supports both regular payments and subscriptions,
+with NO need of handling json, requests, storage into a database yourself.
+[Click here for Maven/Gradle/Sbt/Leinigen instructions.](https://jitpack.io/#Osiris-Team/PayHook/LATEST)
 Java 8+ required.
 Make sure to watch this repository to get notified of future updates.
 Support and chat over at [Discord](https://discord.com/invite/GGNmtCC).
@@ -65,7 +65,7 @@ You can do that easily from your current computer, just follow the steps below.
 
 - Clone this repository.
 - Run the [MainTest](https://github.com/Osiris-Team/PayHook/blob/main/src/test/java/com/osiris/payhook/MainTest.java)
-  class from your IDE.
+  class from your IDE (full example of a working application that integrates PayHook).
 - Make sure to have business accounts at your desired payment processors
   and enter the sandbox/test credentials into `test-credentials.yml` (also create an
   [ngrok](ngrok.com) account, which is needed to tunnel/forward the webhook events
