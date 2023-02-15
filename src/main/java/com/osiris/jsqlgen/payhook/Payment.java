@@ -773,7 +773,7 @@ private Payment(){}
         return get("userId=?", userId);
     }
 
-    public static List<Payment> getSubscriptionPaymentsForUser(String userId){
+    public static List<Payment> getUserSubscriptionPayments(String userId){
         return whereUserId().is(userId)
                 .and(wherePaypalSubscriptionId().isNotNull()
                         .or(whereStripeSubscriptionId().isNotNull()))
@@ -781,15 +781,8 @@ private Payment(){}
         // TODO ADD NEW PAYMENT PROCESSOR
     }
 
-    /**
-     * List of payments that haven't been authorized or cancelled (or expired) yet and are in the future.
-     *
-     * @return list of payments, where {@link Payment#timestampAuthorized} is null, and
-     * {@link Payment#timestampCancelled} is null, and {@link Payment#timestampCreated} is bigger than now.
-     */
-    public static List<Payment> getPendingFuturePayments(String where, Object... objs) throws Exception {
-        return get("timestampAuthorized = 0 AND timestampCancelled = 0 AND timestampCreated > " + System.currentTimeMillis() +
-                (where != null ? " AND " + where : ""), objs);
+    public static List<Payment> getUserPendingPayments(String userId){
+        return getPendingPayments("userId=?", userId);
     }
 
     /**
@@ -798,7 +791,7 @@ private Payment(){}
      * @return list of payments, where {@link Payment#timestampAuthorized} is null, and
      * {@link Payment#timestampCancelled} is null, and {@link Payment#timestampCreated} is smaller than now and {@link Payment#timestampExpires} is bigger than now.
      */
-    public static List<Payment> getPendingPayments() throws Exception {
+    public static List<Payment> getPendingPayments() {
         return getPendingPayments(null);
     }
 
@@ -808,9 +801,13 @@ private Payment(){}
      * @return list of payments, where {@link Payment#timestampAuthorized} is null, and
      * {@link Payment#timestampCancelled} is null, and {@link Payment#timestampCreated} is smaller than now and {@link Payment#timestampExpires} is bigger than now.
      */
-    public static List<Payment> getPendingPayments(String where, Object... objs) throws Exception {
-        return get("timestampAuthorized = 0 AND timestampCancelled = 0 "
+    public static List<Payment> getPendingPayments(String where, Object... objs) {
+        return get("WHERE timestampAuthorized = 0 AND timestampCancelled = 0 "
                  + (where != null ? " AND " + where : ""), objs);
+    }
+
+    public static List<Payment> getUserAuthorizedPayments(String userId) {
+        return getAuthorizedPayments("userId=?", userId);
     }
 
     /**
@@ -819,7 +816,7 @@ private Payment(){}
      * @return list of payments, where {@link Payment#timestampAuthorized} is not null.
      * @see PayHook#onPaymentAuthorized
      */
-    public static List<Payment> getAuthorizedPayments() throws Exception {
+    public static List<Payment> getAuthorizedPayments() {
         return getAuthorizedPayments(null);
     }
 
@@ -829,8 +826,12 @@ private Payment(){}
      * @return list of payments, where {@link Payment#timestampAuthorized} is not null.
      * @see PayHook#onPaymentAuthorized
      */
-    public static List<Payment> getAuthorizedPayments(String where, Object... objs) throws Exception {
-        return get("timestampAuthorized != 0 " + (where != null ? " AND " + where : ""), objs);
+    public static List<Payment> getAuthorizedPayments(String where, Object... objs) {
+        return get("WHERE timestampAuthorized != 0 " + (where != null ? " AND " + where : ""), objs);
+    }
+
+    public static List<Payment> getUserCancelledPayments(String userId) {
+        return getCancelledPayments("userId=?", userId);
     }
 
     /**
@@ -839,7 +840,7 @@ private Payment(){}
      * @return list of payments, where {@link Payment#timestampCancelled} is not null.
      * @see PayHook#onPaymentCancelled
      */
-    public static List<Payment> getCancelledPayments() throws Exception {
+    public static List<Payment> getCancelledPayments() {
         return getCancelledPayments(null);
     }
 
@@ -849,26 +850,30 @@ private Payment(){}
      * @return list of payments, where {@link Payment#timestampCancelled} is not null.
      * @see PayHook#onPaymentCancelled
      */
-    public static List<Payment> getCancelledPayments(String where, Object... objs) throws Exception {
-        return get("timestampCancelled != 0 " + (where != null ? " AND " + where : ""), objs);
+    public static List<Payment> getCancelledPayments(String where, Object... objs) {
+        return get("WHERE timestampCancelled != 0 " + (where != null ? " AND " + where : ""), objs);
+    }
+
+    public static List<Payment> getUserRefundedPayments(String userId) {
+        return getRefundedPayments("userId=?", userId);
     }
 
     /**
      * List of payments that have been refunded.
      *
-     * @return list of payments, where {@link Payment#charge} is smaller than 0.
+     * @return list of payments, where {@link Payment#timestampRefunded} is not 0.
      */
-    public static List<Payment> getRefundedPayments() throws Exception {
+    public static List<Payment> getRefundedPayments() {
         return getRefundedPayments(null);
     }
 
     /**
      * List of payments that have been refunded.
      *
-     * @return list of payments, where {@link Payment#charge} is smaller than 0.
+     * @return list of payments, where {@link Payment#timestampRefunded} is not 0.
      */
-    public static List<Payment> getRefundedPayments(String where, Object... objs) throws Exception {
-        return get("charge <= 0 " + (where != null ? " AND " + where : ""), objs);
+    public static List<Payment> getRefundedPayments(String where, Object... objs) {
+        return get("WHERE timestampRefunded != 0 " + (where != null ? " AND " + where : ""), objs);
     }
 
     public PaymentProcessor getPaymentProcessor() {
