@@ -775,8 +775,8 @@ private Payment(){}
 
     public static List<Payment> getSubscriptionPaymentsForUser(String userId){
         return whereUserId().is(userId)
-                .and(wherePaypalSubscriptionId().isNotNull())
-                .and(whereStripeSubscriptionId().isNotNull())
+                .and(wherePaypalSubscriptionId().isNotNull()
+                        .or(whereStripeSubscriptionId().isNotNull()))
                 .get();
         // TODO ADD NEW PAYMENT PROCESSOR
     }

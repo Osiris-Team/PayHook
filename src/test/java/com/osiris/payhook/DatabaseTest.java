@@ -1,5 +1,6 @@
 package com.osiris.payhook;
 
+import ch.vorburger.exec.ManagedProcessException;
 import com.osiris.jsqlgen.payhook.Database;
 import org.junit.jupiter.api.Test;
 
@@ -7,8 +8,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class DatabaseTest {
-    @Test
-    void test() throws Exception {
+    private static boolean isInit = false;
+    public static synchronized void init() throws ManagedProcessException {
+        if(isInit) return;
         System.out.println("Starting database...");
         SQLTestServer sqlTestServer = SQLTestServer.buildAndRun();
         Database.url = sqlTestServer.getUrl();
@@ -16,7 +18,11 @@ public class DatabaseTest {
         Database.password = "";
         System.out.println("Url: " + Database.url);
         System.out.println("OK!");
-
+        isInit = true;
+    }
+    @Test
+    void test() throws Exception {
+        init();
 
         for (TestPayment p : TestPayment.get()) {
             TestPayment.delete(p);
