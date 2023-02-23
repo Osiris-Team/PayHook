@@ -974,11 +974,16 @@ public final class PayHook {
                         Product product = Product.get(firstPayment.productId);
                         if (product.charge != amountPaid)
                             throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.PAYPAL + ", expected paid amount of '" + product.charge + "' but got '" + amountPaid + "').");
-                        Payment newPayment = Payment.create(firstPayment.userId, amountPaid, product.currency, product.paymentInterval);
-                        newPayment.paypalOrderId = firstPayment.paypalOrderId;
-                        newPayment.paypalCaptureId = firstPayment.paypalCaptureId;
-                        newPayment.paypalSubscriptionId = firstPayment.paypalSubscriptionId;
+                        Payment newPayment = firstPayment.clone();
+                        newPayment.id = Payment.create(firstPayment.userId, amountPaid, product.currency, product.paymentInterval)
+                                .id;
+                        newPayment.url = null;
+                        newPayment.charge = amountPaid;
+                        newPayment.timestampCreated = now;
                         newPayment.timestampAuthorized = now;
+                        newPayment.timestampRefunded = 0;
+                        newPayment.timestampExpires = now + 100000;
+                        newPayment.timestampCancelled = 0;
                         Payment.add(newPayment);
                         onPaymentAuthorized.execute(newPayment);
                     }

@@ -105,11 +105,16 @@ public class UtilsStripe {
             Product product = Product.get(lastPayment.productId);
             if (product.charge != invoice.getAmountPaid())
                 throw new WebHookValidationException("Received invalid webhook event (" + PaymentProcessor.STRIPE + ", expected paid amount of '" + product.charge + "' but got '" + invoice.getAmountPaid() + "').");
-            Payment newPayment = Payment.create(lastPayment.userId, invoice.getAmountPaid(), product.currency, product.paymentInterval);
-            newPayment.stripeSessionId = lastPayment.stripeSessionId;
-            newPayment.stripePaymentIntentId = invoice.getPaymentIntent();
-            newPayment.stripeSubscriptionId = lastPayment.stripeSubscriptionId;
+            Payment newPayment = lastPayment.clone();
+            newPayment.id = Payment.create(lastPayment.userId, invoice.getAmountPaid(), product.currency, product.paymentInterval)
+                    .id;
+            newPayment.url = null;
+            newPayment.charge = invoice.getAmountPaid();
+            newPayment.timestampCreated = now;
             newPayment.timestampAuthorized = now;
+            newPayment.timestampRefunded = 0;
+            newPayment.timestampExpires = now + 100000;
+            newPayment.timestampCancelled = 0;
             Payment.add(newPayment);
             PayHook.onPaymentAuthorized.execute(newPayment);
         } else if ("customer.subscription.deleted".equals(type)) {// Recurring payments
