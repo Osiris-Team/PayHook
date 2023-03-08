@@ -338,4 +338,20 @@ public class PayHookExample {
 }
 ```
 </details>
+
+<details>
+<summary>How do I create a partial refund?</summary>
+
+Simply change the charge to the desired amount like so:
+```java
+Payment p = ...; // Get payment to refund, original charge = 100.
+p.charge = 10; // We are refunding only 10 cents (10%)
+// instead of 100 (the full amount) in this example.
+PayHook.refundPayment(p);
+// The charge above is only changed in memory
+// and does not get reflected in the database.
+// The database charge gets subtracted,
+// so in this case its 90 after the refund.
+```
+</details>
 </div>
