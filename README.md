@@ -72,6 +72,9 @@ You can do that easily from your current computer, just follow the steps below.
   from a public domain/ip to your current computer).
 - Enter `help` for a list of available commands once initialised.
 
+
+## Real-world usages
+
 I am running PayHook on my own site at https://autoplug.one/store.
 Even though my site is closed-source you can see how I implemented PayHook below,
 so you can get a feel for how its done in a real-world application.
