@@ -72,6 +72,169 @@ You can do that easily from your current computer, just follow the steps below.
   from a public domain/ip to your current computer).
 - Enter `help` for a list of available commands once initialised.
 
+I am running PayHook on my own site at https://autoplug.one/store.
+Even though my site is closed-source you can see how I implemented PayHook below,
+so you can get a feel for how its done in a real-world application.
+<details>
+  <summary>Show/Hide code</summary>
+
+```java
+/**
+ * GlobalData
+ */
+public class GD {
+
+    public static Product SERVER_AD_24h;
+    public static Product SERVER_AD_72h;
+    public static Product SERVER_AD_120h;
+
+    public static Product PREMIUM_1M;
+    public static Product PREMIUM_3M;
+    public static Product PREMIUM_6M;
+    public static Product PREMIUM_12M;
+
+    public static Product SELF_HOST;
+    public static Product SELF_HOST_1M;
+    public static Product SELF_HOST_3M;
+    public static Product SELF_HOST_6M;
+    public static Product SELF_HOST_12M;
+
+    static {
+
+        try {
+            PayHook.init(
+                    "Osiris-Codes",
+                    Config.master.databaseUrl,
+                    Config.master.databaseName,
+                    Config.master.databaseUser,
+                    Config.master.databasePassword,
+                    Application.IS_TEST_MODE, // Sandbox mode?
+                    Config.master.linkWebsite +"/order-created",
+                    Config.master.linkWebsite +"/order-aborted");
+
+            String paypalHookUrl = Config.master.linkWebsite +"/paypal-hook";
+            String stripeHookUrl = Config.master.linkWebsite +"/stripe-hook";
+
+            //
+            // Init processors
+            //
+            AL.info("paypalHookUrl: "+paypalHookUrl+" stripeHookUrl: "+stripeHookUrl);
+            PayHook.initPayPal(Application.IS_TEST_MODE ? Config.master.paypalSandboxClientId : Config.master.paypalClientId,
+                    Application.IS_TEST_MODE ? Config.master.paypalSandboxClientSecret :  Config.master.paypalClientSecret,
+                    paypalHookUrl);
+            PayHook.initStripe(Application.IS_TEST_MODE ? Config.master.stripeSandboxSecret : Config.master.stripeSecretKey,
+                    stripeHookUrl);
+
+            //
+            // Events for server advertisement
+            //
+            BetterConsumer<Payment> onAuthorized = payment -> {
+                List<Featured_User_Servers> servers = Featured_User_Servers.wherePayment_id().is(payment.id).get();
+                if(servers.isEmpty()) throw new Exception("No featured server found for payment: "+ payment.toPrintString());
+                Featured_User_Servers server = servers.get(0);
+                server.isAuthorized = 1;
+                Featured_User_Servers.update(server);
+            };
+            BetterConsumer<Payment> onRefunded = payment -> {
+                Featured_User_Servers.wherePayment_id().is(payment.id).remove();
+            };
+            BetterConsumer<Payment> onCancelled = payment -> {
+                if(!payment.isAuthorized()) return; // Do nothing if the payment was not authorized
+                payment.timestampCancelled = System.currentTimeMillis();
+                Payment.update(payment); // To make sure this doesn't get executed again through expired event.
+                Featured_User_Servers.wherePayment_id().is(payment.id).remove();
+            };
+            BetterConsumer<Payment> onExpired = onCancelled;
+            SERVER_AD_24h = PayHook.putProduct(0, 999, "EUR", "Server feature 24h", "One time payment for adding your server for 24 hours to the 'featured servers' list.",
+                    Payment.Interval.NONE).onPaymentAuthorized(onAuthorized, AL::warn).onPaymentRefunded(onRefunded, AL::warn).onPaymentCancelled(onCancelled, AL::warn).onPaymentExpired(onExpired, AL::warn);
+            SERVER_AD_72h = PayHook.putProduct(1, 2997, "EUR", "Server feature 72h", "One time payment for adding your server for 72 hours to the 'featured servers' list.",
+                    Payment.Interval.NONE).onPaymentAuthorized(onAuthorized, AL::warn).onPaymentRefunded(onRefunded, AL::warn).onPaymentCancelled(onCancelled, AL::warn).onPaymentExpired(onExpired, AL::warn);
+            SERVER_AD_120h = PayHook.putProduct(2, 4995, "EUR", "Server feature 120h", "One time payment for adding your server for 120 hours to the 'featured servers' list.",
+                    Payment.Interval.NONE).onPaymentAuthorized(onAuthorized, AL::warn).onPaymentRefunded(onRefunded, AL::warn).onPaymentCancelled(onCancelled, AL::warn).onPaymentExpired(onExpired, AL::warn);
+
+            //
+            // Events for premium subscription
+            //
+            onAuthorized = payment -> {
+                Commands.upgradeUserToPremium(payment.userId);
+            };
+            onRefunded = payment -> {
+                Commands.downgradePremiumUser(payment.userId);
+            };
+            onCancelled = payment -> {
+                if(!payment.isAuthorized()) return; // Do nothing if the payment was not authorized
+                // Only disable if there is no time left
+                Subscription sub = new Subscription(payment);
+                if(!sub.isTimeLeft()){
+                    Commands.downgradePremiumUser(payment.userId);
+                    payment.timestampCancelled = System.currentTimeMillis();
+                    Payment.update(payment); // To make sure this doesn't get executed again through expired event.
+                }
+            };
+            onExpired = onCancelled;
+            // Currently, discounts are not added:
+            PREMIUM_1M = PayHook.putProduct(3, 199, "EUR", "Premium-Membership", "Recurring payment for Premium-Membership at "+Config.master.linkRawWebsite +".",
+                    Payment.Interval.MONTHLY).onPaymentAuthorized(onAuthorized, AL::warn).onPaymentRefunded(onRefunded, AL::warn).onPaymentCancelled(onCancelled, AL::warn).onPaymentExpired(onExpired, AL::warn);
+            PREMIUM_3M = PayHook.putProduct(4, 597, "EUR", "Premium-Membership", "Recurring payment for Premium-Membership at "+Config.master.linkRawWebsite +".",
+                    Payment.Interval.TRI_MONTHLY).onPaymentAuthorized(onAuthorized, AL::warn).onPaymentRefunded(onRefunded, AL::warn).onPaymentCancelled(onCancelled, AL::warn).onPaymentExpired(onExpired, AL::warn);
+            PREMIUM_6M = PayHook.putProduct(5, 1194, "EUR", "Premium-Membership", "Recurring payment for Premium-Membership at "+Config.master.linkRawWebsite +".",
+                    Payment.Interval.HALF_YEARLY).onPaymentAuthorized(onAuthorized, AL::warn).onPaymentRefunded(onRefunded, AL::warn).onPaymentCancelled(onCancelled, AL::warn).onPaymentExpired(onExpired, AL::warn);
+            PREMIUM_12M = PayHook.putProduct(6, 2388, "EUR", "Premium-Membership", "Recurring payment for Premium-Membership at "+Config.master.linkRawWebsite +".",
+                    Payment.Interval.YEARLY).onPaymentAuthorized(onAuthorized, AL::warn).onPaymentRefunded(onRefunded, AL::warn).onPaymentCancelled(onCancelled, AL::warn).onPaymentExpired(onExpired, AL::warn);
+
+
+            //
+            // Events for autoplug web license
+            //
+            onAuthorized = payment -> {
+                Commands.addAutoPlugWebLicense(payment.userId, payment.id);
+            };
+            onRefunded = payment -> {
+                Commands.removeAutoPlugWebLicense(payment.id);
+            };
+            onCancelled = payment -> {
+                if(!payment.isAuthorized()) return; // Do nothing if the payment was not authorized
+                // Only disable if there is no time left
+                Subscription sub = new Subscription(payment);
+                if(!sub.isTimeLeft()){
+                    Commands.removeAutoPlugWebLicense(payment.id);
+                    payment.timestampCancelled = System.currentTimeMillis();
+                    Payment.update(payment); // To make sure this doesn't get executed again through expired event.
+                }
+            };
+            onExpired = onCancelled;
+            // Equals price for 10 years, monthly payment of 14,99€ -> 1798,80 €
+            SELF_HOST = PayHook.putProduct(7, 179880, "EUR", "AutoPlug-Web self-host", "One time payment for AutoPlug-Web self-host.",
+                    Payment.Interval.NONE).onPaymentAuthorized(onAuthorized, AL::warn).onPaymentRefunded(onRefunded, AL::warn).onPaymentCancelled(onCancelled, AL::warn).onPaymentExpired(onExpired, AL::warn);
+            // Currently, discounts are not added:
+            SELF_HOST_1M = PayHook.putProduct(8, 1499, "EUR", "AutoPlug-Web self-host", "Recurring payment for AutoPlug-Web self-host at "+Config.master.linkRawWebsite +".",
+                    Payment.Interval.MONTHLY).onPaymentAuthorized(onAuthorized, AL::warn).onPaymentRefunded(onRefunded, AL::warn).onPaymentCancelled(onCancelled, AL::warn).onPaymentExpired(onExpired, AL::warn);
+            SELF_HOST_3M = PayHook.putProduct(9, 4497, "EUR", "AutoPlug-Web self-host", "Recurring payment for AutoPlug-Web self-host at "+Config.master.linkRawWebsite +".",
+                    Payment.Interval.TRI_MONTHLY).onPaymentAuthorized(onAuthorized, AL::warn).onPaymentRefunded(onRefunded, AL::warn).onPaymentCancelled(onCancelled, AL::warn).onPaymentExpired(onExpired, AL::warn);
+            SELF_HOST_6M = PayHook.putProduct(10, 8994, "EUR", "AutoPlug-Web self-host", "Recurring payment for AutoPlug-Web self-host at "+Config.master.linkRawWebsite +".",
+                    Payment.Interval.HALF_YEARLY).onPaymentAuthorized(onAuthorized, AL::warn).onPaymentRefunded(onRefunded, AL::warn).onPaymentCancelled(onCancelled, AL::warn).onPaymentExpired(onExpired, AL::warn);
+            SELF_HOST_12M = PayHook.putProduct(11, 17988, "EUR", "AutoPlug-Web self-host", "Recurring payment for AutoPlug-Web self-host at "+Config.master.linkRawWebsite +".",
+                    Payment.Interval.YEARLY).onPaymentAuthorized(onAuthorized, AL::warn).onPaymentRefunded(onRefunded, AL::warn).onPaymentCancelled(onCancelled, AL::warn).onPaymentExpired(onExpired, AL::warn);
+
+            PayHook.onPaymentExpired.addAction(payment -> {
+                // Payment was not authorized within the max time
+                // Remove it from the database
+                if(!payment.isAuthorized()){
+                    String s = "Removed expired payment because it was not authorized/paid in time. Product \""+payment.productName+"\" for "
+                            +new Converter().toMoneyString("EUR", payment.charge)+", created at: "+payment.timestampCreated;
+                    Notify.addNotification(payment.userId, "Removed expired payment.", s);
+                    Payment.remove(payment);
+                    AL.info(s);
+                }
+
+            });
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+```
+</details>
+
 ## Installation
 
 You can run PayHook as a standalone command line app (this is in TODO),
@@ -244,23 +407,21 @@ public class SpringBootExample {
     - (paypal) subscription initial payment.
     - (stripe) checkout payment.
     - (stripe) subscription initial payment.
-- **Cancel:**
-    - (stripe) payment.
-    - (stripe) subscription payment.
-- **Refund:**
-    - (stripe) payment.
-    - (stripe) subscription payment.
-
-#### 🔴 Untested, unimplemented or not working
-- **Authorize:**
     - (paypal) subscription following payment.
     - (stripe) subscription following payment.
 - **Cancel:**
+    - (stripe) payment.
+    - (stripe) subscription payment.
     - (paypal) payment.
     - (paypal) subscription payment.
 - **Refund:**
+    - (stripe) payment.
+    - (stripe) subscription payment.
     - (paypal) payment.
     - (paypal) subscription payment.
+
+#### 🔴 Untested, unimplemented or not working
+
 
 ## FAQ
 <div>
