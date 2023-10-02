@@ -436,7 +436,7 @@ Note that validation is already done automatically by PayHook.
 This example shows how to do it manually.
 Its only a few lines:
 ```java
-MyPayPal paypal = new MyPayPal(clientId, clientSecret, MyPayPal.Mode.SANDBOX);
+PayPalUtils paypal = new PayPalUtils(clientId, clientSecret, MyPayPal.Mode.SANDBOX);
 PaypalWebhookEvent event = new PaypalWebhookEvent(paypalWebhookId, paypalWebhookEventTypes, header, body);
 if(!paypal.isWebhookEventValid(event)){
     System.err.println("Received invalid PayPal webhook event.");
@@ -450,7 +450,7 @@ Here is a complete SpringBoot example:
 @RequestMapping(value = "paypal-hook", method = RequestMethod.POST)
 public class PayHookExample {
 
-    MyPayPal paypal = new MyPayPal(clientId, clientSecret, MyPayPal.Mode.SANDBOX);
+    PayPalUtils paypal = new PayPalUtils(clientId, clientSecret, MyPayPal.Mode.SANDBOX);
 
     // This listens at https://.../paypal-hook
     // for paypal notification messages and returns a "OK" text as response.
