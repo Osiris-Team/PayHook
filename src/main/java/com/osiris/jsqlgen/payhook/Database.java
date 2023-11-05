@@ -19,7 +19,7 @@ All tables use the cached connection pool in this class which has following adva
 public class Database{
 public static String rawUrl = com.osiris.payhook.PayHook.databaseRawUrl;
 public static String url = com.osiris.payhook.PayHook.databaseUrl;
-public static String name = com.osiris.payhook.PayHook.databaseName;
+public static String name = "payhook";
 public static String username = com.osiris.payhook.PayHook.databaseUsername;
 public static String password = com.osiris.payhook.PayHook.databasePassword;
 private static final List<Connection> availableConnections = new ArrayList<>();
@@ -40,6 +40,7 @@ public static void create() {
         try {
             driverClass = Class.forName(driverClassName);
             Objects.requireNonNull(driverClass);
+            break; // No need to continue, since registration was a success 
         } catch (Exception e) {
             lastException = e;
         }
