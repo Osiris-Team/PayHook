@@ -195,6 +195,7 @@ public final class PayHook {
      * Always null, except when doing init of database.
      */
     public static String databaseUrl = null;
+    public static String databaseRawUrl = null;
     /**
      * Always null, except when doing init of database.
      */
@@ -238,12 +239,14 @@ public final class PayHook {
         if (isSandbox && (!databaseUrl.contains("sandbox") && !databaseUrl.contains("test")))
             throw new SQLException("You are running in sandbox mode, thus your database-url/name must contain 'sandbox' or 'test'!");
         PayHook.databaseUrl = databaseUrl;
+        PayHook.databaseRawUrl = getRawDbUrlFrom(databaseUrl);
         PayHook.databaseName = Objects.requireNonNull(databaseName);
         PayHook.databaseUsername = Objects.requireNonNull(databaseUsername);
         PayHook.databasePassword = Objects.requireNonNull(databasePassword);
         com.osiris.jsqlgen.payhook.Database.create();
         // Reset values since they aren't needed anymore
         PayHook.databaseUrl = null;
+        PayHook.databaseRawUrl = null;
         PayHook.databaseName = null;
         PayHook.databaseUsername = null;
         PayHook.databasePassword = null;
@@ -285,6 +288,26 @@ public final class PayHook {
         paymentsCheckerThread.start();
 
         isInitialised = true;
+    }
+
+    /**
+     * Gets the raw database url without database name. <br>
+     * Before: "jdbc:mysql://localhost/my_database" <br>
+     * After: "jdbc:mysql://localhost" <br>
+     */
+    private static String getRawDbUrlFrom(String databaseUrl) {
+        int index = 0;
+        int count = 0;
+        for (int i = 0; i < databaseUrl.length(); i++) {
+            char c = databaseUrl.charAt(i);
+            if(c == '/'){
+                index = i;
+                count++;
+            }
+            if(count == 3) break;
+        }
+        if(count != 3) return databaseUrl; // Means there is less than 3 "/", thus may already be raw url, or totally wrong url
+        return databaseUrl.substring(0, index);
     }
 
     public static void initCommandLineTool() {

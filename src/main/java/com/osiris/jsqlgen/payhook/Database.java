@@ -16,7 +16,7 @@ All tables use the cached connection pool in this class which has following adva
 - Ensures optimal performance (cpu and memory usage) for any type of database from small to huge, with millions of queries per second.
 - Connection status is checked before doing a query (since it could be closed or timed out and thus result in errors).*/
 public class Database{
-public static String rawUrl = "jdbc:mysql://localhost/";
+public static String rawUrl = com.osiris.payhook.PayHook.databaseRawUrl;
 public static String url = com.osiris.payhook.PayHook.databaseUrl;
 public static String name = com.osiris.payhook.PayHook.databaseName;
 public static String username = com.osiris.payhook.PayHook.databaseUsername;
