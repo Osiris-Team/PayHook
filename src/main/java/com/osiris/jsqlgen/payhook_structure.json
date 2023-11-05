@@ -190,6 +190,52 @@
       "isDebug": false,
       "isNoExceptions": true,
       "isCache": false
+    },
+    {
+      "name": "PendingPaymentCancel",
+      "columns": [
+        {
+          "name": "id",
+          "nameQuoted": "`id`",
+          "definition": "INT NOT NULL PRIMARY KEY"
+        },
+        {
+          "name": "paymentId",
+          "nameQuoted": "`paymentId`",
+          "definition": "INT NOT NULL"
+        },
+        {
+          "name": "timestampCancel",
+          "nameQuoted": "`timestampCancel`",
+          "definition": "BIGINT NOT NULL"
+        }
+      ],
+      "isDebug": false,
+      "isNoExceptions": true,
+      "isCache": false
+    },
+    {
+      "name": "WebhookEndpoint",
+      "columns": [
+        {
+          "name": "id",
+          "nameQuoted": "`id`",
+          "definition": "INT NOT NULL PRIMARY KEY"
+        },
+        {
+          "name": "url",
+          "nameQuoted": "`url`",
+          "definition": "TEXT NOT NULL"
+        },
+        {
+          "name": "stripeWebhookSecret",
+          "nameQuoted": "`stripeWebhookSecret`",
+          "definition": "TEXT NOT NULL"
+        }
+      ],
+      "isDebug": false,
+      "isNoExceptions": true,
+      "isCache": false
     }
   ],
   "javaProjectDir": "D:\\Coding\\JAVA\\PayHook"

@@ -5,6 +5,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
@@ -27,22 +28,27 @@ private static final List<Connection> availableConnections = new ArrayList<>();
 
 public static void create() {
 
-        // Do the below to avoid "No suitable driver found..." exception 
-        String driverClassName = "com.mysql.cj.jdbc.Driver";
+        // Do the below to avoid "No suitable driver found..." exception
+        String[] driversClassNames = new String[]{"com.mysql.cj.jdbc.Driver", "com.mysql.jdbc.Driver",
+        "oracle.jdbc.OracleDriver", "com.microsoft.sqlserver.jdbc.SQLServerDriver", "org.postgresql.Driver",
+        "org.sqlite.JDBC", "org.h2.Driver", "com.ibm.db2.jcc.DB2Driver", "org.apache.derby.jdbc.ClientDriver",
+        "org.mariadb.jdbc.Driver", "org.apache.derby.jdbc.ClientDriver"};
+        Class<?> driverClass = null;
+        Exception lastException = null;
+    for (int i = 0; i < driversClassNames.length; i++) {
+        String driverClassName = driversClassNames[i];
         try {
-            Class<?> driverClass = Class.forName(driverClassName);
+            driverClass = Class.forName(driverClassName);
             Objects.requireNonNull(driverClass);
-        } catch (ClassNotFoundException e) {
-            try {
-                driverClassName = "com.mysql.jdbc.Driver"; // Try deprecated driver as fallback
-                Class<?> driverClass = Class.forName(driverClassName);
-                Objects.requireNonNull(driverClass);
-            } catch (ClassNotFoundException ex) {
-                ex.printStackTrace();
-                System.err.println("Failed to find critical database driver class: "+driverClassName+" program will exit.");
-                System.exit(1);
-            }
+        } catch (Exception e) {
+            lastException = e;
         }
+    }
+    if(driverClass == null){
+        if(lastException != null) lastException.printStackTrace();
+        System.err.println("Failed to find critical database driver class, program will exit! Searched classes: "+ Arrays.toString(driversClassNames));
+        System.exit(1);
+    }
 
         // Create database if not exists
         try(Connection c = DriverManager.getConnection(Database.rawUrl, Database.username, Database.password);
