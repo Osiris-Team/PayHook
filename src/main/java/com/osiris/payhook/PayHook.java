@@ -972,7 +972,7 @@ public final class PayHook {
                 case "PAYMENT.SALE.COMPLETED": { // Recurring payments only
                     //System.out.println("PAYMENT.SALE.COMPLETED \n"+event.getBodyString());
                     // custom_id is set at subscription creation and is equal to the first paymentId of the subscription
-                    Payment firstPayment = Payment.whereId().is(resource.get("custom").getAsString()).get().get(0); // custom == custom_id (idk why they call it only custom)
+                    Payment firstPayment = Payment.whereId().is(Integer.valueOf(resource.get("custom").getAsString())).get().get(0); // custom == custom_id (idk why they call it only custom)
                     Money moneyPaid = new Money()
                             .value(resource.get("amount").getAsJsonObject().get("total").getAsString())
                             .currencyCode(resource.get("amount").getAsJsonObject().get("currency").getAsString());
@@ -1027,7 +1027,7 @@ public final class PayHook {
                     //     * of the first. Thus, we need to search for all payments with the same paypal ids.
                     //     * Stripe provides an order id in its refund event thus its easier to get all the payments.
                     String paymentId = resource.get("custom_id").getAsString();
-                    List<Payment> payments = Payment.whereId().is(paymentId).get();
+                    List<Payment> payments = Payment.whereId().is(Integer.valueOf(paymentId)).get();
                     if (payments.isEmpty()) throw new WebHookValidationException(
                             "Received invalid webhook event (" + PaymentProcessor.PAYPAL + ", failed to find payment with id '" + paymentId + "' in local database).");
                     Payment firstPayment = payments.get(0);
@@ -1043,7 +1043,7 @@ public final class PayHook {
                 case "PAYMENT.SALE.REFUNDED": {
                     // SAME AS ABOVE
                     String paymentId = resource.get("custom").getAsString(); // Same as custom_id
-                    List<Payment> payments = Payment.whereId().is(paymentId).get();
+                    List<Payment> payments = Payment.whereId().is(Integer.valueOf(paymentId)).get();
                     if (payments.isEmpty()) throw new WebHookValidationException(
                             "Received invalid webhook event (" + PaymentProcessor.PAYPAL + ", failed to find payment with id '" + paymentId + "' in local database).");
                     Payment firstPayment = payments.get(0);

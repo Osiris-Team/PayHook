@@ -17,12 +17,15 @@ All tables use the cached connection pool in this class which has following adva
 - Ensures optimal performance (cpu and memory usage) for any type of database from small to huge, with millions of queries per second.
 - Connection status is checked before doing a query (since it could be closed or timed out and thus result in errors).*/
 public class Database{
-public static String rawUrl = com.osiris.payhook.PayHook.databaseRawUrl;
 public static String url = com.osiris.payhook.PayHook.databaseUrl;
+public static String rawUrl = com.osiris.payhook.PayHook.databaseRawUrl;
 public static String name = com.osiris.payhook.PayHook.databaseName;
 public static String username = com.osiris.payhook.PayHook.databaseUsername;
 public static String password = com.osiris.payhook.PayHook.databasePassword;
-private static final List<Connection> availableConnections = new ArrayList<>();
+/** 
+* Use synchronized on this before doing changes to it. 
+*/
+public static final List<Connection> availableConnections = new ArrayList<>();
 
     static{create();} // Create database if not exists
 
@@ -65,18 +68,19 @@ public static void create() {
     public static Connection getCon() {
         synchronized (availableConnections){
             try{
+                Connection availableCon = null;
                 if (!availableConnections.isEmpty()) {
                     List<Connection> removableConnections = new ArrayList<>(0);
                     for (Connection con : availableConnections) {
-                        if (con.isValid(1)) return con;
-                        else removableConnections.add(con);
+                        if (!con.isValid(1)) {con.close(); removableConnections.add(con);}
+                        else {availableCon = con; removableConnections.add(con); break;}
                     }
                     for (Connection removableConnection : removableConnections) {
-                        removableConnection.close();
-                        availableConnections.remove(removableConnection); // Remove invalid connections
+                        availableConnections.remove(removableConnection); // Remove invalid or used connections
                     }
                 }
-                return DriverManager.getConnection(Database.url, Database.username, Database.password);
+                if (availableCon != null) return availableCon;
+                else return DriverManager.getConnection(Database.url, Database.username, Database.password);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -88,4 +92,22 @@ public static void create() {
             availableConnections.add(connection);
         }
     }
-}
+    /**
+     * Gets the raw database url without database name. <br>
+     * Before: "jdbc:mysql://localhost/my_database" <br>
+     * After: "jdbc:mysql://localhost" <br>
+     */
+    public static String getRawDbUrlFrom(String databaseUrl) {
+        int index = 0;
+        int count = 0;
+        for (int i = 0; i < databaseUrl.length(); i++) {
+            char c = databaseUrl.charAt(i);
+            if(c == '/'){
+                index = i;
+                count++;
+            }
+            if(count == 3) break;
+        }
+        if(count != 3) return databaseUrl; // Means there is less than 3 "/", thus may already be raw url, or totally wrong url
+        return databaseUrl.substring(0, index);
+    }}

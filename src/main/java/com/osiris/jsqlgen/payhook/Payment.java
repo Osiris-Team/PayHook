@@ -21,7 +21,7 @@ If modifications are really needed create a pull request directly to jSQL-Gen in
 NO EXCEPTIONS is enabled which makes it possible to use this methods outside of try/catch blocks because SQL errors will be caught and thrown as runtime exceptions instead. <br>
 */
 public class Payment{
-private static java.util.concurrent.atomic.AtomicInteger idCounter = new java.util.concurrent.atomic.AtomicInteger(0);
+public static java.util.concurrent.atomic.AtomicInteger idCounter = new java.util.concurrent.atomic.AtomicInteger(0);
 static {
 try{
 Connection con = Database.getCon();
@@ -246,11 +246,11 @@ get("WHERE username=? AND age=?", "Peter", 33);  <br>
 if that statement is null, returns all the contents of this table.
 */
 public static List<Payment> get(String where, Object... whereValues)  {
-Connection con = Database.getCon();
 String sql = "SELECT `id`,`userId`,`charge`,`currency`,`interval`,`url`,`productId`,`productName`,`productQuantity`,`timestampCreated`,`timestampExpires`,`timestampAuthorized`,`timestampCancelled`,`timestampRefunded`,`stripeSessionId`,`stripeSubscriptionId`,`stripePaymentIntentId`,`paypalOrderId`,`paypalSubscriptionId`,`paypalCaptureId`" +
 " FROM `payment`" +
 (where != null ? where : "");
 List<Payment> list = new ArrayList<>();
+Connection con = Database.getCon();
 try (PreparedStatement ps = con.prepareStatement(sql)) {
 if(where!=null && whereValues!=null)
 for (int i = 0; i < whereValues.length; i++) {
@@ -338,6 +338,8 @@ return list;
         }).start();
     }
 
+public static int count(){ return count(null, null); }
+
 public static int count(String where, Object... whereValues)  {
 String sql = "SELECT COUNT(`id`) AS recordCount FROM `payment`" +
 (where != null ? where : ""); 
@@ -361,9 +363,9 @@ and updates all its fields.
 @throws Exception when failed to find by id or other SQL issues.
 */
 public static void update(Payment obj)  {
+String sql = "UPDATE `payment` SET `id`=?,`userId`=?,`charge`=?,`currency`=?,`interval`=?,`url`=?,`productId`=?,`productName`=?,`productQuantity`=?,`timestampCreated`=?,`timestampExpires`=?,`timestampAuthorized`=?,`timestampCancelled`=?,`timestampRefunded`=?,`stripeSessionId`=?,`stripeSubscriptionId`=?,`stripePaymentIntentId`=?,`paypalOrderId`=?,`paypalSubscriptionId`=?,`paypalCaptureId`=? WHERE id="+obj.id;
 Connection con = Database.getCon();
-try (PreparedStatement ps = con.prepareStatement(
-                "UPDATE `payment` SET `id`=?,`userId`=?,`charge`=?,`currency`=?,`interval`=?,`url`=?,`productId`=?,`productName`=?,`productQuantity`=?,`timestampCreated`=?,`timestampExpires`=?,`timestampAuthorized`=?,`timestampCancelled`=?,`timestampRefunded`=?,`stripeSessionId`=?,`stripeSubscriptionId`=?,`stripePaymentIntentId`=?,`paypalOrderId`=?,`paypalSubscriptionId`=?,`paypalCaptureId`=? WHERE id="+obj.id)) {
+try (PreparedStatement ps = con.prepareStatement(sql)) {
 ps.setInt(1, obj.id);
 ps.setString(2, obj.userId);
 ps.setLong(3, obj.charge);
@@ -393,9 +395,9 @@ finally{Database.freeCon(con);}
 Adds the provided object to the database (note that the id is not checked for duplicates).
 */
 public static void add(Payment obj)  {
+String sql = "INSERT INTO `payment` (`id`,`userId`,`charge`,`currency`,`interval`,`url`,`productId`,`productName`,`productQuantity`,`timestampCreated`,`timestampExpires`,`timestampAuthorized`,`timestampCancelled`,`timestampRefunded`,`stripeSessionId`,`stripeSubscriptionId`,`stripePaymentIntentId`,`paypalOrderId`,`paypalSubscriptionId`,`paypalCaptureId`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)";
 Connection con = Database.getCon();
-try (PreparedStatement ps = con.prepareStatement(
-                "INSERT INTO `payment` (`id`,`userId`,`charge`,`currency`,`interval`,`url`,`productId`,`productName`,`productQuantity`,`timestampCreated`,`timestampExpires`,`timestampAuthorized`,`timestampCancelled`,`timestampRefunded`,`stripeSessionId`,`stripeSubscriptionId`,`stripePaymentIntentId`,`paypalOrderId`,`paypalSubscriptionId`,`paypalCaptureId`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)")) {
+try (PreparedStatement ps = con.prepareStatement(sql)) {
 ps.setInt(1, obj.id);
 ps.setString(2, obj.userId);
 ps.setLong(3, obj.charge);
@@ -450,9 +452,9 @@ finally{Database.freeCon(con);}
 }
 
 public static void removeAll()  {
-        Connection con = Database.getCon();
-        try (PreparedStatement ps = con.prepareStatement(
-                "DELETE FROM `payment`")) {
+String sql = "DELETE FROM `payment`";
+Connection con = Database.getCon();
+        try (PreparedStatement ps = con.prepareStatement(sql)) {
             ps.executeUpdate();
 }catch(Exception e){throw new RuntimeException(e);}
         finally{Database.freeCon(con);}
@@ -464,67 +466,67 @@ return new Payment(this.id,this.userId,this.charge,this.currency,this.interval,t
 public String toPrintString(){
 return  ""+"id="+this.id+" "+"userId="+this.userId+" "+"charge="+this.charge+" "+"currency="+this.currency+" "+"interval="+this.interval+" "+"url="+this.url+" "+"productId="+this.productId+" "+"productName="+this.productName+" "+"productQuantity="+this.productQuantity+" "+"timestampCreated="+this.timestampCreated+" "+"timestampExpires="+this.timestampExpires+" "+"timestampAuthorized="+this.timestampAuthorized+" "+"timestampCancelled="+this.timestampCancelled+" "+"timestampRefunded="+this.timestampRefunded+" "+"stripeSessionId="+this.stripeSessionId+" "+"stripeSubscriptionId="+this.stripeSubscriptionId+" "+"stripePaymentIntentId="+this.stripePaymentIntentId+" "+"paypalOrderId="+this.paypalOrderId+" "+"paypalSubscriptionId="+this.paypalSubscriptionId+" "+"paypalCaptureId="+this.paypalCaptureId+" ";
 }
-public static WHERE whereId() {
-return new WHERE("`id`");
+public static WHERE<Integer> whereId() {
+return new WHERE<Integer>("`id`");
 }
-public static WHERE whereUserId() {
-return new WHERE("`userId`");
+public static WHERE<String> whereUserId() {
+return new WHERE<String>("`userId`");
 }
-public static WHERE whereCharge() {
-return new WHERE("`charge`");
+public static WHERE<Long> whereCharge() {
+return new WHERE<Long>("`charge`");
 }
-public static WHERE whereCurrency() {
-return new WHERE("`currency`");
+public static WHERE<String> whereCurrency() {
+return new WHERE<String>("`currency`");
 }
-public static WHERE whereInterval() {
-return new WHERE("`interval`");
+public static WHERE<Integer> whereInterval() {
+return new WHERE<Integer>("`interval`");
 }
-public static WHERE whereUrl() {
-return new WHERE("`url`");
+public static WHERE<String> whereUrl() {
+return new WHERE<String>("`url`");
 }
-public static WHERE whereProductId() {
-return new WHERE("`productId`");
+public static WHERE<Integer> whereProductId() {
+return new WHERE<Integer>("`productId`");
 }
-public static WHERE whereProductName() {
-return new WHERE("`productName`");
+public static WHERE<String> whereProductName() {
+return new WHERE<String>("`productName`");
 }
-public static WHERE whereProductQuantity() {
-return new WHERE("`productQuantity`");
+public static WHERE<Integer> whereProductQuantity() {
+return new WHERE<Integer>("`productQuantity`");
 }
-public static WHERE whereTimestampCreated() {
-return new WHERE("`timestampCreated`");
+public static WHERE<Long> whereTimestampCreated() {
+return new WHERE<Long>("`timestampCreated`");
 }
-public static WHERE whereTimestampExpires() {
-return new WHERE("`timestampExpires`");
+public static WHERE<Long> whereTimestampExpires() {
+return new WHERE<Long>("`timestampExpires`");
 }
-public static WHERE whereTimestampAuthorized() {
-return new WHERE("`timestampAuthorized`");
+public static WHERE<Long> whereTimestampAuthorized() {
+return new WHERE<Long>("`timestampAuthorized`");
 }
-public static WHERE whereTimestampCancelled() {
-return new WHERE("`timestampCancelled`");
+public static WHERE<Long> whereTimestampCancelled() {
+return new WHERE<Long>("`timestampCancelled`");
 }
-public static WHERE whereTimestampRefunded() {
-return new WHERE("`timestampRefunded`");
+public static WHERE<Long> whereTimestampRefunded() {
+return new WHERE<Long>("`timestampRefunded`");
 }
-public static WHERE whereStripeSessionId() {
-return new WHERE("`stripeSessionId`");
+public static WHERE<String> whereStripeSessionId() {
+return new WHERE<String>("`stripeSessionId`");
 }
-public static WHERE whereStripeSubscriptionId() {
-return new WHERE("`stripeSubscriptionId`");
+public static WHERE<String> whereStripeSubscriptionId() {
+return new WHERE<String>("`stripeSubscriptionId`");
 }
-public static WHERE whereStripePaymentIntentId() {
-return new WHERE("`stripePaymentIntentId`");
+public static WHERE<String> whereStripePaymentIntentId() {
+return new WHERE<String>("`stripePaymentIntentId`");
 }
-public static WHERE wherePaypalOrderId() {
-return new WHERE("`paypalOrderId`");
+public static WHERE<String> wherePaypalOrderId() {
+return new WHERE<String>("`paypalOrderId`");
 }
-public static WHERE wherePaypalSubscriptionId() {
-return new WHERE("`paypalSubscriptionId`");
+public static WHERE<String> wherePaypalSubscriptionId() {
+return new WHERE<String>("`paypalSubscriptionId`");
 }
-public static WHERE wherePaypalCaptureId() {
-return new WHERE("`paypalCaptureId`");
+public static WHERE<String> wherePaypalCaptureId() {
+return new WHERE<String>("`paypalCaptureId`");
 }
-public static class WHERE {
+public static class WHERE<T> {
         /**
          * Remember to prepend WHERE on the final SQL statement.
          * This is not done by this class due to performance reasons. <p>
@@ -557,7 +559,7 @@ public static class WHERE {
             if(!whereObjects.isEmpty())
                 return Payment.get(where+orderBy+limitBuilder.toString(), whereObjects.toArray());
             else
-                return Payment.get(where+orderBy+limitBuilder.toString(), (Object[]) null);
+                return Payment.get(where+orderBy+limitBuilder.toString(), (T[]) null);
         }
 
         /**
@@ -572,7 +574,7 @@ public static class WHERE {
             if(!whereObjects.isEmpty())
                 return Payment.count(where+orderBy+limitBuilder.toString(), whereObjects.toArray());
             else
-                return Payment.count(where+orderBy+limitBuilder.toString(), (Object[]) null);
+                return Payment.count(where+orderBy+limitBuilder.toString(), (T[]) null);
         }
 
         /**
@@ -587,13 +589,13 @@ public static class WHERE {
             if(!whereObjects.isEmpty())
                 Payment.remove(where+orderBy+limitBuilder.toString(), whereObjects.toArray());
             else
-                Payment.remove(where+orderBy+limitBuilder.toString(), (Object[]) null);
+                Payment.remove(where+orderBy+limitBuilder.toString(), (T[]) null);
         }
 
         /**
          * AND (...) <br>
          */
-        public WHERE and(WHERE where) {
+        public WHERE<T> and(WHERE<?> where) {
             String sql = where.sqlBuilder.toString();
             if(!sql.isEmpty()) {
             sqlBuilder.append("AND (").append(sql).append(") ");
@@ -606,7 +608,7 @@ public static class WHERE {
         /**
          * OR (...) <br>
          */
-        public WHERE or(WHERE where) {
+        public WHERE<T> or(WHERE<?> where) {
             String sql = where.sqlBuilder.toString();
             if(!sql.isEmpty()) {
             sqlBuilder.append("OR (").append(sql).append(") ");
@@ -619,7 +621,7 @@ public static class WHERE {
         /**
          * columnName = ? <br>
          */
-        public WHERE is(Object obj) {
+        public WHERE<T> is(T obj) {
             sqlBuilder.append(columnName).append(" = ? ");
             whereObjects.add(obj);
             return this;
@@ -630,9 +632,9 @@ public static class WHERE {
          *
          * @see <a href="https://www.w3schools.com/mysql/mysql_in.asp">https://www.w3schools.com/mysql/mysql_in.asp</a>
          */
-        public WHERE is(Object... objects) {
+        public WHERE<T> is(T... objects) {
             String s = "";
-            for (Object obj : objects) {
+            for (T obj : objects) {
                 s += "?,";
                 whereObjects.add(obj);
             }
@@ -644,7 +646,7 @@ public static class WHERE {
         /**
          * columnName <> ? <br>
          */
-        public WHERE isNot(Object obj) {
+        public WHERE<T> isNot(T obj) {
             sqlBuilder.append(columnName).append(" <> ? ");
             whereObjects.add(obj);
             return this;
@@ -653,7 +655,7 @@ public static class WHERE {
         /**
          * columnName IS NULL <br>
          */
-        public WHERE isNull() {
+        public WHERE<T> isNull() {
             sqlBuilder.append(columnName).append(" IS NULL ");
             return this;
         }
@@ -661,7 +663,7 @@ public static class WHERE {
         /**
          * columnName IS NOT NULL <br>
          */
-        public WHERE isNotNull() {
+        public WHERE<T> isNotNull() {
             sqlBuilder.append(columnName).append(" IS NOT NULL ");
             return this;
         }
@@ -671,7 +673,7 @@ public static class WHERE {
          *
          * @see <a href="https://www.w3schools.com/mysql/mysql_like.asp">https://www.w3schools.com/mysql/mysql_like.asp</a>
          */
-        public WHERE like(Object obj) {
+        public WHERE<T> like(T obj) {
             sqlBuilder.append(columnName).append(" LIKE ? ");
             whereObjects.add(obj);
             return this;
@@ -682,7 +684,7 @@ public static class WHERE {
          *
          * @see <a href="https://www.w3schools.com/mysql/mysql_like.asp">https://www.w3schools.com/mysql/mysql_like.asp</a>
          */
-        public WHERE notLike(Object obj) {
+        public WHERE<T> notLike(T obj) {
             sqlBuilder.append(columnName).append(" NOT LIKE ? ");
             whereObjects.add(obj);
             return this;
@@ -691,7 +693,7 @@ public static class WHERE {
         /**
          * columnName > ? <br>
          */
-        public WHERE biggerThan(Object obj) {
+        public WHERE<T> biggerThan(T obj) {
             sqlBuilder.append(columnName).append(" > ? ");
             whereObjects.add(obj);
             return this;
@@ -700,7 +702,7 @@ public static class WHERE {
         /**
          * columnName < ? <br>
          */
-        public WHERE smallerThan(Object obj) {
+        public WHERE<T> smallerThan(T obj) {
             sqlBuilder.append(columnName).append(" < ? ");
             whereObjects.add(obj);
             return this;
@@ -709,7 +711,7 @@ public static class WHERE {
         /**
          * columnName >= ? <br>
          */
-        public WHERE biggerOrEqual(Object obj) {
+        public WHERE<T> biggerOrEqual(T obj) {
             sqlBuilder.append(columnName).append(" >= ? ");
             whereObjects.add(obj);
             return this;
@@ -718,7 +720,7 @@ public static class WHERE {
         /**
          * columnName <= ? <br>
          */
-        public WHERE smallerOrEqual(Object obj) {
+        public WHERE<T> smallerOrEqual(T obj) {
             sqlBuilder.append(columnName).append(" <= ? ");
             whereObjects.add(obj);
             return this;
@@ -727,7 +729,7 @@ public static class WHERE {
         /**
          * columnName BETWEEN ? AND ? <br>
          */
-        public WHERE between(Object obj1, Object obj2) {
+        public WHERE<T> between(T obj1, T obj2) {
             sqlBuilder.append(columnName).append(" BETWEEN ? AND ? ");
             whereObjects.add(obj1);
             whereObjects.add(obj2);
@@ -739,7 +741,7 @@ public static class WHERE {
          *
          * @see <a href="https://www.w3schools.com/mysql/mysql_like.asp">https://www.w3schools.com/mysql/mysql_like.asp</a>
          */
-        public WHERE smallestFirst() {
+        public WHERE<T> smallestFirst() {
             orderByBuilder.append(columnName + " ASC, ");
             return this;
         }
@@ -749,7 +751,7 @@ public static class WHERE {
          *
          * @see <a href="https://www.w3schools.com/mysql/mysql_like.asp">https://www.w3schools.com/mysql/mysql_like.asp</a>
          */
-        public WHERE biggestFirst() {
+        public WHERE<T> biggestFirst() {
             orderByBuilder.append(columnName + " DESC, ");
             return this;
         }
@@ -759,7 +761,7 @@ public static class WHERE {
          *
          * @see <a href="https://www.w3schools.com/mysql/mysql_limit.asp">https://www.w3schools.com/mysql/mysql_limit.asp</a>
          */
-        public WHERE limit(int num) {
+        public WHERE<T> limit(int num) {
             limitBuilder.append("LIMIT ").append(num + " ");
             return this;
         }
