@@ -262,7 +262,7 @@ or integrate it into your Java app by adding it as a dependency via [Maven/Gradl
   to protect against fake events by limiting the amount of events per ip by adding
   timeouts for example.
   Also limit the maximum allowed size of a webhook event to avoid sending large amounts
-  of data to the API (TODO FIND OUT BYTE-SIZE OF BIGGEST PAYPAL/STRIPE WEBHOOK-EVENT AND MENTION IT HERE).
+  of data to the API.
 
 ```java
 package com.osiris.payhook;
