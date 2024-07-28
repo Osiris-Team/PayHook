@@ -10,7 +10,7 @@ Support and chat over at [Discord](https://discord.com/invite/GGNmtCC).
 ## Funding
 I am actively maintaining this repository, publishing new releases and working 
 on its codebase for free, so if this project benefits you and/or your company consider 
-donating an amount you seem fit. Thank you!
+donating a monthly amount you seem fit. Thank you!
 
 <a href="https://www.paypal.com/donate?hosted_button_id=JNXQCWF2TF9W4"><img src="https://github.com/andreostrovsky/donate-with-paypal/raw/master/blue.svg" height="40"></a>
 
