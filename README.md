@@ -406,6 +406,7 @@ public class SpringBootExample {
     - (stripe) subscription payment.
 
 #### 🔴 Untested, unimplemented or not working
+- None
 
 ### Receive requests (webhook)
 #### 🟢 Tested and working
@@ -428,7 +429,7 @@ public class SpringBootExample {
     - (paypal) subscription payment.
 
 #### 🔴 Untested, unimplemented or not working
-
+- None
 
 ## FAQ
 <div>
