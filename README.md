@@ -339,6 +339,11 @@ payment processors. These could look like this:
 I'm planing on making PayHook-Spring version that handles all that too.
 Here is an example on how to do that with SpringBoot:
 
+Tipp:
+Use a [random string generator](https://www.random.org/strings/) once to create the webhook enpoints name,
+so it looks like this for example `https://my-store.com/GeFVaY8Rr2HWXljt1wx0CnIAmYWwFJyi` and avoid sharing these links to the public.
+Its not an optimal solution but it decreases the chance of malicious people tinkering with the endpoint.
+
 ```java
 @RestController
 public class SpringBootExample {
