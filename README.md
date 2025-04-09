@@ -335,7 +335,7 @@ public class ExampleConstants {
 
 You must create links that listen for webhook events for each of your
 payment processors over their web panels. These could look like this:
-`https://my-store.com/paypal-hook` or `https://my-store.com/stripe-hook`. You can view which events we listen for [here](https://github.com/Osiris-Team/PayHook/blob/49c7c1557ab807d4795af6d0cd3c205f752534b6/src/main/java/com/osiris/payhook/PayHook.java#L109).
+`https://my-store.com/paypal-hook` or `https://my-store.com/stripe-hook`. Ensure your PayPal Webhook event listens for all these [types](https://github.com/Osiris-Team/PayHook/blob/49c7c1557ab807d4795af6d0cd3c205f752534b6/src/main/java/com/osiris/payhook/PayHook.java#L109).
 
 Additionally you must write some code in your website/backend using some sort of API via SpringBoot for example,
 to create these endpoints/urls where the webhook events will be sent to.
