@@ -342,7 +342,8 @@ Here is an example on how to do that with SpringBoot:
 Tipp:
 Use a [random string generator](https://www.random.org/strings/) once to create the webhook enpoints name,
 so it looks like this for example `https://my-store.com/GeFVaY8Rr2HWXljt1wx0CnIAmYWwFJyi` and avoid sharing these links to the public.
-Its not an optimal solution but it decreases the chance of malicious people tinkering with the endpoint.
+Its not an optimal solution but it decreases the chance of malicious people tinkering with the endpoint. Note that PayHook
+always validates the event, this is more about avoiding DOS attacks.
 
 ```java
 @RestController
